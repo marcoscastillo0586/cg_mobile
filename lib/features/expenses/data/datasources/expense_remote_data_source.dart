@@ -45,15 +45,13 @@ class ExpenseRemoteDataSource {
 
 
   Future<int?> suggestCategory(String concepto) async {
-    try {
-      final response = await _dioClient.post(
-        ApiEndpoints.sugerirCategoria,
-        data: {'concepto': concepto},
-      );
-      if (response is Map<String, dynamic> && response.containsKey('id_categoria')) {
-        return response['id_categoria'] as int?;
-      }
-    } catch (_) {}
+    final response = await _dioClient.post(
+      ApiEndpoints.sugerirCategoria,
+      data: {'concepto': concepto},
+    );
+    if (response is Map<String, dynamic> && response.containsKey('id_categoria')) {
+      return response['id_categoria'] as int?;
+    }
     return null;
   }
 }

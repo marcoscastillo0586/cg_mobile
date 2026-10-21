@@ -1,32 +1,24 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/failures.dart';
 import '../../domain/entities/expense_form_data_entity.dart';
 import '../../domain/entities/expense_item_entity.dart';
 import '../../domain/repositories/expense_repository.dart';
 import '../datasources/expense_remote_data_source.dart';
-import '../datasources/expenses_local_data_source.dart';
 
 final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
-  final remoteDataSource = ref.watch(expenseRemoteDataSourceProvider);
-  final localDataSource = ref.watch(expensesLocalDataSourceProvider);
-  return ExpenseRepositoryImpl(remoteDataSource, localDataSource);
+  return ExpenseRepositoryImpl(ref.watch(expenseRemoteDataSourceProvider));
 });
 
+/// Formulario de egreso (contrato PHP viejo hasta la etapa 5). Sin respaldo local: los
+/// errores llegan a la pantalla.
 class ExpenseRepositoryImpl implements ExpenseRepository {
   final ExpenseRemoteDataSource _remoteDataSource;
-  final ExpensesLocalDataSource _localDataSource;
 
-  ExpenseRepositoryImpl(this._remoteDataSource, this._localDataSource);
+  ExpenseRepositoryImpl(this._remoteDataSource);
 
   @override
-  Future<ExpenseFormDataEntity> getFormData() async {
-    try {
-      final remoteData = await _remoteDataSource.getFormData();
-      return remoteData;
-    } catch (_) {
-      return await _localDataSource.getFormDataLocally();
-    }
-  }
+  Future<ExpenseFormDataEntity> getFormData() => _remoteDataSource.getFormData();
 
   @override
   Future<bool> createExpense({
@@ -40,13 +32,14 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     throw const ServerFailure('Función no disponible por ahora', null, 'NOT_AVAILABLE');
   }
 
-
+  /// La sugerencia es opcional: si falla, no se sugiere nada y el motivo queda registrado.
   @override
   Future<int?> suggestCategory(String concepto) async {
     try {
-      final remoteSuggest = await _remoteDataSource.suggestCategory(concepto);
-      if (remoteSuggest != null) return remoteSuggest;
-    } catch (_) {}
-    return await _localDataSource.suggestCategoryLocally(concepto);
+      return await _remoteDataSource.suggestCategory(concepto);
+    } catch (e) {
+      debugPrint('[EGRESO] Sin sugerencia de categoría: $e');
+      return null;
+    }
   }
 }

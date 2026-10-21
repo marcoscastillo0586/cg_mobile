@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/auth/session_manager.dart';
-import '../../../../core/database/app_local_database.dart';
+import '../../../../core/database/local_database.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../domain/entities/user_entity.dart';
@@ -14,7 +14,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(
     ref.watch(authRemoteDataSourceProvider),
     ref.watch(secureStorageServiceProvider),
-    AppLocalDatabase.deleteLocalDatabase,
+    LocalDatabase.deleteAll,
   );
 });
 

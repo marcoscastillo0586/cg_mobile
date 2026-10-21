@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/database/local_database.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
@@ -49,6 +50,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       }
       ref.read(novedadesNotifierProvider.notifier).calcularNovedades();
+
+      // Crea o migra la base local al entrar; si no se puede abrir, se avisa.
+      ref.read(localDatabaseProvider).then<void>((_) {}, onError: (Object e) {
+        debugPrint('[DB] No se pudo abrir la base local: $e');
+        if (mounted) AppFeedback.showError(context, 'No se pudo abrir la base local: $e');
+      });
     });
   }
 
