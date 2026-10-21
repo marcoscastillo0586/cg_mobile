@@ -62,7 +62,7 @@ class DioClient {
       _send(() => _dio.delete<dynamic>(path, data: data, queryParameters: queryParameters, options: options));
 
   Future<dynamic> _send(Future<Response<dynamic>> Function() call) async {
-    if (!ApiConfig.isConfigured) {
+    if (_dio.options.baseUrl.isEmpty) {
       throw const ServerException('API_BASE_URL no configurada', null, 'CONFIG_MISSING');
     }
     try {
