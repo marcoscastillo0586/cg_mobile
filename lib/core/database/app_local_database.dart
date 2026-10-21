@@ -52,6 +52,21 @@ class AppLocalDatabase {
     );
   }
 
+  /// Cierra y borra la base local (cierre de sesión o cambio de usuario).
+  /// Los errores se propagan: quien llama decide cómo informarlos.
+  static Future<void> deleteLocalDatabase() async {
+    if (kIsWeb) return;
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+    final db = _database;
+    _database = null;
+    if (db != null && db.isOpen) await db.close();
+    final Directory docDir = await getApplicationDocumentsDirectory();
+    await deleteDatabase(p.join(docDir.path, _dbName));
+  }
+
   static FutureOr<void> _onCreate(Database db, int version) async {
     // 1. Tabla Categorías
     await db.execute('''

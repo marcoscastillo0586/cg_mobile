@@ -57,6 +57,14 @@ class ErrorMessages {
     return forCode(code, message, isEn: isEn);
   }
 
+  /// Código de la API del error, si lo tiene.
+  static String? codeOf(Object error) {
+    if (error is ServerException) return error.code;
+    if (error is AuthException) return error.code;
+    if (error is Failure) return error.code;
+    return null;
+  }
+
   static String forCode(String? code, String serverMessage, {required bool isEn}) {
     // VALIDATION_ERROR trae un mensaje específico del campo: se muestra tal cual.
     if (code == 'VALIDATION_ERROR') {

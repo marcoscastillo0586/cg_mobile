@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -73,27 +72,18 @@ class NovedadesNotifier extends StateNotifier<NovedadesState> {
     calcularNovedades();
   }
 
-  Future<int> _resolverUserId() async {
-    final authState = _ref.read(authNotifierProvider);
-    if (authState.user != null) {
-      return authState.user!.idUsuario;
-    }
-    try {
-      final rawUser = await _storageService.getUserJson();
-      if (rawUser != null && rawUser.isNotEmpty) {
-        final userMap = jsonDecode(rawUser) as Map<String, dynamic>;
-        final id = int.tryParse(userMap['id_usuario']?.toString() ?? '1');
-        if (id != null && id > 0) return id;
-      }
-    } catch (_) {}
-    return 1;
-  }
+  /// Id del usuario autenticado. Sin usuario no hay novedades que mostrar.
+  int? _resolverUserId() => _ref.read(authNotifierProvider).user?.idUsuario;
 
   Future<void> calcularNovedades() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      final userId = await _resolverUserId();
+      final userId = _resolverUserId();
+      if (userId == null) {
+        state = state.copyWith(isLoading: false, novedades: []);
+        return;
+      }
 
       List<ExpenseLimitAdminEntity> limits = [];
       try {

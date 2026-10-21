@@ -1,3 +1,4 @@
+import '../../../../core/errors/exceptions.dart';
 import '../../domain/entities/user_entity.dart';
 
 class UserModel extends UserEntity {
@@ -5,26 +6,21 @@ class UserModel extends UserEntity {
     required super.idUsuario,
     required super.nombreUsuario,
     required super.email,
-    required super.rol,
   });
 
+  /// Desde `UserDto` de la API (`{id, name, email, active, createdAt}`) o desde la copia
+  /// guardada con [toJson]. Sin `id` válido es un error: no se inventa un usuario.
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final id = json['id'];
+    if (id is! int || id <= 0) {
+      throw const ServerException('Usuario sin id en la respuesta', null, 'UNEXPECTED_RESPONSE');
+    }
     return UserModel(
-      idUsuario: json['id_usuario'] is int
-          ? json['id_usuario'] as int
-          : int.tryParse(json['id_usuario']?.toString() ?? '1') ?? 1,
-      nombreUsuario: json['nombre_usuario'] as String? ?? 'Usuario',
+      idUsuario: id,
+      nombreUsuario: json['name'] as String? ?? '',
       email: json['email'] as String? ?? '',
-      rol: json['rol'] as String? ?? 'Usuario',
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id_usuario': idUsuario,
-      'nombre_usuario': nombreUsuario,
-      'email': email,
-      'rol': rol,
-    };
-  }
+  Map<String, dynamic> toJson() => {'id': idUsuario, 'name': nombreUsuario, 'email': email};
 }

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/config/api_config.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/errors/error_messages.dart';
+import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/auth_notifier.dart';
+import '../providers/auth_state.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -12,57 +16,78 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _userController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passController = TextEditingController();
   bool _obscurePassword = true;
-  bool _rememberMe = true;
+
+  bool get _isEn => ref.read(settingsProvider).language == 'en';
 
   @override
   void dispose() {
-    _userController.dispose();
+    _emailController.dispose();
     _passController.dispose();
     super.dispose();
   }
 
-  void _submitLogin() async {
+  Future<void> _submitLogin() async {
     if (!_formKey.currentState!.validate()) return;
-
     FocusScope.of(context).unfocus();
 
-    final success = await ref.read(authNotifierProvider.notifier).login(
-          _userController.text.trim(),
-          _passController.text.trim(),
+    // La contraseña se envía tal cual: los espacios pueden ser parte de ella.
+    final ok = await ref.read(authNotifierProvider.notifier).login(
+          _emailController.text.trim(),
+          _passController.text,
         );
+    if (ok || !mounted) return;
 
-    if (!success && mounted) {
-      final errorMessage = ref.read(authNotifierProvider).errorMessage ?? 'Error al iniciar sesión';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  errorMessage,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
+    final error = ref.read(authNotifierProvider).error;
+    if (error == null) return;
+    _showError(ErrorMessages.describe(error, isEn: _isEn), ErrorMessages.codeOf(error));
+  }
+
+  void _showError(String message, String? code) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                code == null ? message : '$message\n${_isEn ? 'Code' : 'Código'}: $code',
+                style: const TextStyle(fontWeight: FontWeight.w500),
               ),
-            ],
-          ),
-          backgroundColor: AppColors.rose,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
+            ),
+          ],
         ),
-      );
+        backgroundColor: AppColors.rose,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  String? _noticeText(AuthState state, bool isEn) {
+    switch (state.notice) {
+      case AuthNotice.sessionExpired:
+        return isEn ? 'Your session expired. Please sign in again.' : 'Tu sesión expiró. Iniciá sesión nuevamente.';
+      case AuthNotice.logoutNotRevoked:
+        final detail = state.noticeError == null ? '' : ' (${ErrorMessages.describe(state.noticeError!, isEn: isEn)})';
+        return isEn
+            ? 'Signed out on this device, but the server could not be notified$detail.'
+            : 'Se cerró la sesión en este celular, pero no se pudo avisar al servidor$detail.';
+      case null:
+        return null;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
+    final isEn = ref.watch(settingsProvider).language == 'en';
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final notice = _noticeText(authState, isEn);
 
     return Scaffold(
       body: SafeArea(
@@ -77,7 +102,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Brand Icon / Logo
                     Center(
                       child: Container(
                         width: 80,
@@ -85,40 +109,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         decoration: BoxDecoration(
                           color: AppColors.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.25),
-                            width: 1.5,
-                          ),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.25), width: 1.5),
                         ),
-                        child: const Icon(
-                          Icons.account_balance_wallet_rounded,
-                          size: 42,
-                          color: AppColors.primary,
-                        ),
+                        child: const Icon(Icons.account_balance_wallet_rounded, size: 42, color: AppColors.primary),
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // Headings
                     Text(
-                      'Gastos 2.0',
+                      'control_gastos',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.5,
                           ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Control financiero inteligente en tiempo real',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                          ),
-                    ),
-                    const SizedBox(height: 36),
-
-                    // Card de Formulario
+                    const SizedBox(height: 28),
+                    if (!ApiConfig.isConfigured)
+                      _Banner(
+                        color: AppColors.rose,
+                        icon: Icons.dns_outlined,
+                        text: ErrorMessages.forCode('CONFIG_MISSING', '', isEn: isEn),
+                      ),
+                    if (notice != null)
+                      _Banner(color: AppColors.amber, icon: Icons.info_outline_rounded, text: notice),
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(24.0),
@@ -126,45 +139,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Iniciar Sesión',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              isEn ? 'Sign in' : 'Iniciar sesión',
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 20),
-
-                            // Campo Usuario
-                            const Text(
-                              'Usuario',
-                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                            ),
+                            const Text('Email', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                             const SizedBox(height: 6),
                             TextFormField(
-                              controller: _userController,
-                              keyboardType: TextInputType.text,
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              autofillHints: const [AutofillHints.email],
+                              autocorrect: false,
                               textInputAction: TextInputAction.next,
-                              decoration: const InputDecoration(
-                                hintText: 'Ingresa tu usuario',
-                                prefixIcon: Icon(Icons.person_outline, size: 20),
+                              decoration: InputDecoration(
+                                hintText: isEn ? 'you@example.com' : 'tu@email.com',
+                                prefixIcon: const Icon(Icons.alternate_email_rounded, size: 20),
                               ),
                               validator: (val) {
-                                if (val == null || val.trim().isEmpty) {
-                                  return 'Por favor ingresa tu usuario';
+                                final v = val?.trim() ?? '';
+                                if (v.isEmpty) return isEn ? 'Enter your email' : 'Ingresá tu email';
+                                if (!v.contains('@') || !v.contains('.')) {
+                                  return isEn ? 'Invalid email' : 'Email inválido';
                                 }
                                 return null;
                               },
                             ),
                             const SizedBox(height: 18),
-
-                            // Campo Contraseña
-                            const Text(
-                              'Contraseña',
-                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                            ),
+                            Text(isEn ? 'Password' : 'Contraseña',
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                             const SizedBox(height: 6),
                             TextFormField(
                               controller: _passController,
                               obscureText: _obscurePassword,
+                              autofillHints: const [AutofillHints.password],
                               textInputAction: TextInputAction.done,
                               onFieldSubmitted: (_) => _submitLogin(),
                               decoration: InputDecoration(
@@ -175,46 +182,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                                     size: 20,
                                   ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
+                                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                                 ),
                               ),
                               validator: (val) {
-                                if (val == null || val.trim().isEmpty) {
-                                  return 'Por favor ingresa tu contraseña';
+                                if (val == null || val.isEmpty) {
+                                  return isEn ? 'Enter your password' : 'Ingresá tu contraseña';
                                 }
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 12),
-
-                            // Recordarme
-                            Row(
-                              children: [
-                                Checkbox(
-                                  value: _rememberMe,
-                                  activeColor: AppColors.primary,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                                  onChanged: (val) {
-                                    setState(() {
-                                      _rememberMe = val ?? true;
-                                    });
-                                  },
-                                ),
-                                const Text(
-                                  'Recordarme en este dispositivo',
-                                  style: TextStyle(fontSize: 13),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-
-                            // Botón de Login
+                            const SizedBox(height: 24),
                             ElevatedButton(
-                              onPressed: authState.isLoading ? null : _submitLogin,
+                              onPressed: authState.isLoading || !ApiConfig.isConfigured ? null : _submitLogin,
                               child: authState.isLoading
                                   ? const SizedBox(
                                       height: 22,
@@ -224,20 +204,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                       ),
                                     )
-                                  : const Text('Acceder'),
+                                  : Text(isEn ? 'Sign in' : 'Acceder'),
                             ),
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // Pie informativo
                     Center(
                       child: Text(
-                        'Conectado de forma segura a gastos 2.0',
+                        ApiConfig.isConfigured ? ApiConfig.baseUrl : '',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                         ),
                       ),
@@ -248,6 +226,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _Banner extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final String text;
+
+  const _Banner({required this.color, required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+        ],
       ),
     );
   }

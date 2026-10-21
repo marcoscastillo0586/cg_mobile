@@ -13,7 +13,9 @@ final secureStorageServiceProvider = Provider<SecureStorageService>((ref) {
 class SecureStorageService {
   final FlutterSecureStorage _storage;
 
-  static const String _keyToken = 'auth_token';
+  static const String _keyRefreshToken = 'auth_refresh_token';
+  static const String _keyOwnerUserId = 'local_data_owner_user_id';
+  static const String _keyLastSyncedAt = 'last_synced_at_timestamp';
   static const String _keyUser = 'auth_user';
   static const String _keyThemeMode = 'app_theme_mode';
   static const String _keyLanguage = 'app_language';
@@ -50,27 +52,49 @@ class SecureStorageService {
     }
   }
 
-  Future<void> saveToken(String token) async {
+  // --- Sesión -----------------------------------------------------------------
+  // El access token vive solo en memoria (SessionManager). Acá se guarda el refresh
+  // token, que rota en cada uso: siempre se escribe el nuevo antes de usarlo.
+
+  Future<void> saveRefreshToken(String token) async {
     try {
-      await _storage.write(key: _keyToken, value: token);
+      await _storage.write(key: _keyRefreshToken, value: token);
     } catch (e) {
-      throw CacheException('No se pudo guardar el token seguro: $e');
+      throw CacheException('No se pudo guardar la sesión: $e');
     }
   }
 
-  Future<String?> getToken() async {
+  Future<String?> getRefreshToken() async {
     try {
-      return await _storage.read(key: _keyToken);
+      return await _storage.read(key: _keyRefreshToken);
     } catch (e) {
-      throw CacheException('No se pudo leer el token seguro: $e');
+      throw CacheException('No se pudo leer la sesión: $e');
     }
   }
 
-  Future<void> deleteToken() async {
+  Future<void> deleteRefreshToken() async {
     try {
-      await _storage.delete(key: _keyToken);
+      await _storage.delete(key: _keyRefreshToken);
     } catch (e) {
-      throw CacheException('No se pudo eliminar el token seguro: $e');
+      throw CacheException('No se pudo borrar la sesión: $e');
+    }
+  }
+
+  /// Usuario dueño de los datos de la base local (para no mezclar usuarios).
+  Future<void> saveOwnerUserId(int userId) async {
+    try {
+      await _storage.write(key: _keyOwnerUserId, value: userId.toString());
+    } catch (e) {
+      throw CacheException('No se pudo guardar el dueño de los datos locales: $e');
+    }
+  }
+
+  Future<int?> getOwnerUserId() async {
+    try {
+      final v = await _storage.read(key: _keyOwnerUserId);
+      return v == null ? null : int.tryParse(v);
+    } catch (e) {
+      throw CacheException('No se pudo leer el dueño de los datos locales: $e');
     }
   }
 
@@ -155,11 +179,16 @@ class SecureStorageService {
     }
   }
 
-  Future<void> clearAll() async {
+  /// Borra todo lo de la sesión y de los datos del usuario. Conserva los ajustes
+  /// del dispositivo (tema, idioma, moneda, onboarding).
+  Future<void> clearSessionData() async {
     try {
-      await _storage.deleteAll();
+      for (final key in [_keyRefreshToken, _keyUser, _keyOwnerUserId, _keyLastSyncedAt]) {
+        await _storage.delete(key: key);
+      }
     } catch (e) {
-      throw CacheException('No se pudo limpiar el almacenamiento seguro: $e');
+      throw CacheException('No se pudo borrar la sesión: $e');
     }
   }
+
 }

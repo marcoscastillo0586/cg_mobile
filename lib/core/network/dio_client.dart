@@ -3,12 +3,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/api_config.dart';
 import '../errors/exceptions.dart';
-import '../storage/secure_storage_service.dart';
+import '../auth/session_providers.dart';
 import 'auth_interceptor.dart';
 
 final dioClientProvider = Provider<DioClient>((ref) {
-  final storageService = ref.watch(secureStorageServiceProvider);
-  return DioClient(interceptors: [AuthInterceptor(storageService)]);
+  final session = ref.watch(sessionManagerProvider);
+  final client = DioClient();
+  client.dio.interceptors.insert(0, AuthInterceptor(session, client.dio));
+  return client;
 });
 
 /// Cliente HTTP de la API `/api/v1`.
@@ -22,7 +24,7 @@ class DioClient {
   DioClient({List<Interceptor> interceptors = const [], HttpClientAdapter? adapter}) {
     _dio = createDio();
     if (adapter != null) _dio.httpClientAdapter = adapter;
-    _dio.interceptors.addAll([...interceptors, if (kDebugMode) _SafeLogInterceptor()]);
+    _dio.interceptors.addAll([...interceptors, if (kDebugMode) SafeLogInterceptor()]);
   }
 
   /// Dio con la configuración común (base, timeouts, `X-Client: mobile`), sin interceptores.
@@ -110,7 +112,7 @@ class DioClient {
 }
 
 /// Log de depuración sin datos sensibles: método, ruta y estado. Nunca headers ni cuerpos.
-class _SafeLogInterceptor extends Interceptor {
+class SafeLogInterceptor extends Interceptor {
   @override
   void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
     debugPrint('[HTTP] ${response.requestOptions.method} ${response.requestOptions.path} → ${response.statusCode}');

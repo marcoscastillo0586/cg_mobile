@@ -5,6 +5,7 @@ import '../../../../core/config/api_config.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import 'package:gastos_mobile/routes/app_routes.dart';
+import '../../../auth/presentation/providers/auth_notifier.dart';
 import '../providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -15,11 +16,36 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  Future<void> _confirmarCerrarSesion(bool isEn) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isEn ? 'Sign out?' : '¿Cerrar sesión?'),
+        content: Text(
+          isEn
+              ? 'All data stored on this phone will be deleted. Data already on the server is not affected.'
+              : 'Se borrarán todos los datos guardados en este celular. Lo que ya está en el servidor no se toca.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(isEn ? 'Sign out' : 'Cerrar sesión', style: const TextStyle(color: AppColors.rose)),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true) return;
+    AppFeedback.medium();
+    await ref.read(authNotifierProvider.notifier).logout();
+  }
+
   @override
   Widget build(BuildContext context) {
     final settingsState = ref.watch(settingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isEn = settingsState.language == 'en';
+    final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -90,6 +116,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // 1. Sección: Sesión
+          _buildSectionHeader(isEn ? 'Session' : 'Sesión'),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.person_outline_rounded),
+                  title: Text(authState.user?.nombreUsuario ?? ''),
+                  subtitle: Text(
+                    authState.offline
+                        ? '${authState.user?.email ?? ''} · ${isEn ? 'offline' : 'sin conexión'}'
+                        : authState.user?.email ?? '',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.logout_rounded, color: AppColors.rose),
+                  title: Text(
+                    isEn ? 'Sign out' : 'Cerrar sesión',
+                    style: const TextStyle(color: AppColors.rose, fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    isEn
+                        ? 'Deletes the data stored on this phone. Settings are kept.'
+                        : 'Borra los datos guardados en este celular. Se conservan los ajustes.',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  onTap: () => _confirmarCerrarSesion(isEn),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 20),

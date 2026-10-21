@@ -1,46 +1,81 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/auth/session_manager.dart';
+import '../../../../core/database/app_local_database.dart';
 import '../../../../core/errors/exceptions.dart';
-import '../../../../core/errors/failures.dart';
+import '../../../../core/storage/secure_storage_service.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
+import '../models/user_model.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final remoteDataSource = ref.watch(authRemoteDataSourceProvider);
-  return AuthRepositoryImpl(remoteDataSource);
+  return AuthRepositoryImpl(
+    ref.watch(authRemoteDataSourceProvider),
+    ref.watch(secureStorageServiceProvider),
+    AppLocalDatabase.deleteLocalDatabase,
+  );
 });
 
 class AuthRepositoryImpl implements AuthRepository {
-  final AuthRemoteDataSource _remoteDataSource;
+  final AuthRemoteDataSource _remote;
+  final SecureStorageService _storage;
+  final Future<void> Function() _deleteLocalDatabase;
 
-  AuthRepositoryImpl(this._remoteDataSource);
+  AuthRepositoryImpl(this._remote, this._storage, this._deleteLocalDatabase);
 
   @override
-  Future<UserEntity> login(String usuario, String password) async {
+  Stream<Object> get onSessionExpired => _remote.onExpired;
+
+  @override
+  Future<UserEntity> login(String email, String password) async {
+    final user = await _remote.login(email, password);
+    // Si la base local era de otro usuario (p. ej. su sesión expiró sin cerrar), se borra.
+    final owner = await _storage.getOwnerUserId();
+    if (owner != null && owner != user.idUsuario) {
+      debugPrint('[AUTH] La base local pertenecía a otro usuario: se borra.');
+      await _deleteLocalDatabase();
+    }
+    await _storage.saveOwnerUserId(user.idUsuario);
+    await _storage.saveUserJson(jsonEncode(user.toJson()));
+    return user;
+  }
+
+  @override
+  Future<RestoredSession?> restoreSession() async {
+    if (!await _remote.hasSession()) return null;
+
+    final stored = await _readStoredUser();
     try {
-      return await _remoteDataSource.login(usuario, password);
-    } on ServerException catch (e) {
-      throw ServerFailure(e.message, e.statusCode);
+      await _remote.refresh();
+      final user = await _remote.me();
+      await _storage.saveUserJson(jsonEncode(user.toJson()));
+      return RestoredSession(user);
+    } on SessionExpiredException {
+      rethrow;
     } on NetworkException catch (e) {
-      throw NetworkFailure(e.message);
-    } on AuthException catch (e) {
-      throw AuthFailure(e.message, e.statusCode);
-    } catch (e) {
-      throw ServerFailure('Error inesperado al iniciar sesión: $e');
+      // Sin conexión: se sigue con el último usuario confirmado por el servidor.
+      if (stored == null) rethrow;
+      return RestoredSession(stored, offline: true, connectionError: e);
+    } on ServerException catch (e) {
+      // El servidor respondió con error (no de sesión): no se cierra la sesión, se informa.
+      if (stored == null) rethrow;
+      return RestoredSession(stored, offline: true, connectionError: e);
     }
   }
 
   @override
-  Future<UserEntity?> checkAuthStatus() async {
-    try {
-      return await _remoteDataSource.checkAuthStatus();
-    } catch (_) {
-      return null;
-    }
+  Future<LogoutOutcome> logout() async {
+    final outcome = await _remote.logout();
+    await _deleteLocalDatabase();
+    await _storage.clearSessionData();
+    return outcome;
   }
 
-  @override
-  Future<void> logout() async {
-    await _remoteDataSource.logout();
+  Future<UserModel?> _readStoredUser() async {
+    final raw = await _storage.getUserJson();
+    if (raw == null || raw.isEmpty) return null;
+    return UserModel.fromJson(jsonDecode(raw) as Map<String, dynamic>);
   }
 }
