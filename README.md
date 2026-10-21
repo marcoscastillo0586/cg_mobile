@@ -1,6 +1,6 @@
 # cg_mobile
 
-App Android (Flutter) para el control de gastos de CG: cuentas, egresos, ingresos, transferencias, presupuestos, historial y lectura de tickets.
+App Android (Flutter) para el control de gastos de CG (paquete `io.github.marcoscastillo0586.cg`, nombre visible `control_gastos`): cuentas, egresos, ingresos, transferencias, presupuestos, historial y lectura de tickets.
 
 > **Estado: adaptación en curso a la API nueva de CG (`/api/v1`).**
 > Hasta la etapa 1, la app sigue hablando con la API PHP vieja (`/gastos2.0/api/...`).

@@ -23,7 +23,7 @@ class GastosMobileApp extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
 
     return MaterialApp.router(
-      title: 'Gastos 2.0 Mobile',
+      title: 'control_gastos',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

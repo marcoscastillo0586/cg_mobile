@@ -1,4 +1,4 @@
-package com.example.gastos_mobile
+package io.github.marcoscastillo0586.cg
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
