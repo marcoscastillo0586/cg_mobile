@@ -9,7 +9,6 @@ import '../../../../core/sync/sync_service.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/dashboard_skeleton.dart';
 import 'package:gastos_mobile/routes/app_routes.dart';
-import '../../../../services/app_update_service.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../../settings/presentation/widgets/onboarding_dialog.dart';
 import '../providers/dashboard_notifier.dart';
@@ -60,11 +59,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ref.read(dashboardNotifierProvider.notifier).cargarDashboard();
         }
       }));
-
-      // Comprobar actualizaciones OTA silenciosamente al iniciar la app
-      if (mounted) {
-        unawaited(AppUpdateService.checkForUpdates(context, manual: false));
-      }
     });
   }
 

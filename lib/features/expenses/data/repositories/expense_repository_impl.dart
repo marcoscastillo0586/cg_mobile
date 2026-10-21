@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/expense_form_data_entity.dart';
 import '../../domain/entities/expense_item_entity.dart';
-import '../../domain/entities/ticket_parsed_entity.dart';
 import '../../domain/repositories/expense_repository.dart';
 import '../datasources/expense_remote_data_source.dart';
 import '../datasources/expenses_local_data_source.dart';
@@ -58,10 +57,6 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     return true;
   }
 
-  @override
-  Future<TicketParsedEntity> parseQrTicket(String qrData) async {
-    return await _remoteDataSource.parseQrTicket(qrData);
-  }
 
   @override
   Future<int?> suggestCategory(String concepto) async {

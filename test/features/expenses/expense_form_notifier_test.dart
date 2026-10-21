@@ -3,7 +3,6 @@ import 'package:gastos_mobile/features/dashboard/domain/entities/account_entity.
 import 'package:gastos_mobile/features/expenses/domain/entities/category_entity.dart';
 import 'package:gastos_mobile/features/expenses/domain/entities/expense_form_data_entity.dart';
 import 'package:gastos_mobile/features/expenses/domain/entities/expense_item_entity.dart';
-import 'package:gastos_mobile/features/expenses/domain/entities/ticket_parsed_entity.dart';
 import 'package:gastos_mobile/features/expenses/domain/repositories/expense_repository.dart';
 import 'package:gastos_mobile/features/expenses/presentation/providers/expense_form_notifier.dart';
 
@@ -47,16 +46,6 @@ class FakeExpenseRepository implements ExpenseRepository {
     return true;
   }
 
-  @override
-  Future<TicketParsedEntity> parseQrTicket(String qrData) async {
-    return const TicketParsedEntity(
-      total: 1500,
-      items: [
-        TicketProductItemEntity(nombre: 'Manzanas', precio: 500, idCategoriaSugerida: 10),
-        TicketProductItemEntity(nombre: 'Leche', precio: 1000, idCategoriaSugerida: 10),
-      ],
-    );
-  }
 
   @override
   Future<int?> suggestCategory(String concepto) async => 10;

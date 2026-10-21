@@ -158,18 +158,7 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
           ),
         ],
       ),
-      body: state.isParsingQr
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Descargando y procesando ticket...'),
-                ],
-              ),
-            )
-          : SingleChildScrollView(
+      body: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -272,54 +272,6 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
     );
   }
 
-  Future<bool> procesarQrTicket(String qrData) async {
-    state = state.copyWith(status: ExpenseFormStatus.parsingQr, qrFeedback: null);
-    try {
-      final parsed = await _repository.parseQrTicket(qrData);
-
-      final List<RenglonGasto> renglonesTicket = [];
-      int idx = 0;
-      for (final it in parsed.items) {
-        idx++;
-        final catId = it.idCategoriaSugerida ?? (state.formData?.categorias.first.idCategoria ?? 3);
-        final catEntity = state.formData?.categorias.cast<CategoryEntity?>().firstWhere(
-              (c) => c?.idCategoria == catId,
-              orElse: () => null,
-            );
-
-        renglonesTicket.add(
-          RenglonGasto(
-            id: 'qr_${DateTime.now().microsecondsSinceEpoch}_$idx',
-            concepto: it.nombre,
-            monto: it.precio,
-            categoriaId: catId,
-            categoria: catEntity,
-          ),
-        );
-      }
-
-      state = state.copyWith(
-        status: ExpenseFormStatus.ready,
-        renglones: renglonesTicket.isNotEmpty ? renglonesTicket : [RenglonGasto.nuevo()],
-        conceptoGeneral: state.conceptoGeneral.isEmpty ? 'Ticket Escaneado' : state.conceptoGeneral,
-        qrFeedback: '¡Ticket procesado con éxito! Se cargaron ${renglonesTicket.length} renglones (\$${parsed.total.toStringAsFixed(2)})',
-      );
-      return true;
-    } on Failure catch (e) {
-      state = state.copyWith(
-        status: ExpenseFormStatus.ready,
-        errorMessage: 'Error al procesar QR: ${e.message}',
-      );
-      return false;
-    } catch (e) {
-      state = state.copyWith(
-        status: ExpenseFormStatus.ready,
-        errorMessage: 'Error al escanear ticket: $e',
-      );
-      return false;
-    }
-  }
-
   void limpiarItemsTicket() {
     final defaultCat = state.formData?.categorias.isNotEmpty == true
         ? state.formData!.categorias.first

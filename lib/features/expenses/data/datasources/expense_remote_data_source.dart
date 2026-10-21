@@ -5,7 +5,6 @@ import 'package:gastos_mobile/features/dashboard/data/models/account_model.dart'
 import '../../domain/entities/expense_form_data_entity.dart';
 import '../../domain/entities/expense_item_entity.dart';
 import '../models/category_model.dart';
-import '../models/ticket_parsed_model.dart';
 
 final expenseRemoteDataSourceProvider = Provider<ExpenseRemoteDataSource>((ref) {
   final dioClient = ref.watch(dioClientProvider);
@@ -75,19 +74,6 @@ class ExpenseRemoteDataSource {
     );
 
     return response != null;
-  }
-
-  Future<TicketParsedModel> parseQrTicket(String qrData) async {
-    final response = await _dioClient.post(
-      ApiEndpoints.escanearQrTicket,
-      data: {'qr_data': qrData},
-    );
-
-    if (response is Map<String, dynamic>) {
-      return TicketParsedModel.fromJson(response);
-    }
-
-    throw Exception('Error al procesar el ticket QR');
   }
 
   Future<int?> suggestCategory(String concepto) async {

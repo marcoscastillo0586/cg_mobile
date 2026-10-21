@@ -43,7 +43,6 @@ class ApiEndpoints {
   // Operaciones
   static String get formularioEgreso => '$baseUrl/api/egresos/formulario_data';
   static String get crearEgreso => '$baseUrl/api/egresos/crear';
-  static String get escanearQrTicket => '$baseUrl/api/egresos/escanear_qr';
   static String get sugerirCategoria => '$baseUrl/api/egresos/sugerir_categoria';
   static String get crearIngreso => '$baseUrl/api/ingresos/crear';
   static String get crearTransferencia => '$baseUrl/api/transferencias/crear';

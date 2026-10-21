@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import 'package:gastos_mobile/routes/app_routes.dart';
-import '../../../../services/app_update_service.dart';
 import '../providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -71,46 +70,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
         children: [
-          // 1. Sección: Auto-Actualizaciones OTA
-          _buildSectionHeader('Actualizaciones del Sistema'),
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Sistema de Actualización Local OTA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Verifica si existe un paquete APK compilado más reciente en el servidor local de la PC.',
-                    style: TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 46),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      AppFeedback.selection();
-                      AppUpdateService.checkForUpdates(context, manual: true);
-                    },
-                    icon: const Icon(Icons.system_update_rounded, size: 18),
-                    label: const Text('Buscar actualizaciones', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
           // 2. Sección: Idioma y Moneda por Defecto
           _buildSectionHeader('Idioma y Moneda por Defecto'),
           Card(

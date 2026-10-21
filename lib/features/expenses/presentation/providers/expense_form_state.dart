@@ -7,7 +7,6 @@ enum ExpenseFormStatus {
   initial,
   loadingData,
   ready,
-  parsingQr,
   submitting,
   success,
   error,
@@ -72,7 +71,6 @@ class ExpenseFormState extends Equatable {
 
   bool get isEditing => editingId != null;
   bool get isSubmitting => status == ExpenseFormStatus.submitting;
-  bool get isParsingQr => status == ExpenseFormStatus.parsingQr;
   bool get isLoadingData => status == ExpenseFormStatus.loadingData;
 
   /// Monto total calculado automáticamente (suma reactiva de cada renglón)

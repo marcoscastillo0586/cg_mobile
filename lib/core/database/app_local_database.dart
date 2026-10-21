@@ -49,14 +49,6 @@ class AppLocalDatabase {
         }
         await _onCreate(db, version);
       },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (kDebugMode) {
-          debugPrint('[SYNC-DEBUG] [DB-ONUPGRADE] Actualizando DB local de versión $oldVersion a $newVersion...');
-        }
-        if (oldVersion < 2) {
-          await _upgradeToVersion2(db);
-        }
-      },
     );
   }
 
@@ -148,47 +140,10 @@ class AppLocalDatabase {
       )
     ''');
 
-    // 6. Tabla Cache Resumen Dashboard
-    await db.execute('''
-      CREATE TABLE dashboard_summary_cache (
-        id INTEGER PRIMARY KEY DEFAULT 1,
-        total_pesos REAL NOT NULL DEFAULT 0.0,
-        total_dolares REAL NOT NULL DEFAULT 0.0,
-        total_general_pesos REAL NOT NULL DEFAULT 0.0,
-        cotizacion_oficial REAL NOT NULL DEFAULT 1000.0,
-        cotizacion_blue REAL NOT NULL DEFAULT 1000.0,
-        last_synced_at TEXT NOT NULL
-      )
-    ''');
 
     await db.execute('CREATE INDEX idx_cat_sync ON categorias_local(sync_id, remote_id);');
     await db.execute('CREATE INDEX idx_lug_sync ON lugares_local(sync_id, remote_id);');
     await db.execute('CREATE INDEX idx_mov_enc_sync ON movimiento_enc_local(sync_id, remote_id);');
     await db.execute('CREATE INDEX idx_mov_det_enc ON movimiento_det_local(movimiento_enc_sync_id);');
-  }
-
-  static Future<void> _upgradeToVersion2(Database db) async {
-    try {
-      await db.execute("ALTER TABLE lugares_local ADD COLUMN simbolo_moneda TEXT NOT NULL DEFAULT '\$'");
-      await db.execute('ALTER TABLE lugares_local ADD COLUMN monto_original REAL NOT NULL DEFAULT 0.0');
-      await db.execute('ALTER TABLE lugares_local ADD COLUMN monto_pesos REAL NOT NULL DEFAULT 0.0');
-      await db.execute('ALTER TABLE lugares_local ADD COLUMN cotizacion REAL NOT NULL DEFAULT 1.0');
-      await db.execute('ALTER TABLE lugares_local ADD COLUMN img_url TEXT');
-      await db.execute('ALTER TABLE lugares_local ADD COLUMN img_base64 TEXT');
-    } catch (_) {}
-
-    try {
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS dashboard_summary_cache (
-          id INTEGER PRIMARY KEY DEFAULT 1,
-          total_pesos REAL NOT NULL DEFAULT 0.0,
-          total_dolares REAL NOT NULL DEFAULT 0.0,
-          total_general_pesos REAL NOT NULL DEFAULT 0.0,
-          cotizacion_oficial REAL NOT NULL DEFAULT 1000.0,
-          cotizacion_blue REAL NOT NULL DEFAULT 1000.0,
-          last_synced_at TEXT NOT NULL
-        )
-      ''');
-    } catch (_) {}
   }
 }
