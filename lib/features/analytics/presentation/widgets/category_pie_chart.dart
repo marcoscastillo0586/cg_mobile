@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../domain/entities/category_expense_report_entity.dart';
 
@@ -43,10 +43,9 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final currencyFormat = NumberFormat.currency(locale: 'es_AR', symbol: '\$', decimalDigits: 2);
     final categorias = widget.report.categorias;
 
-    if (categorias.isEmpty || widget.report.totalGastos <= 0) {
+    if (categorias.isEmpty || widget.report.totalCents <= 0) {
       return Container(
         height: 260,
         alignment: Alignment.center,
@@ -105,7 +104,8 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
 
                     return PieChartSectionData(
                       color: color,
-                      value: item.monto,
+                      // Solo geometría del gráfico (el texto se formatea desde centavos).
+                      value: item.montoCents.toDouble(),
                       title: '', // Donut minimalista, detalles en el centro o lista
                       radius: radius,
                       badgeWidget: isTouched
@@ -151,8 +151,8 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
                   const SizedBox(height: 2),
                   Text(
                     _touchedIndex >= 0 && _touchedIndex < categorias.length
-                        ? currencyFormat.format(categorias[_touchedIndex].monto)
-                        : currencyFormat.format(widget.report.totalGastos),
+                        ? Money.format(categorias[_touchedIndex].montoCents)
+                        : Money.format(widget.report.totalCents),
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -223,13 +223,6 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
                               fontSize: 14,
                             ),
                           ),
-                          Text(
-                            '${cat.cantidadMovimientos} movimiento${cat.cantidadMovimientos != 1 ? 's' : ''}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -237,7 +230,7 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          currencyFormat.format(cat.monto),
+                          Money.format(cat.montoCents),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,

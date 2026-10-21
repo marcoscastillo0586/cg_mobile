@@ -1,69 +1,71 @@
 import 'package:equatable/equatable.dart';
 
+const _mesesEs = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+String nombreMes(int mes) => (mes >= 1 && mes <= 12) ? _mesesEs[mes - 1] : '$mes';
+
+/// Mes de la comparativa ingresos / egresos / ahorro (GET /reports/income-expense).
 class MonthFinancialDataEntity extends Equatable {
   final int mes;
-  final String nombreMes;
-  final double ingresos;
-  final double egresos;
-  final double balance;
-  final double tasaAhorro;
+  final int ingresosCents;
+  final int egresosCents;
+  final int balanceCents;
+
+  /// Tasa de ahorro en % (la calcula el servidor).
+  final num tasaAhorro;
 
   const MonthFinancialDataEntity({
     required this.mes,
-    required this.nombreMes,
-    required this.ingresos,
-    required this.egresos,
-    required this.balance,
+    required this.ingresosCents,
+    required this.egresosCents,
+    required this.balanceCents,
     required this.tasaAhorro,
   });
 
-  bool get esSuperavit => balance >= 0;
+  String get nombreMesTexto => nombreMes(mes);
+  bool get esSuperavit => balanceCents >= 0;
 
   @override
-  List<Object?> get props => [mes, nombreMes, ingresos, egresos, balance, tasaAhorro];
+  List<Object?> get props => [mes, ingresosCents, egresosCents, balanceCents, tasaAhorro];
 }
 
 class MonthExtremeEntity extends Equatable {
   final int mes;
-  final String nombre;
-  final double monto;
+  final int montoCents;
+  const MonthExtremeEntity({required this.mes, required this.montoCents});
 
-  const MonthExtremeEntity({
-    required this.mes,
-    required this.nombre,
-    required this.monto,
-  });
+  String get nombre => nombreMes(mes);
 
   @override
-  List<Object?> get props => [mes, nombre, monto];
+  List<Object?> get props => [mes, montoCents];
 }
 
 class AnnualTotalsEntity extends Equatable {
-  final double totalIngresos;
-  final double totalEgresos;
-  final double balanceNeto;
-  final double tasaAhorroPorcentaje;
-  final double promedioMensualGasto;
-  final MonthExtremeEntity mesMayorGasto;
-  final MonthExtremeEntity mesMenorGasto;
+  final int totalIngresosCents;
+  final int totalEgresosCents;
+  final int balanceNetoCents;
+  final num tasaAhorroPorcentaje;
+  final int promedioMensualGastoCents;
+  final MonthExtremeEntity? mesMayorGasto;
+  final MonthExtremeEntity? mesMenorGasto;
 
   const AnnualTotalsEntity({
-    required this.totalIngresos,
-    required this.totalEgresos,
-    required this.balanceNeto,
+    required this.totalIngresosCents,
+    required this.totalEgresosCents,
+    required this.balanceNetoCents,
     required this.tasaAhorroPorcentaje,
-    required this.promedioMensualGasto,
+    required this.promedioMensualGastoCents,
     required this.mesMayorGasto,
     required this.mesMenorGasto,
   });
 
   @override
   List<Object?> get props => [
-        totalIngresos,
-        totalEgresos,
-        balanceNeto,
+        totalIngresosCents,
+        totalEgresosCents,
+        balanceNetoCents,
         tasaAhorroPorcentaje,
-        promedioMensualGasto,
+        promedioMensualGastoCents,
         mesMayorGasto,
         mesMenorGasto,
       ];
@@ -72,18 +74,13 @@ class AnnualTotalsEntity extends Equatable {
 class AnnualTopCategoryEntity extends Equatable {
   final int idCategoria;
   final String nombre;
-  final double monto;
-  final double porcentaje;
+  final int montoCents;
+  final num porcentaje;
 
-  const AnnualTopCategoryEntity({
-    required this.idCategoria,
-    required this.nombre,
-    required this.monto,
-    required this.porcentaje,
-  });
+  const AnnualTopCategoryEntity({required this.idCategoria, required this.nombre, required this.montoCents, required this.porcentaje});
 
   @override
-  List<Object?> get props => [idCategoria, nombre, monto, porcentaje];
+  List<Object?> get props => [idCategoria, nombre, montoCents, porcentaje];
 }
 
 class MonthlyComparisonReportEntity extends Equatable {

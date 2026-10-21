@@ -1,44 +1,32 @@
 import 'package:equatable/equatable.dart';
 
+/// Día del mes (GET /reports/daily). Importes en centavos.
 class DailyEvolutionItemEntity extends Equatable {
   final int dia;
-  final String fecha;
-  final double ingresos;
-  final double egresos;
 
-  const DailyEvolutionItemEntity({
-    required this.dia,
-    required this.fecha,
-    required this.ingresos,
-    required this.egresos,
-  });
+  /// `yyyy-MM-dd`.
+  final String fecha;
+  final int ingresosCents;
+  final int egresosCents;
+
+  const DailyEvolutionItemEntity({required this.dia, required this.fecha, required this.ingresosCents, required this.egresosCents});
 
   @override
-  List<Object?> get props => [dia, fecha, ingresos, egresos];
+  List<Object?> get props => [dia, fecha, ingresosCents, egresosCents];
 }
 
 class DailyEvolutionReportEntity extends Equatable {
   final int mes;
   final int anio;
-  final int diasEnMes;
   final List<DailyEvolutionItemEntity> dias;
 
-  const DailyEvolutionReportEntity({
-    required this.mes,
-    required this.anio,
-    required this.diasEnMes,
-    required this.dias,
-  });
+  const DailyEvolutionReportEntity({required this.mes, required this.anio, required this.dias});
 
-  double get totalEgresosMes =>
-      dias.fold(0.0, (acc, item) => acc + item.egresos);
-
-  double get totalIngresosMes =>
-      dias.fold(0.0, (acc, item) => acc + item.ingresos);
-
-  double get maximoGastoDiario =>
-      dias.fold(0.0, (max, item) => item.egresos > max ? item.egresos : max);
+  int get diasEnMes => dias.length;
+  int get totalEgresosMesCents => dias.fold(0, (a, d) => a + d.egresosCents);
+  int get totalIngresosMesCents => dias.fold(0, (a, d) => a + d.ingresosCents);
+  int get maximoGastoDiarioCents => dias.fold(0, (a, d) => d.egresosCents > a ? d.egresosCents : a);
 
   @override
-  List<Object?> get props => [mes, anio, diasEnMes, dias];
+  List<Object?> get props => [mes, anio, dias];
 }

@@ -1,23 +1,22 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/errors/failures.dart';
-import '../../data/repositories/analytics_repository_impl.dart';
-import '../../domain/repositories/analytics_repository.dart';
+import '../../data/reports_repository.dart';
 import 'analytics_state.dart';
 
-final analyticsNotifierProvider =
-    StateNotifierProvider.autoDispose<AnalyticsNotifier, AnalyticsState>((ref) {
-  final repository = ref.watch(analyticsRepositoryProvider);
-  return AnalyticsNotifier(repository);
+final analyticsNotifierProvider = StateNotifierProvider.autoDispose<AnalyticsNotifier, AnalyticsState>((ref) {
+  return AnalyticsNotifier(ref.watch(reportsRepositoryProvider));
 });
 
+String _iso(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+/// Reportes de la API. Solo lectura.
 class AnalyticsNotifier extends StateNotifier<AnalyticsState> {
-  final AnalyticsRepository _repository;
+  final ReportsRepository _repository;
 
   AnalyticsNotifier(this._repository) : super(AnalyticsState.initial());
 
-  Future<void> inicializar() async {
-    await cargarReporteCategorias();
-  }
+  Future<void> inicializar() => cargarReporteCategorias();
 
   Future<void> cambiarTab(int tabIndex) async {
     state = state.copyWith(activeTab: tabIndex);
@@ -32,165 +31,95 @@ class AnalyticsNotifier extends StateNotifier<AnalyticsState> {
     }
   }
 
-
-  Future<void> cargarReporteCategorias() async {
-    state = state.copyWith(status: AnalyticsStatus.loading, clearError: true);
+  /// Ejecuta una consulta registrando y guardando el error (nunca lo descarta).
+  Future<void> _run(String what, Future<void> Function() body, {bool usesStatus = true}) async {
+    if (usesStatus) state = state.copyWith(status: AnalyticsStatus.loading, clearError: true);
     try {
-      final report = await _repository.getCategoryExpenseReport(
-        desde: state.desde,
-        hasta: state.hasta,
-        idLugar: state.idLugarFiltro,
-      );
-      state = state.copyWith(
-        status: AnalyticsStatus.loaded,
-        categoryReport: report,
-      );
-    } on Failure catch (e) {
-      state = state.copyWith(status: AnalyticsStatus.error, errorMessage: e.message);
+      await body();
+      if (usesStatus && mounted) state = state.copyWith(status: AnalyticsStatus.loaded);
     } catch (e) {
-      state = state.copyWith(
-        status: AnalyticsStatus.error,
-        errorMessage: 'Error al consultar reporte por categoría: $e',
-      );
+      debugPrint('[REPORTES] $what: $e');
+      if (!mounted) return;
+      state = state.copyWith(status: usesStatus ? AnalyticsStatus.error : null, error: e, isLoadingPrecios: false);
     }
   }
 
-  Future<void> cambiarPeriodo(String periodo) async {
-    final now = DateTime.now();
-    DateTime desde;
-    DateTime hasta;
+  Future<void> cargarReporteCategorias() => _run('por categoría', () async {
+        final report = await _repository.getCategoryReport(
+          from: _iso(state.desde),
+          to: _iso(state.hasta),
+          accountIds: state.idLugarFiltro == null ? const [] : [state.idLugarFiltro!],
+        );
+        if (mounted) state = state.copyWith(categoryReport: report);
+      });
 
+  Future<void> cambiarPeriodo(String periodo) {
+    final now = DateTime.now();
+    late DateTime desde;
+    late DateTime hasta;
     switch (periodo) {
       case 'mes_anterior':
-        final prevMonth = DateTime(now.year, now.month - 1, 1);
-        desde = DateTime(prevMonth.year, prevMonth.month, 1);
-        hasta = DateTime(prevMonth.year, prevMonth.month + 1, 0);
-        break;
+        desde = DateTime(now.year, now.month - 1, 1);
+        hasta = DateTime(now.year, now.month, 0);
       case 'anio_actual':
         desde = DateTime(now.year, 1, 1);
         hasta = DateTime(now.year, 12, 31);
-        break;
-      case 'mes_actual':
       default:
         desde = DateTime(now.year, now.month, 1);
         hasta = DateTime(now.year, now.month + 1, 0);
-        break;
     }
-
-    state = state.copyWith(
-      selectedPeriodo: periodo,
-      desde: desde,
-      hasta: hasta,
-    );
-
-    await cargarReporteCategorias();
+    state = state.copyWith(selectedPeriodo: periodo, desde: desde, hasta: hasta);
+    return cargarReporteCategorias();
   }
 
-  Future<void> cambiarRangoFechas(DateTime desde, DateTime hasta) async {
-    state = state.copyWith(
-      selectedPeriodo: 'personalizado',
-      desde: desde,
-      hasta: hasta,
-    );
-    await cargarReporteCategorias();
+  Future<void> cambiarRangoFechas(DateTime desde, DateTime hasta) {
+    state = state.copyWith(selectedPeriodo: 'personalizado', desde: desde, hasta: hasta);
+    return cargarReporteCategorias();
   }
 
-  Future<void> cambiarLugarFiltro(int? idLugar) async {
+  Future<void> cambiarLugarFiltro(int? idLugar) {
     state = state.copyWith(idLugarFiltro: idLugar);
-    await cargarReporteCategorias();
+    return cargarReporteCategorias();
   }
 
-  Future<void> cargarComparativaMensual({int? anio}) async {
-    final anioTarget = anio ?? state.selectedAnio;
-    state = state.copyWith(
-      status: AnalyticsStatus.loading,
-      selectedAnio: anioTarget,
-      clearError: true,
-    );
-    try {
-      final report = await _repository.getMonthlyComparisonReport(anio: anioTarget);
-      state = state.copyWith(
-        status: AnalyticsStatus.loaded,
-        monthlyReport: report,
-      );
-    } on Failure catch (e) {
-      state = state.copyWith(status: AnalyticsStatus.error, errorMessage: e.message);
-    } catch (e) {
-      state = state.copyWith(
-        status: AnalyticsStatus.error,
-        errorMessage: 'Error al consultar comparativa mensual: $e',
-      );
-    }
+  Future<void> cargarComparativaMensual({int? anio}) {
+    final target = anio ?? state.selectedAnio;
+    state = state.copyWith(selectedAnio: target);
+    return _run('comparativa anual', () async {
+      final report = await _repository.getIncomeExpense(year: target);
+      if (mounted) state = state.copyWith(monthlyReport: report);
+    });
   }
 
-  Future<void> cargarEvolucionDiaria({int? mes, int? anio}) async {
-    final mesTarget = mes ?? state.selectedMesDiario;
-    final anioTarget = anio ?? state.selectedAnioDiario;
-    state = state.copyWith(
-      status: AnalyticsStatus.loading,
-      selectedMesDiario: mesTarget,
-      selectedAnioDiario: anioTarget,
-      clearError: true,
-    );
-    try {
-      final report = await _repository.getDailyEvolutionReport(
-        mes: mesTarget,
-        anio: anioTarget,
-      );
-      state = state.copyWith(
-        status: AnalyticsStatus.loaded,
-        dailyReport: report,
-      );
-    } on Failure catch (e) {
-      state = state.copyWith(status: AnalyticsStatus.error, errorMessage: e.message);
-    } catch (e) {
-      state = state.copyWith(
-        status: AnalyticsStatus.error,
-        errorMessage: 'Error al consultar evolución diaria: $e',
-      );
-    }
+  Future<void> cargarEvolucionDiaria({int? mes, int? anio}) {
+    final m = mes ?? state.selectedMesDiario;
+    final a = anio ?? state.selectedAnioDiario;
+    state = state.copyWith(selectedMesDiario: m, selectedAnioDiario: a);
+    return _run('evolución diaria', () async {
+      final report = await _repository.getDaily(year: a, month: m);
+      if (mounted) state = state.copyWith(dailyReport: report);
+    });
   }
 
-  void setTouchedPieIndex(int index) {
-    state = state.copyWith(touchedPieIndex: index);
+  void setTouchedPieIndex(int index) => state = state.copyWith(touchedPieIndex: index);
+
+  void setTouchedBarGroupIndex(int index) => state = state.copyWith(touchedBarGroupIndex: index);
+
+  Future<void> cargarPreciosProductos({String? search}) {
+    state = state.copyWith(isLoadingPrecios: true, busquedaPrecios: search ?? state.busquedaPrecios, clearError: true);
+    return _run('catálogo de precios', () async {
+      final list = await _repository.getProducts(search: state.busquedaPrecios);
+      if (mounted) state = state.copyWith(isLoadingPrecios: false, productosPrecios: list);
+    }, usesStatus: false);
   }
 
-  void setTouchedBarGroupIndex(int index) {
-    state = state.copyWith(touchedBarGroupIndex: index);
-  }
+  Future<void> buscarPrecios(String query) => cargarPreciosProductos(search: query);
 
-  Future<void> cargarPreciosProductos({String? search}) async {
-    state = state.copyWith(
-      isLoadingPrecios: true,
-      busquedaPrecios: search ?? state.busquedaPrecios,
-      clearError: true,
-    );
-    try {
-      final list = await _repository.getProductPrices(search: search ?? state.busquedaPrecios);
-      state = state.copyWith(
-        isLoadingPrecios: false,
-        productosPrecios: list,
-      );
-    } on Failure catch (e) {
-      state = state.copyWith(isLoadingPrecios: false, errorMessage: e.message);
-    } catch (e) {
-      state = state.copyWith(
-        isLoadingPrecios: false,
-        errorMessage: 'Error al consultar catálogo de precios: $e',
-      );
-    }
-  }
-
-  Future<void> buscarPrecios(String query) async {
-    state = state.copyWith(busquedaPrecios: query);
-    await cargarPreciosProductos(search: query);
-  }
-
-  Future<void> cargarHistorialProducto(String concepto) async {
-    try {
-      final history = await _repository.getProductPriceHistory(concepto);
-      state = state.copyWith(productoSeleccionadoHistorial: history);
-    } catch (_) {}
+  Future<void> cargarHistorialProducto(String concepto, {String? plu}) {
+    return _run('historial de producto', () async {
+      final history = await _repository.getProductHistory(concept: plu == null ? concepto : null, plu: plu);
+      if (mounted) state = state.copyWith(productoSeleccionadoHistorial: history);
+    }, usesStatus: false);
   }
 
   Future<void> ejecutarComparativaPrecios({
@@ -198,27 +127,11 @@ class AnalyticsNotifier extends StateNotifier<AnalyticsState> {
     required String hasta1,
     required String desde2,
     required String hasta2,
-  }) async {
+  }) {
     state = state.copyWith(isLoadingPrecios: true, clearError: true);
-    try {
-      final res = await _repository.comparePrices(
-        desde1: desde1,
-        hasta1: hasta1,
-        desde2: desde2,
-        hasta2: hasta2,
-      );
-      state = state.copyWith(
-        isLoadingPrecios: false,
-        comparativaPrecios: res,
-      );
-    } on Failure catch (e) {
-      state = state.copyWith(isLoadingPrecios: false, errorMessage: e.message);
-    } catch (e) {
-      state = state.copyWith(
-        isLoadingPrecios: false,
-        errorMessage: 'Error al calcular comparativa de precios: $e',
-      );
-    }
+    return _run('comparativa de precios', () async {
+      final res = await _repository.compareProducts(from1: desde1, to1: hasta1, from2: desde2, to2: hasta2);
+      if (mounted) state = state.copyWith(isLoadingPrecios: false, comparativaPrecios: res);
+    }, usesStatus: false);
   }
 }
-

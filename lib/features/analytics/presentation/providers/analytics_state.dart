@@ -9,7 +9,8 @@ enum AnalyticsStatus { initial, loading, loaded, error }
 class AnalyticsState extends Equatable {
   final AnalyticsStatus status;
   final int activeTab; // 0 = Categorías, 1 = Comparativa Anual, 2 = Evolución Diaria, 3 = Precios e Inflación
-  final String? errorMessage;
+  /// Error de la última consulta (se traduce en la UI por su code).
+  final Object? error;
 
   // Tab 1: Categorías
   final CategoryExpenseReportEntity? categoryReport;
@@ -39,7 +40,7 @@ class AnalyticsState extends Equatable {
   const AnalyticsState({
     required this.status,
     required this.activeTab,
-    this.errorMessage,
+    this.error,
     this.categoryReport,
     required this.selectedPeriodo,
     required this.desde,
@@ -82,7 +83,7 @@ class AnalyticsState extends Equatable {
   AnalyticsState copyWith({
     AnalyticsStatus? status,
     int? activeTab,
-    String? errorMessage,
+    Object? error,
     CategoryExpenseReportEntity? categoryReport,
     String? selectedPeriodo,
     DateTime? desde,
@@ -105,7 +106,7 @@ class AnalyticsState extends Equatable {
     return AnalyticsState(
       status: status ?? this.status,
       activeTab: activeTab ?? this.activeTab,
-      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      error: clearError ? null : (error ?? this.error),
       categoryReport: categoryReport ?? this.categoryReport,
       selectedPeriodo: selectedPeriodo ?? this.selectedPeriodo,
       desde: desde ?? this.desde,
@@ -130,7 +131,7 @@ class AnalyticsState extends Equatable {
   List<Object?> get props => [
         status,
         activeTab,
-        errorMessage,
+        error,
         categoryReport,
         selectedPeriodo,
         desde,

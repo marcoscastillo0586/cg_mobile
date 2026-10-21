@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/errors/error_messages.dart';
+import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
+import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/analytics_notifier.dart';
 import '../providers/analytics_state.dart';
 import '../widgets/category_pie_chart.dart';
@@ -61,12 +64,30 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
     }
   }
 
+  Widget _buildErrorBanner(Object error) {
+    final isEn = ref.read(settingsProvider).language == 'en';
+    final code = ErrorMessages.codeOf(error);
+    return Container(
+      key: const ValueKey('reporte-error'),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.rose.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.rose.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        ErrorMessages.describe(error, isEn: isEn) + (code != null ? ' ($code)' : ''),
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final state = ref.watch(analyticsNotifierProvider);
-    final currencyFormat = NumberFormat.currency(locale: 'es_AR', symbol: '\$', decimalDigits: 2);
 
     return Scaffold(
       appBar: AppBar(
@@ -108,9 +129,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildTabCategorias(state, isDark, theme, currencyFormat),
-          _buildTabComparativa(state, isDark, theme, currencyFormat),
-          _buildTabEvolucionDiaria(state, isDark, theme, currencyFormat),
+          _buildTabCategorias(state, isDark, theme),
+          _buildTabComparativa(state, isDark, theme),
+          _buildTabEvolucionDiaria(state, isDark, theme),
           const ProductPriceTrackerView(),
         ],
       ),
@@ -125,7 +146,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
     AnalyticsState state,
     bool isDark,
     ThemeData theme,
-    NumberFormat currencyFormat,
   ) {
     final report = state.categoryReport;
     final dateFormat = DateFormat('dd/MM/yyyy');
@@ -162,6 +182,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
           ),
           const SizedBox(height: 16),
 
+          if (state.error != null) _buildErrorBanner(state.error!),
           if (state.status == AnalyticsStatus.loading && report == null)
             _buildLoadingSkeleton()
           else if (report != null) ...[
@@ -199,22 +220,15 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                     return ListTile(
                       dense: true,
                       title: Text(
-                        sub.concepto,
+                        sub.etiqueta,
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                      subtitle: Text(
-                        '${sub.categoria} • ${sub.cantidad} comp.',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                        ),
                       ),
                       trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            currencyFormat.format(sub.monto),
+                            Money.format(sub.montoCents),
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                           ),
                           Text(
@@ -262,7 +276,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
     AnalyticsState state,
     bool isDark,
     ThemeData theme,
-    NumberFormat currencyFormat,
   ) {
     final report = state.monthlyReport;
 
@@ -315,6 +328,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
             ),
           const SizedBox(height: 14),
 
+          if (state.error != null) _buildErrorBanner(state.error!),
           if (state.status == AnalyticsStatus.loading && report == null)
             _buildLoadingSkeleton()
           else if (report != null) ...[
@@ -324,7 +338,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 Expanded(
                   child: _buildKpiCard(
                     title: 'Ingresos Anuales',
-                    value: currencyFormat.format(report.totalesAnuales.totalIngresos),
+                    value: Money.format(report.totalesAnuales.totalIngresosCents),
                     icon: Icons.arrow_downward_rounded,
                     color: AppColors.emerald,
                     isDark: isDark,
@@ -334,7 +348,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 Expanded(
                   child: _buildKpiCard(
                     title: 'Egresos Anuales',
-                    value: currencyFormat.format(report.totalesAnuales.totalEgresos),
+                    value: Money.format(report.totalesAnuales.totalEgresosCents),
                     icon: Icons.arrow_upward_rounded,
                     color: AppColors.rose,
                     isDark: isDark,
@@ -348,9 +362,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 Expanded(
                   child: _buildKpiCard(
                     title: 'Balance Neto',
-                    value: currencyFormat.format(report.totalesAnuales.balanceNeto),
+                    value: Money.format(report.totalesAnuales.balanceNetoCents),
                     icon: Icons.savings_outlined,
-                    color: report.totalesAnuales.balanceNeto >= 0 ? AppColors.emerald : AppColors.rose,
+                    color: report.totalesAnuales.balanceNetoCents >= 0 ? AppColors.emerald : AppColors.rose,
                     isDark: isDark,
                   ),
                 ),
@@ -358,7 +372,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 Expanded(
                   child: _buildKpiCard(
                     title: 'Tasa de Ahorro',
-                    value: '${report.totalesAnuales.tasaAhorroPorcentaje.toStringAsFixed(1)}%',
+                    value: Money.percent(report.totalesAnuales.tasaAhorroPorcentaje),
                     icon: Icons.percent_rounded,
                     color: AppColors.primary,
                     isDark: isDark,
@@ -408,18 +422,18 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                   return ListTile(
                     dense: true,
                     title: Text(
-                      m.nombreMes,
+                      m.nombreMesTexto,
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                     ),
                     subtitle: Row(
                       children: [
                         Text(
-                          'Ing: ${currencyFormat.format(m.ingresos)}',
+                          'Ing: ${Money.format(m.ingresosCents)}',
                           style: const TextStyle(fontSize: 11, color: AppColors.emerald),
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Egr: ${currencyFormat.format(m.egresos)}',
+                          'Egr: ${Money.format(m.egresosCents)}',
                           style: const TextStyle(fontSize: 11, color: AppColors.rose),
                         ),
                       ],
@@ -429,7 +443,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          currencyFormat.format(m.balance),
+                          Money.format(m.balanceCents),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
@@ -514,7 +528,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
     AnalyticsState state,
     bool isDark,
     ThemeData theme,
-    NumberFormat currencyFormat,
   ) {
     final report = state.dailyReport;
 
@@ -560,6 +573,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
           ),
           const SizedBox(height: 14),
 
+          if (state.error != null) _buildErrorBanner(state.error!),
           if (state.status == AnalyticsStatus.loading && report == null)
             _buildLoadingSkeleton()
           else if (report != null) ...[
@@ -569,7 +583,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 Expanded(
                   child: _buildKpiCard(
                     title: 'Total del Mes',
-                    value: currencyFormat.format(report.totalEgresosMes),
+                    value: Money.format(report.totalEgresosMesCents),
                     icon: Icons.payments_outlined,
                     color: AppColors.primary,
                     isDark: isDark,
@@ -579,7 +593,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 Expanded(
                   child: _buildKpiCard(
                     title: 'Pico Más Alto',
-                    value: currencyFormat.format(report.maximoGastoDiario),
+                    value: Money.format(report.maximoGastoDiarioCents),
                     icon: Icons.trending_up_rounded,
                     color: AppColors.rose,
                     isDark: isDark,

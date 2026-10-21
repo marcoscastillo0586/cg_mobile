@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
-import '../../data/repositories/analytics_repository_impl.dart';
+import '../../../../core/errors/error_messages.dart';
+import '../../../../core/money/money.dart';
+import '../../data/reports_repository.dart';
 import '../../domain/entities/product_price_entity.dart';
 import '../providers/analytics_notifier.dart';
 
@@ -39,7 +41,7 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _ProductPriceHistorySheet(concepto: item.concepto),
+      builder: (ctx) => _ProductPriceHistorySheet(concepto: item.concepto, plu: item.plu),
     );
   }
 
@@ -56,7 +58,6 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
   Widget build(BuildContext context) {
     final state = ref.watch(analyticsNotifierProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final currency = NumberFormat.currency(locale: 'es_AR', symbol: '\$ ', decimalDigits: 2);
 
     return Column(
       children: [
@@ -220,7 +221,7 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  currency.format(item.ultimoPrecio),
+                                  Money.format(item.ultimoPrecioCents),
                                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 4),
@@ -276,8 +277,9 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
 /// Modal que muestra el gráfico de evolución cronológica de precios del producto
 class _ProductPriceHistorySheet extends ConsumerStatefulWidget {
   final String concepto;
+  final String? plu;
 
-  const _ProductPriceHistorySheet({required this.concepto});
+  const _ProductPriceHistorySheet({required this.concepto, this.plu});
 
   @override
   ConsumerState<_ProductPriceHistorySheet> createState() => _ProductPriceHistorySheetState();
@@ -286,22 +288,33 @@ class _ProductPriceHistorySheet extends ConsumerStatefulWidget {
 class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistorySheet> {
   bool _isLoading = true;
   ProductPriceHistoryEntity? _history;
+  Object? _error;
 
   @override
   void initState() {
     super.initState();
     Future.microtask(() async {
-      final repository = ref.read(analyticsRepositoryProvider);
+      final repository = ref.read(reportsRepositoryProvider);
       try {
-        final res = await repository.getProductPriceHistory(widget.concepto);
+        // Con PLU se agrupa el producto exacto; sin PLU, por concepto.
+        final res = await repository.getProductHistory(
+          concept: widget.plu == null ? widget.concepto : null,
+          plu: widget.plu,
+        );
         if (mounted) {
           setState(() {
             _history = res;
             _isLoading = false;
           });
         }
-      } catch (_) {
-        if (mounted) setState(() => _isLoading = false);
+      } catch (e) {
+        debugPrint('[REPORTES] Historial de producto: $e');
+        if (mounted) {
+          setState(() {
+            _error = e;
+            _isLoading = false;
+          });
+        }
       }
     });
   }
@@ -309,7 +322,6 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final currency = NumberFormat.currency(locale: 'es_AR', symbol: '\$ ', decimalDigits: 2);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
@@ -369,7 +381,18 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _history == null || _history!.historial.isEmpty
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            ErrorMessages.describe(_error!, isEn: false) +
+                                (ErrorMessages.codeOf(_error!) != null ? ' (${ErrorMessages.codeOf(_error!)})' : ''),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      )
+                    : _history == null || _history!.historial.isEmpty
                     ? const Center(child: Text('No hay datos históricos para este artículo'))
                     : ListView(
                         padding: const EdgeInsets.all(20),
@@ -380,7 +403,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                               Expanded(
                                 child: _buildKpiCard(
                                   'Precio Actual',
-                                  currency.format(_history!.precioActual),
+                                  Money.format(_history!.precioActualCents),
                                   AppColors.primary,
                                   isDark,
                                 ),
@@ -402,7 +425,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                               Expanded(
                                 child: _buildKpiCard(
                                   'Mínimo Histórico',
-                                  currency.format(_history!.precioMinimo),
+                                  Money.format(_history!.precioMinimoCents),
                                   AppColors.emerald,
                                   isDark,
                                 ),
@@ -411,7 +434,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                               Expanded(
                                 child: _buildKpiCard(
                                   'Máximo Histórico',
-                                  currency.format(_history!.precioMaximo),
+                                  Money.format(_history!.precioMaximoCents),
                                   AppColors.rose,
                                   isDark,
                                 ),
@@ -459,7 +482,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                                           if (idx < 0 || idx >= _history!.historial.length) {
                                             return const SizedBox();
                                           }
-                                          final f = _history!.historial[idx].fecha;
+                                          final f = _history!.historial[idx].fechaHora.split(' ').first;
                                           final parts = f.split('-');
                                           final label = parts.length == 3 ? '${parts[2]}/${parts[1]}' : f;
                                           return Text(label, style: const TextStyle(fontSize: 9));
@@ -473,7 +496,8 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                                   lineBarsData: [
                                     LineChartBarData(
                                       spots: List.generate(_history!.historial.length, (i) {
-                                        return FlSpot(i.toDouble(), _history!.historial[i].precioUnitario);
+                                        // Solo geometría del gráfico (el texto se formatea desde centavos).
+                                        return FlSpot(i.toDouble(), _history!.historial[i].precioUnitarioCents / 100);
                                       }),
                                       isCurved: true,
                                       color: AppColors.primary,
@@ -510,15 +534,15 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                               child: ListTile(
                                 dense: true,
                                 title: Text(
-                                  currency.format(compra.precioUnitario),
+                                  Money.format(compra.precioUnitarioCents),
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                 ),
                                 subtitle: Text(
-                                  '${compra.fecha} • ${compra.lugarNombre} (${compra.cantidad.toStringAsFixed(0)} un.)',
+                                  '${compra.fechaHora.split(' ').first} • ${compra.lugarNombre}',
                                   style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
                                 ),
                                 trailing: Text(
-                                  'Total ${currency.format(compra.montoTotal)}',
+                                  'Total ${Money.format(compra.montoTotalCents)}',
                                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                                 ),
                               ),
@@ -567,6 +591,7 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
   late DateTime _hasta2;
 
   bool _isComparing = false;
+  Object? _compareError;
   PriceComparisonResultEntity? _result;
 
   @override
@@ -586,15 +611,18 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
   }
 
   Future<void> _ejecutarComparativa() async {
-    setState(() => _isComparing = true);
+    setState(() {
+      _isComparing = true;
+      _compareError = null;
+    });
     final fmt = DateFormat('yyyy-MM-dd');
     try {
-      final repository = ref.read(analyticsRepositoryProvider);
-      final res = await repository.comparePrices(
-        desde1: fmt.format(_desde1),
-        hasta1: fmt.format(_hasta1),
-        desde2: fmt.format(_desde2),
-        hasta2: fmt.format(_hasta2),
+      final repository = ref.read(reportsRepositoryProvider);
+      final res = await repository.compareProducts(
+        from1: fmt.format(_desde1),
+        to1: fmt.format(_hasta1),
+        from2: fmt.format(_desde2),
+        to2: fmt.format(_hasta2),
       );
       if (mounted) {
         setState(() {
@@ -602,15 +630,20 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
           _isComparing = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _isComparing = false);
+    } catch (e) {
+      debugPrint('[REPORTES] Comparativa de precios: $e');
+      if (mounted) {
+        setState(() {
+          _compareError = e;
+          _isComparing = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final currency = NumberFormat.currency(locale: 'es_AR', symbol: '\$ ', decimalDigits: 2);
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -649,6 +682,17 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
             Expanded(
               child: _isComparing
                   ? const Center(child: CircularProgressIndicator())
+                  : _compareError != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              ErrorMessages.describe(_compareError!, isEn: false) +
+                                  (ErrorMessages.codeOf(_compareError!) != null ? ' (${ErrorMessages.codeOf(_compareError!)})' : ''),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
                   : _result == null || _result!.comparativa.isEmpty
                       ? const Center(
                           child: Padding(
@@ -746,7 +790,7 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
                                                 overflow: TextOverflow.ellipsis),
                                             const SizedBox(height: 4),
                                             Text(
-                                              'Antes: ${currency.format(item.precio1)} ➔ Ahora: ${currency.format(item.precio2)}',
+                                              'Antes: ${Money.format(item.precio1Cents)} ➔ Ahora: ${Money.format(item.precio2Cents)}',
                                               style: const TextStyle(
                                                   fontSize: 12, color: AppColors.lightTextSecondary),
                                             ),

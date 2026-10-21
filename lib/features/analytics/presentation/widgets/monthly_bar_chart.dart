@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/money/money.dart';
 import '../../domain/entities/monthly_comparison_entity.dart';
 
 class MonthlyBarChart extends StatefulWidget {
@@ -28,14 +29,13 @@ class _MonthlyBarChartState extends State<MonthlyBarChart> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyFormat = NumberFormat.compactCurrency(locale: 'es_AR', symbol: '\$', decimalDigits: 1);
-    final fullCurrencyFormat = NumberFormat.currency(locale: 'es_AR', symbol: '\$', decimalDigits: 2);
     final meses = widget.report.meses;
 
-    // Calcular valor máximo para escalar el eje Y
+    // El gráfico dibuja en pesos (double solo para la geometría); los textos salen de centavos.
     double maxMonto = 0;
     for (final m in meses) {
-      if (m.ingresos > maxMonto) maxMonto = m.ingresos;
-      if (m.egresos > maxMonto) maxMonto = m.egresos;
+      if (m.ingresosCents / 100 > maxMonto) maxMonto = m.ingresosCents / 100;
+      if (m.egresosCents / 100 > maxMonto) maxMonto = m.egresosCents / 100;
     }
     if (maxMonto == 0) maxMonto = 100000;
     final yInterval = (maxMonto / 4).ceilToDouble();
@@ -67,10 +67,10 @@ class _MonthlyBarChartState extends State<MonthlyBarChart> {
                     final mesData = meses[group.x];
                     final isIngreso = rodIndex == 0;
                     final tipo = isIngreso ? 'Ingresos' : 'Egresos';
-                    final valor = isIngreso ? mesData.ingresos : mesData.egresos;
+                    final valor = isIngreso ? mesData.ingresosCents : mesData.egresosCents;
 
                     return BarTooltipItem(
-                      '${mesData.nombreMes}\n$tipo: ${fullCurrencyFormat.format(valor)}\nBalance: ${fullCurrencyFormat.format(mesData.balance)}',
+                      '${mesData.nombreMesTexto}\n$tipo: ${Money.format(valor)}\nBalance: ${Money.format(mesData.balanceCents)}',
                       const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                     );
                   },
@@ -155,14 +155,14 @@ class _MonthlyBarChartState extends State<MonthlyBarChart> {
                   barRods: [
                     // Barra de Ingreso
                     BarChartRodData(
-                      toY: m.ingresos,
+                      toY: m.ingresosCents / 100,
                       color: AppColors.emerald,
                       width: isSelected ? 9 : 7,
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                     ),
                     // Barra de Egreso
                     BarChartRodData(
-                      toY: m.egresos,
+                      toY: m.egresosCents / 100,
                       color: AppColors.rose,
                       width: isSelected ? 9 : 7,
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),

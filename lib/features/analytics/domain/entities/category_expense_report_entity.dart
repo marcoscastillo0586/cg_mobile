@@ -1,58 +1,54 @@
 import 'package:equatable/equatable.dart';
 
+/// Gasto por categoría (GET /reports/by-category). Importes en centavos.
 class CategoryExpenseItemEntity extends Equatable {
-  final int idCategoria;
+  final int? idCategoria;
   final String nombre;
-  final double monto;
+  final int montoCents;
+
+  /// Porcentaje sobre el total del período (solo para mostrar).
   final double porcentaje;
-  final int cantidadMovimientos;
 
   const CategoryExpenseItemEntity({
     required this.idCategoria,
     required this.nombre,
-    required this.monto,
+    required this.montoCents,
     required this.porcentaje,
-    required this.cantidadMovimientos,
   });
 
   @override
-  List<Object?> get props => [idCategoria, nombre, monto, porcentaje, cantidadMovimientos];
+  List<Object?> get props => [idCategoria, nombre, montoCents, porcentaje];
 }
 
+/// Desglose por concepto dentro de las categorías (GET /reports/by-concept-in-categories).
+/// Con una categoría la etiqueta es el concepto; con varias, "CATEGORÍA : concepto" (F8.2).
 class SubcategoryExpenseItemEntity extends Equatable {
-  final String concepto;
-  final String categoria;
-  final double monto;
+  final String etiqueta;
+  final int montoCents;
   final double porcentaje;
-  final int cantidad;
 
-  const SubcategoryExpenseItemEntity({
-    required this.concepto,
-    required this.categoria,
-    required this.monto,
-    required this.porcentaje,
-    required this.cantidad,
-  });
+  const SubcategoryExpenseItemEntity({required this.etiqueta, required this.montoCents, required this.porcentaje});
 
   @override
-  List<Object?> get props => [concepto, categoria, monto, porcentaje, cantidad];
+  List<Object?> get props => [etiqueta, montoCents, porcentaje];
 }
 
 class CategoryExpenseReportEntity extends Equatable {
+  /// `yyyy-MM-dd`.
   final String desde;
   final String hasta;
-  final double totalGastos;
+  final int totalCents;
   final List<CategoryExpenseItemEntity> categorias;
   final List<SubcategoryExpenseItemEntity> subcategorias;
 
   const CategoryExpenseReportEntity({
     required this.desde,
     required this.hasta,
-    required this.totalGastos,
+    required this.totalCents,
     required this.categorias,
     required this.subcategorias,
   });
 
   @override
-  List<Object?> get props => [desde, hasta, totalGastos, categorias, subcategorias];
+  List<Object?> get props => [desde, hasta, totalCents, categorias, subcategorias];
 }

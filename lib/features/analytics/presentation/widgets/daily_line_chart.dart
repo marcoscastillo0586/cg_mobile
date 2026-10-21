@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/money/money.dart';
 import '../../domain/entities/daily_evolution_entity.dart';
 
 class DailyLineChart extends StatelessWidget {
@@ -16,15 +17,15 @@ class DailyLineChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyFormat = NumberFormat.compactCurrency(locale: 'es_AR', symbol: '\$', decimalDigits: 1);
-    final fullCurrencyFormat = NumberFormat.currency(locale: 'es_AR', symbol: '\$', decimalDigits: 2);
     final dias = report.dias;
 
-    double maxGasto = report.maximoGastoDiario;
+    // El gráfico dibuja en pesos (double solo para la geometría); los textos salen de centavos.
+    double maxGasto = report.maximoGastoDiarioCents / 100;
     if (maxGasto <= 0) maxGasto = 10000;
     final yInterval = (maxGasto / 4).ceilToDouble();
 
     final spots = dias.map((d) {
-      return FlSpot(d.dia.toDouble(), d.egresos);
+      return FlSpot(d.dia.toDouble(), d.egresosCents / 100);
     }).toList();
 
     return Column(
@@ -48,12 +49,12 @@ class DailyLineChart extends StatelessWidget {
                         orElse: () => DailyEvolutionItemEntity(
                           dia: diaNum,
                           fecha: '',
-                          ingresos: 0,
-                          egresos: spot.y,
+                          ingresosCents: 0,
+                          egresosCents: (spot.y * 100).round(),
                         ),
                       );
                       return LineTooltipItem(
-                        'Día $diaNum\nGasto: ${fullCurrencyFormat.format(item.egresos)}',
+                        'Día $diaNum\nGasto: ${Money.format(item.egresosCents)}',
                         const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
@@ -129,7 +130,7 @@ class DailyLineChart extends StatelessWidget {
                     show: true,
                     checkToShowDot: (spot, barData) {
                       // Solo resaltar días con gasto significativo o el pico más alto
-                      return spot.y == report.maximoGastoDiario && spot.y > 0;
+                      return spot.y == report.maximoGastoDiarioCents / 100 && spot.y > 0;
                     },
                     getDotPainter: (spot, percent, barData, index) {
                       return FlDotCirclePainter(
