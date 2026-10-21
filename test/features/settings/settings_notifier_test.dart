@@ -24,6 +24,16 @@ class FakeSecureStorageService implements SecureStorageService {
   @override
   Future<String?> getThemeMode() async => savedTheme;
 
+  // SettingsNotifier.inicializar() también lee estos valores; el fake no los tenía.
+  @override
+  Future<String?> getLanguage() async => null;
+
+  @override
+  Future<String?> getDefaultCurrency() async => null;
+
+  @override
+  Future<bool> isFirstLaunchDone() async => true;
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
