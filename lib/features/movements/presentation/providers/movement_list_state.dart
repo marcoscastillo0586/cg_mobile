@@ -1,108 +1,77 @@
 import 'package:equatable/equatable.dart';
-import '../../domain/entities/movement_detail_entity.dart';
-import '../../domain/entities/movement_entity.dart';
+import '../../domain/movement_item.dart';
 
 enum MovementListStatus { initial, loading, loaded, error }
 
 class MovementListState extends Equatable {
   final MovementListStatus status;
-  final List<MovementEntity> movimientos;
-  final Map<int, MovementDetailEntity> detallesCache;
-  final MovementsSummaryEntity? resumen;
+  final List<MovementItem> movimientos;
+  final int total;
+  final bool hasMore;
+  final bool loadingMore;
+  final int filteredTotalCents;
   final String? desde;
   final String? hasta;
-  final int? idLugar;
-  final String? nombreLugar;
-  final int? idCategoria;
+  final int? idCuenta;
+  final String? nombreCuenta;
   final String busqueda;
-  final bool isSearching;
-  final List<MovementEntity>? resultadosBusqueda;
-  final String? errorMessage;
-  final bool isDeleting;
+  final Object? error;
 
   const MovementListState({
     required this.status,
     this.movimientos = const [],
-    this.detallesCache = const {},
-    this.resumen,
+    this.total = 0,
+    this.hasMore = false,
+    this.loadingMore = false,
+    this.filteredTotalCents = 0,
     this.desde,
     this.hasta,
-    this.idLugar,
-    this.nombreLugar,
-    this.idCategoria,
+    this.idCuenta,
+    this.nombreCuenta,
     this.busqueda = '',
-    this.isSearching = false,
-    this.resultadosBusqueda,
-    this.errorMessage,
-    this.isDeleting = false,
+    this.error,
   });
 
-  factory MovementListState.initial() => const MovementListState(
-        status: MovementListStatus.initial,
-      );
+  factory MovementListState.initial() => const MovementListState(status: MovementListStatus.initial);
+
+  bool get isLoading => status == MovementListStatus.loading;
+  bool get hayRango => (desde ?? '').isNotEmpty || (hasta ?? '').isNotEmpty;
+  bool get hasFilters => idCuenta != null || hayRango || busqueda.isNotEmpty;
 
   MovementListState copyWith({
     MovementListStatus? status,
-    List<MovementEntity>? movimientos,
-    Map<int, MovementDetailEntity>? detallesCache,
-    MovementsSummaryEntity? resumen,
+    List<MovementItem>? movimientos,
+    int? total,
+    bool? hasMore,
+    bool? loadingMore,
+    int? filteredTotalCents,
     String? desde,
     String? hasta,
-    int? idLugar,
-    String? nombreLugar,
-    int? idCategoria,
+    bool clearRango = false,
+    int? idCuenta,
+    String? nombreCuenta,
+    bool clearCuenta = false,
     String? busqueda,
-    bool? isSearching,
-    List<MovementEntity>? resultadosBusqueda,
-    bool clearResultadosBusqueda = false,
-    String? errorMessage,
-    bool? isDeleting,
+    Object? error,
+    bool clearError = false,
   }) {
     return MovementListState(
       status: status ?? this.status,
       movimientos: movimientos ?? this.movimientos,
-      detallesCache: detallesCache ?? this.detallesCache,
-      resumen: resumen ?? this.resumen,
-      desde: desde ?? this.desde,
-      hasta: hasta ?? this.hasta,
-      idLugar: idLugar ?? this.idLugar,
-      nombreLugar: nombreLugar ?? this.nombreLugar,
-      idCategoria: idCategoria ?? this.idCategoria,
+      total: total ?? this.total,
+      hasMore: hasMore ?? this.hasMore,
+      loadingMore: loadingMore ?? this.loadingMore,
+      filteredTotalCents: filteredTotalCents ?? this.filteredTotalCents,
+      desde: clearRango ? null : (desde ?? this.desde),
+      hasta: clearRango ? null : (hasta ?? this.hasta),
+      idCuenta: clearCuenta ? null : (idCuenta ?? this.idCuenta),
+      nombreCuenta: clearCuenta ? null : (nombreCuenta ?? this.nombreCuenta),
       busqueda: busqueda ?? this.busqueda,
-      isSearching: isSearching ?? this.isSearching,
-      resultadosBusqueda: clearResultadosBusqueda
-          ? null
-          : (resultadosBusqueda ?? this.resultadosBusqueda),
-      errorMessage: errorMessage ?? this.errorMessage,
-      isDeleting: isDeleting ?? this.isDeleting,
+      error: clearError ? null : (error ?? this.error),
     );
   }
 
-  bool get isLoading => status == MovementListStatus.loading;
-  bool get hasFilters =>
-      (idLugar != null && idLugar! > 0) ||
-      (desde != null && desde!.isNotEmpty) ||
-      (hasta != null && hasta!.isNotEmpty) ||
-      busqueda.trim().isNotEmpty;
-
-  List<MovementEntity> get movimientosFiltrados =>
-      busqueda.trim().isNotEmpty ? (resultadosBusqueda ?? []) : movimientos;
-
   @override
-  List<Object?> get props => [
-        status,
-        movimientos,
-        detallesCache,
-        resumen,
-        desde,
-        hasta,
-        idLugar,
-        nombreLugar,
-        idCategoria,
-        busqueda,
-        isSearching,
-        resultadosBusqueda,
-        errorMessage,
-        isDeleting,
-      ];
+  List<Object?> get props =>
+      [status, movimientos, total, hasMore, loadingMore, filteredTotalCents, desde, hasta, idCuenta, nombreCuenta, busqueda, error];
 }

@@ -19,7 +19,6 @@ class ExpenseFormState extends Equatable {
   final DateTime fecha;
   final String conceptoGeneral;
   final List<RenglonGasto> renglones;
-  final int? editingId;
   final TicketParseResult? ticketParseResult;
   final String? errorMessage;
   final String? qrFeedback;
@@ -31,7 +30,6 @@ class ExpenseFormState extends Equatable {
     required this.fecha,
     this.conceptoGeneral = '',
     this.renglones = const [],
-    this.editingId,
     this.ticketParseResult,
     this.errorMessage,
     this.qrFeedback,
@@ -50,7 +48,6 @@ class ExpenseFormState extends Equatable {
     DateTime? fecha,
     String? conceptoGeneral,
     List<RenglonGasto>? renglones,
-    int? editingId,
     TicketParseResult? ticketParseResult,
     String? errorMessage,
     String? qrFeedback,
@@ -62,14 +59,12 @@ class ExpenseFormState extends Equatable {
       fecha: fecha ?? this.fecha,
       conceptoGeneral: conceptoGeneral ?? this.conceptoGeneral,
       renglones: renglones ?? this.renglones,
-      editingId: editingId ?? this.editingId,
       ticketParseResult: ticketParseResult ?? this.ticketParseResult,
       errorMessage: errorMessage ?? this.errorMessage,
       qrFeedback: qrFeedback ?? this.qrFeedback,
     );
   }
 
-  bool get isEditing => editingId != null;
   bool get isSubmitting => status == ExpenseFormStatus.submitting;
   bool get isLoadingData => status == ExpenseFormStatus.loadingData;
 
@@ -102,7 +97,6 @@ class ExpenseFormState extends Equatable {
         fecha,
         conceptoGeneral,
         renglones,
-        editingId,
         ticketParseResult,
         errorMessage,
         qrFeedback,

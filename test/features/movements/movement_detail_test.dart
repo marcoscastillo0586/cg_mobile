@@ -1,103 +1,100 @@
+// Datos SINTÉTICOS con la forma de MovementDto/MovementsPageDto (@cg/shared).
+// Prueban el parseo, no la API real.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gastos_mobile/features/movements/data/models/movement_detail_model.dart';
+import 'package:gastos_mobile/core/errors/exceptions.dart';
+import 'package:gastos_mobile/core/money/money.dart';
+import 'package:gastos_mobile/features/categories_admin/domain/category_item.dart';
+import 'package:gastos_mobile/features/movements/data/movements_repository.dart';
+import 'package:gastos_mobile/features/movements/domain/movement_item.dart';
+
+Map<String, dynamic> _detail(int id, int amount, {String currency = 'ARS', String? role, String? plu, int? unit}) => {
+      'id': id,
+      'accountId': 3,
+      'accountName': 'Efectivo',
+      'accountActive': true,
+      'currency': currency,
+      'categoryId': 7,
+      'categoryName': 'Comida',
+      'categoryRole': role,
+      'concept': 'Yerba',
+      'observation': null,
+      'amountCents': amount,
+      'plu': plu,
+      'unitPriceCents': unit,
+      'imageUrl': null,
+      'imageNote': null,
+    };
 
 void main() {
-
-  group('MovementDetailModel & Entity Tests', () {
-    test('Parsea correctamente JSON de un egreso con desglose de ítems', () {
-      final json = {
-        'id_movimiento_enc': 105,
-        'tipo_movimiento': 2,
-        'concepto_general': 'Supermercado Día',
-        'fecha': '2026-10-03 16:45:00',
-        'monto_total': 18500.50,
-        'id_lugar_origen': 0,
-        'id_lugar_destino': 0,
-        'detalles': [
-          {
-            'id_movimiento_det': 201,
-            'id_lugar': 2,
-            'lugar_nombre': 'Mercado Pago',
-            'id_categoria': 3,
-            'categoria_nombre': 'Supermercado',
-            'concepto': 'Leche descremada',
-            'monto': 3500.50,
-            'signo': -1,
-            'cantidad': 2.0,
-            'codigo': '7791234567890',
-          },
-          {
-            'id_movimiento_det': 202,
-            'id_lugar': 2,
-            'lugar_nombre': 'Mercado Pago',
-            'id_categoria': 3,
-            'categoria_nombre': 'Supermercado',
-            'concepto': 'Carne picada especial',
-            'monto': 15000.00,
-            'signo': -1,
-            'cantidad': 1.0,
-            'codigo': '',
-          }
-        ],
-      };
-
-      final model = MovementDetailModel.fromJson(json);
-
-      expect(model.idMovimientoEnc, 105);
-      expect(model.isExpense, true);
-      expect(model.isIncome, false);
-      expect(model.isTransfer, false);
-      expect(model.montoTotal, 18500.50);
-      expect(model.detalles.length, 2);
-      expect(model.detalles.first.concepto, 'Leche descremada');
-      expect(model.detalles.first.monto, 3500.50);
-      expect(model.detalles.last.concepto, 'Carne picada especial');
+  test('egreso con varios renglones: signo contable, PLU y precio unitario', () {
+    final m = MovementsRepository.parseMovement({
+      'id': 99,
+      'type': 2,
+      'occurredAt': '2026-10-11 14:30:00',
+      'generalConcept': 'Super',
+      'accountNames': ['Efectivo'],
+      'amountCents': -350050,
+      'detailsCount': 2,
+      'partialDetails': false,
+      'details': [_detail(1, -150050, plu: '123', unit: 75025), _detail(2, -200000)],
+      'fromAccountId': null,
+      'toAccountId': null,
     });
+    expect(m.type, MovementType.expense);
+    expect(m.amountCents, -350050);
+    expect(m.details.first.unitPriceCents, 75025);
+    expect(m.details.first.plu, '123');
+    expect(m.currency, Currency.ars);
+    expect(Money.format(m.amountCents), r'-$ 3.500,50');
+  });
 
-    test('Parsea correctamente JSON de una transferencia entre cuentas', () {
-      final json = {
-        'id_movimiento_enc': 304,
-        'tipo_movimiento': 3,
-        'concepto_general': 'Pase a Banco Galicia',
-        'fecha': '2026-10-02 11:20:00',
-        'monto_total': 50000.0,
-        'id_lugar_origen': 1,
-        'id_lugar_destino': 4,
-        'detalles': [
-          {
-            'id_movimiento_det': 501,
-            'id_lugar': 4,
-            'lugar_nombre': 'Banco Galicia',
-            'id_categoria': 1,
-            'categoria_nombre': 'Transferencia',
-            'concepto': 'Pase a Banco Galicia',
-            'monto': 50000.0,
-            'signo': 1,
-            'cantidad': 1.0,
-            'codigo': '',
-          },
-          {
-            'id_movimiento_det': 502,
-            'id_lugar': 1,
-            'lugar_nombre': 'Efectivo',
-            'id_categoria': 1,
-            'categoria_nombre': 'Transferencia',
-            'concepto': 'Pase a Banco Galicia',
-            'monto': 50000.0,
-            'signo': -1,
-            'cantidad': 1.0,
-            'codigo': '',
-          }
-        ],
-      };
+  test('transferencia: importe positivo, origen y destino, categoría reservada', () {
+    final m = MovementsRepository.parseMovement({
+      'id': 5,
+      'type': 3,
+      'occurredAt': '2026-10-12 09:00:00',
+      'generalConcept': 'Transferencia desde A hacia B',
+      'accountNames': ['A', 'B'],
+      'amountCents': 100000,
+      'detailsCount': 2,
+      'partialDetails': false,
+      'details': [_detail(10, -100000, currency: 'USD', role: 'TRANSFER'), _detail(11, 100000, currency: 'USD', role: 'TRANSFER')],
+      'fromAccountId': 1,
+      'toAccountId': 2,
+    });
+    expect(m.type, MovementType.transfer);
+    expect(m.currency, Currency.usd);
+    expect(m.details.first.categoryRole, CategoryRole.transfer);
+    expect(m.fromAccountId, 1);
+  });
 
-      final model = MovementDetailModel.fromJson(json);
+  test('tipo desconocido o importe con decimales: error de contrato', () {
+    Map<String, dynamic> base() => {
+          'id': 1,
+          'type': 2,
+          'occurredAt': '2026-10-11 14:30:00',
+          'generalConcept': null,
+          'accountNames': <String>[],
+          'amountCents': -100,
+          'detailsCount': 0,
+          'partialDetails': false,
+          'details': <Object>[],
+          'fromAccountId': null,
+          'toAccountId': null,
+        };
+    expect(() => MovementsRepository.parseMovement(base()..['type'] = 9), throwsA(isA<ServerException>()));
+    expect(() => MovementsRepository.parseMovement(base()..['amountCents'] = -1.5), throwsA(isA<ServerException>()));
+  });
 
-      expect(model.idMovimientoEnc, 304);
-      expect(model.isTransfer, true);
-      expect(model.idLugarOrigen, 1);
-      expect(model.idLugarDestino, 4);
-      expect(model.detalles.length, 2);
+  test('query: filtros de la API (accountIds en lista separada por coma, q recortada)', () {
+    const q = MovementsQuery(from: '2026-10-01', to: '2026-10-31', accountIds: [1, 2], q: '  yerba ', offset: 50);
+    expect(q.toQuery(), {
+      'from': '2026-10-01',
+      'to': '2026-10-31',
+      'accountIds': '1,2',
+      'q': 'yerba',
+      'limit': 50,
+      'offset': 50,
     });
   });
 }

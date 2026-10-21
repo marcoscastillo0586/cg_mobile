@@ -59,7 +59,7 @@ void main() {
 
   setUp(() async {
     repository = FakeExpenseRepository();
-    // El notifier necesita un Ref (lo usa al editar), así que se crea vía provider.
+    // El notifier se crea vía provider, con el repositorio reemplazado por el doble.
     container = ProviderContainer(overrides: [
       expenseRepositoryProvider.overrideWithValue(repository),
     ]);

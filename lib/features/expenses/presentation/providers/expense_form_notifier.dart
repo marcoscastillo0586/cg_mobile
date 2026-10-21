@@ -1,8 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/errors/failures.dart';
-import '../../../movements/data/repositories/movement_repository_impl.dart';
-import '../../../movements/domain/repositories/movement_repository.dart';
 import '../../domain/entities/category_entity.dart';
 import '../../domain/entities/renglon_gasto.dart';
 import '../../domain/entities/ticket_parse_result.dart';
@@ -13,14 +11,13 @@ import 'expense_form_state.dart';
 final expenseFormNotifierProvider =
     StateNotifierProvider.autoDispose<ExpenseFormNotifier, ExpenseFormState>((ref) {
   final repository = ref.watch(expenseRepositoryProvider);
-  return ExpenseFormNotifier(repository, ref);
+  return ExpenseFormNotifier(repository);
 });
 
 class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
   final ExpenseRepository _repository;
-  final Ref _ref;
 
-  ExpenseFormNotifier(this._repository, this._ref) : super(ExpenseFormState.initial()) {
+  ExpenseFormNotifier(this._repository) : super(ExpenseFormState.initial()) {
     inicializar();
   }
 
@@ -51,52 +48,6 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
       state = state.copyWith(
         status: ExpenseFormStatus.error,
         errorMessage: 'Error al inicializar formulario: $e',
-      );
-    }
-  }
-
-  Future<void> cargarGastoParaEditar(int editId, MovementRepository movementRepository) async {
-    state = state.copyWith(status: ExpenseFormStatus.loadingData);
-    try {
-      final formData = await _repository.getFormData();
-
-      final detail = await movementRepository.getMovementDetail(editId);
-      final lugarSaved = detail.detalles.isNotEmpty ? detail.detalles.first.idLugar : null;
-
-      final List<RenglonGasto> renglonesEdit = [];
-      int idx = 0;
-      for (final d in detail.detalles) {
-        idx++;
-        final catEntity = formData.categorias.cast<CategoryEntity?>().firstWhere(
-              (c) => c?.idCategoria == d.idCategoria,
-              orElse: () => null,
-            );
-        renglonesEdit.add(
-          RenglonGasto(
-            id: 'edit_${DateTime.now().microsecondsSinceEpoch}_$idx',
-            concepto: d.concepto,
-            monto: d.monto.abs(),
-            categoriaId: d.idCategoria,
-            categoria: catEntity,
-          ),
-        );
-      }
-
-      final fechaEdit = DateTime.tryParse(detail.fecha) ?? DateTime.now();
-
-      state = state.copyWith(
-        status: ExpenseFormStatus.ready,
-        formData: formData,
-        selectedLugarId: lugarSaved, // Carga la cuenta guardada
-        conceptoGeneral: detail.conceptoGeneral,
-        fecha: fechaEdit,
-        renglones: renglonesEdit.isNotEmpty ? renglonesEdit : [RenglonGasto.nuevo()],
-        editingId: editId,
-      );
-    } catch (e) {
-      state = state.copyWith(
-        status: ExpenseFormStatus.error,
-        errorMessage: 'Error al cargar egreso para editar: $e',
       );
     }
   }
@@ -303,30 +254,12 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
     state = state.copyWith(status: ExpenseFormStatus.submitting, errorMessage: null);
 
     try {
-      final bool ok;
-      if (state.isEditing) {
-        final movementRepository = _ref.read(movementRepositoryProvider);
-        ok = await movementRepository.updateMovement({
-          'id_movimiento_enc': state.editingId,
-          'tipo_movimiento': 2,
-          'fecha': fechaStr,
-          'concepto_general': conceptoGral,
-          'id_lugar': state.selectedLugarId,
-          'items': itemsAEnviar.map((it) => {
-            'monto': it.monto,
-            'id_categoria': it.idCategoria,
-            'concepto': it.concepto,
-            'id_lugar': state.selectedLugarId,
-          }).toList(),
-        });
-      } else {
-        ok = await _repository.createExpense(
-          idLugar: state.selectedLugarId!,
-          fecha: fechaStr,
-          conceptoGeneral: conceptoGral,
-          items: itemsAEnviar,
-        );
-      }
+      final ok = await _repository.createExpense(
+        idLugar: state.selectedLugarId!,
+        fecha: fechaStr,
+        conceptoGeneral: conceptoGral,
+        items: itemsAEnviar,
+      );
 
       if (ok) {
         state = state.copyWith(status: ExpenseFormStatus.success);

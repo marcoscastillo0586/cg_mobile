@@ -9,7 +9,6 @@ import '../../../../core/utils/date_utils.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../dashboard/presentation/providers/dashboard_notifier.dart';
 import '../../../dashboard/presentation/providers/novedades_notifier.dart';
-import '../../../movements/data/repositories/movement_repository_impl.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../domain/entities/ticket_parse_result.dart';
 import '../providers/expense_form_notifier.dart';
@@ -25,7 +24,6 @@ class CreateExpenseScreen extends ConsumerStatefulWidget {
 
 class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
   final _conceptoGeneralController = TextEditingController();
-  bool _initializedController = false;
 
   @override
   void initState() {
@@ -34,25 +32,6 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
       ref
           .read(expenseFormNotifierProvider.notifier)
           .setConceptoGeneral(_conceptoGeneralController.text);
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final editIdStr = GoRouterState.of(context).uri.queryParameters['edit_id'];
-      if (editIdStr != null && int.tryParse(editIdStr) != null) {
-        final editId = int.parse(editIdStr);
-        final movementRepository = ref.read(movementRepositoryProvider);
-        ref
-            .read(expenseFormNotifierProvider.notifier)
-            .cargarGastoParaEditar(editId, movementRepository)
-            .then((_) {
-          if (mounted) {
-            final state = ref.read(expenseFormNotifierProvider);
-            _conceptoGeneralController.text = state.conceptoGeneral;
-            _initializedController = true;
-          }
-        });
-      }
     });
   }
 
@@ -98,9 +77,7 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
       unawaited(ref.read(novedadesNotifierProvider.notifier).calcularNovedades());
 
       if (mounted) {
-        final mensajeStr = ref.read(expenseFormNotifierProvider).isEditing
-            ? '¡Egreso actualizado correctamente!'
-            : '¡Egreso registrado correctamente!';
+        const mensajeStr = '¡Egreso registrado correctamente!';
         AppFeedback.showSuccess(context, mensajeStr);
         context.pop(true);
       }
@@ -123,11 +100,6 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
       );
     }
 
-    if (state.isEditing && !_initializedController) {
-      _conceptoGeneralController.text = state.conceptoGeneral;
-      _initializedController = true;
-    }
-
     final lugares = state.formData?.lugares ?? [];
     final categorias = state.formData?.categorias ?? [];
     final sugerenciasConceptos = state.formData?.conceptos ?? [];
@@ -140,12 +112,8 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
 
     // Título y texto de botón según idioma e inicio de edición
     final isEn = settings.language == 'en';
-    final tituloModulo = state.isEditing
-        ? (isEn ? 'Edit Expense' : 'Editar egreso')
-        : (isEn ? 'New Expense' : 'Nuevo Egreso');
-    final textoBoton = state.isEditing
-        ? (isEn ? 'Save changes' : 'Guardar cambios')
-        : (isEn ? 'Register Expense ($totalFormateado)' : 'Registrar Gasto ($totalFormateado)');
+    final tituloModulo = isEn ? 'New Expense' : 'Nuevo Egreso';
+    final textoBoton = (isEn ? 'Register Expense ($totalFormateado)' : 'Registrar Gasto ($totalFormateado)');
 
     return Scaffold(
       appBar: AppBar(

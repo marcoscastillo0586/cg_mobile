@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/app_local_database.dart';
 import '../../../dashboard/domain/entities/account_entity.dart';
-import '../../../movements/domain/entities/movement_entity.dart';
 import '../../domain/entities/category_entity.dart';
 import '../../domain/entities/expense_form_data_entity.dart';
 import '../../domain/entities/expense_item_entity.dart';
@@ -141,93 +140,5 @@ class ExpensesLocalDataSource {
       categorias: categorias,
       conceptos: conceptos,
     );
-  }
-
-  Future<({List<MovementEntity> movimientos, MovementsSummaryEntity resumen})> getMovementsLocally({
-    String? desde,
-    String? hasta,
-    int? idLugar,
-    int? idCategoria,
-    int limit = 50,
-  }) async {
-    final db = await AppLocalDatabase.instance;
-
-    String where = "enc.sync_status != 'pending_delete'";
-    final List<dynamic> args = [];
-
-    if (idLugar != null && idLugar > 0) {
-      where += ' AND det.lugar_remote_id = ?';
-      args.add(idLugar);
-    }
-    if (idCategoria != null && idCategoria > 0) {
-      where += ' AND det.categoria_remote_id = ?';
-      args.add(idCategoria);
-    }
-
-    final List<Map<String, dynamic>> rows = await db.rawQuery('''
-      SELECT 
-        enc.id as enc_id,
-        enc.remote_id as enc_remote_id,
-        enc.sync_id as enc_sync_id,
-        enc.tipo_movimiento,
-        enc.concepto_general,
-        enc.fecha_movimiento,
-        det.id as det_id,
-        det.concepto,
-        det.monto,
-        det.lugar_remote_id,
-        det.categoria_remote_id
-      FROM movimiento_enc_local enc
-      LEFT JOIN movimiento_det_local det ON det.movimiento_enc_sync_id = enc.sync_id
-      WHERE $where
-      ORDER BY enc.fecha_movimiento DESC
-      LIMIT ?
-    ''', [...args, limit]);
-
-    if (kDebugMode) {
-      debugPrint('[SYNC-DEBUG] [READ] Tabla: movimiento_enc_local & det_local | Origen: sqlite | Filas devueltas: ${rows.length}');
-    }
-
-    final List<MovementEntity> list = [];
-    double sumIngresos = 0.0;
-    double sumEgresos = 0.0;
-
-    for (final r in rows) {
-      final idEnc = r['enc_remote_id'] as int? ?? r['enc_id'] as int;
-      final monto = (r['monto'] as num?)?.toDouble() ?? 0.0;
-      final tipoMov = r['tipo_movimiento'] as int? ?? 2;
-      final idLug = r['lugar_remote_id'] as int? ?? 1;
-      final idCat = r['categoria_remote_id'] as int? ?? 1;
-
-      if (monto < 0) {
-        sumEgresos += monto.abs();
-      } else {
-        sumIngresos += monto;
-      }
-
-      list.add(
-        MovementEntity(
-          idMovimientoEnc: idEnc,
-          tipoMovimiento: tipoMov,
-          conceptoGeneral: r['concepto_general'] as String? ?? 'Gasto',
-          fecha: r['fecha_movimiento'] as String? ?? '',
-          idLugar: idLug,
-          lugarNombre: 'Cuenta #$idLug',
-          idCategoria: idCat,
-          categoriaNombre: 'Categoría #$idCat',
-          monto: monto,
-          cantidadDetalles: 1,
-        ),
-      );
-    }
-
-    final resumen = MovementsSummaryEntity(
-      totalIngresos: sumIngresos,
-      totalEgresos: sumEgresos,
-      balancePeriodo: sumIngresos - sumEgresos,
-      cantidad: list.length,
-    );
-
-    return (movimientos: list, resumen: resumen);
   }
 }
