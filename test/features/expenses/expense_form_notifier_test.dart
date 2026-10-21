@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gastos_mobile/core/network/dio_client.dart';
-import 'package:gastos_mobile/core/storage/secure_storage_service.dart';
 import 'package:gastos_mobile/features/dashboard/data/datasources/dashboard_remote_data_source.dart';
 import 'package:gastos_mobile/features/dashboard/data/models/dashboard_summary_model.dart';
 import 'package:gastos_mobile/features/dashboard/domain/entities/account_entity.dart';
@@ -12,14 +11,9 @@ import 'package:gastos_mobile/features/expenses/domain/repositories/expense_repo
 import 'package:gastos_mobile/features/expenses/data/repositories/expense_repository_impl.dart';
 import 'package:gastos_mobile/features/expenses/presentation/providers/expense_form_notifier.dart';
 
-class _FakeStorage implements SecureStorageService {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 /// Sin red en los tests: el notifier ignora el fallo y usa las cuentas del repositorio.
 class _OfflineDashboardDataSource extends DashboardRemoteDataSource {
-  _OfflineDashboardDataSource() : super(DioClient(_FakeStorage()));
+  _OfflineDashboardDataSource() : super(DioClient());
 
   @override
   Future<DashboardSummaryModel> getSaldos({String? hasta}) async =>

@@ -1,158 +1,128 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../constants/api_endpoints.dart';
+import '../config/api_config.dart';
 import '../errors/exceptions.dart';
 import '../storage/secure_storage_service.dart';
 import 'auth_interceptor.dart';
 
 final dioClientProvider = Provider<DioClient>((ref) {
   final storageService = ref.watch(secureStorageServiceProvider);
-  return DioClient(storageService);
+  return DioClient(interceptors: [AuthInterceptor(storageService)]);
 });
 
+/// Cliente HTTP de la API `/api/v1`.
+///
+/// - Las respuestas vienen sin envoltorio: se devuelve el cuerpo tal cual.
+/// - Los errores `{statusCode, code, message, details}` se convierten en
+///   [ServerException] / [AuthException] con su `code`; los de red en [NetworkException].
 class DioClient {
   late final Dio _dio;
 
-  DioClient(SecureStorageService storageService, {void Function()? onUnauthorized}) {
-    _dio = Dio(
+  DioClient({List<Interceptor> interceptors = const [], HttpClientAdapter? adapter}) {
+    _dio = createDio();
+    if (adapter != null) _dio.httpClientAdapter = adapter;
+    _dio.interceptors.addAll([...interceptors, if (kDebugMode) _SafeLogInterceptor()]);
+  }
+
+  /// Dio con la configuración común (base, timeouts, `X-Client: mobile`), sin interceptores.
+  static Dio createDio() {
+    return Dio(
       BaseOptions(
-        baseUrl: ApiEndpoints.baseUrl,
+        baseUrl: ApiConfig.isConfigured ? ApiConfig.requireBaseUrl : '',
         connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 30),
+        sendTimeout: const Duration(seconds: 30),
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
+          ApiConfig.clientHeader: ApiConfig.clientHeaderValue,
         },
         responseType: ResponseType.json,
       ),
     );
-
-    _dio.interceptors.addAll([
-      AuthInterceptor(storageService, onUnauthorized: onUnauthorized),
-      LogInterceptor(
-        request: true,
-        requestHeader: true,
-        requestBody: true,
-        responseHeader: false,
-        responseBody: true,
-        error: true,
-      ),
-    ]);
   }
 
   Dio get dio => _dio;
 
+  Future<dynamic> get(String path, {Map<String, dynamic>? queryParameters, Options? options}) =>
+      _send(() => _dio.get<dynamic>(path, queryParameters: queryParameters, options: options));
 
+  Future<dynamic> post(String path, {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) =>
+      _send(() => _dio.post<dynamic>(path, data: data, queryParameters: queryParameters, options: options));
 
-  Future<dynamic> get(
-    String path, {
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-  }) async {
+  Future<dynamic> put(String path, {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) =>
+      _send(() => _dio.put<dynamic>(path, data: data, queryParameters: queryParameters, options: options));
+
+  Future<dynamic> patch(String path, {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) =>
+      _send(() => _dio.patch<dynamic>(path, data: data, queryParameters: queryParameters, options: options));
+
+  Future<dynamic> delete(String path, {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) =>
+      _send(() => _dio.delete<dynamic>(path, data: data, queryParameters: queryParameters, options: options));
+
+  Future<dynamic> _send(Future<Response<dynamic>> Function() call) async {
+    if (!ApiConfig.isConfigured) {
+      throw const ServerException('API_BASE_URL no configurada', null, 'CONFIG_MISSING');
+    }
     try {
-      final response = await _dio.get<dynamic>(
-        path,
-        queryParameters: queryParameters,
-        options: options,
-      );
-      return _handleResponse(response);
+      final response = await call();
+      return response.data;
     } on DioException catch (e) {
-      throw _handleDioError(e);
+      throw mapDioError(e);
     }
   }
 
-  Future<dynamic> post(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-  }) async {
-    try {
-      final response = await _dio.post<dynamic>(
-        path,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-      );
-      return _handleResponse(response);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
+  /// Convierte un [DioException] en la excepción de dominio correspondiente.
+  static Exception mapDioError(DioException error) {
+    final inner = error.error;
+    if (inner is AuthException || inner is NetworkException || inner is ServerException) {
+      return inner as Exception; // ya mapeada por un interceptor (p. ej. sesión expirada)
     }
-  }
-
-  Future<dynamic> put(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-  }) async {
-    try {
-      final response = await _dio.put<dynamic>(
-        path,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-      );
-      return _handleResponse(response);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
-  }
-
-  Future<dynamic> delete(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-  }) async {
-    try {
-      final response = await _dio.delete<dynamic>(
-        path,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-      );
-      return _handleResponse(response);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
-  }
-
-  dynamic _handleResponse(Response<dynamic> response) {
-    final dynamic data = response.data;
-    if (data is Map<String, dynamic>) {
-      final bool success = data['success'] as bool? ?? true;
-      if (!success) {
-        final message = data['message'] as String? ?? 'Ocurrió un error en la solicitud';
-        throw ServerException(message, response.statusCode);
-      }
-      return data['data'] ?? data;
-    }
-    return data;
-  }
-
-  Exception _handleDioError(DioException error) {
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
+      case DioExceptionType.transformTimeout:
       case DioExceptionType.connectionError:
-        return const NetworkException('Tiempo de espera agotado o sin conexión a internet.');
-      case DioExceptionType.badResponse:
-        final statusCode = error.response?.statusCode;
-        final responseData = error.response?.data;
-        String message = 'Error del servidor ($statusCode)';
-        if (responseData is Map<String, dynamic> && responseData.containsKey('message')) {
-          message = responseData['message'].toString();
-        }
-        if (statusCode == 401) {
-          return AuthException(message, statusCode);
-        }
-        return ServerException(message, statusCode);
+        return const NetworkException();
       case DioExceptionType.cancel:
         return const NetworkException('La solicitud fue cancelada.');
-      default:
-        return ServerException(error.message ?? 'Error inesperado de comunicación.');
+      case DioExceptionType.badResponse:
+        return fromResponse(error.response);
+      case DioExceptionType.badCertificate:
+        return const NetworkException('Certificado del servidor inválido.');
+      case DioExceptionType.unknown:
+        return NetworkException('Error de comunicación: ${error.message ?? inner}');
     }
+  }
+
+  static Exception fromResponse(Response<dynamic>? response) {
+    final status = response?.statusCode;
+    final body = response?.data;
+    if (body is Map && body['code'] is String) {
+      final code = body['code'] as String;
+      final message = body['message']?.toString() ?? 'Error del servidor';
+      if (status == 401) return AuthException(message, status, code);
+      return ServerException(message, status, code, body['details']);
+    }
+    if (status == 401) return AuthException('No autorizado', status, 'UNAUTHORIZED');
+    return ServerException('Respuesta inesperada del servidor (HTTP $status)', status, 'UNEXPECTED_RESPONSE');
+  }
+}
+
+/// Log de depuración sin datos sensibles: método, ruta y estado. Nunca headers ni cuerpos.
+class _SafeLogInterceptor extends Interceptor {
+  @override
+  void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
+    debugPrint('[HTTP] ${response.requestOptions.method} ${response.requestOptions.path} → ${response.statusCode}');
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final body = err.response?.data;
+    final code = body is Map ? body['code'] : null;
+    debugPrint('[HTTP] ${err.requestOptions.method} ${err.requestOptions.path} → '
+        '${err.response?.statusCode ?? err.type.name}${code != null ? ' ($code)' : ''}');
+    handler.next(err);
   }
 }

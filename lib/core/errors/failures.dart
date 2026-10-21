@@ -4,28 +4,31 @@ abstract class Failure extends Equatable {
   final String message;
   final int? statusCode;
 
-  const Failure(this.message, [this.statusCode]);
+  /// Código de la API (si lo hubo), para traducirlo con ErrorMessages.
+  final String? code;
+
+  const Failure(this.message, [this.statusCode, this.code]);
 
   @override
-  List<Object?> get props => [message, statusCode];
+  List<Object?> get props => [message, statusCode, code];
 }
 
 class ServerFailure extends Failure {
-  const ServerFailure(super.message, [super.statusCode]);
+  const ServerFailure(super.message, [super.statusCode, super.code]);
 }
 
 class NetworkFailure extends Failure {
-  const NetworkFailure(super.message, [super.statusCode]);
+  const NetworkFailure(super.message, [super.statusCode, super.code]);
 }
 
 class AuthFailure extends Failure {
-  const AuthFailure(super.message, [super.statusCode]);
+  const AuthFailure(super.message, [super.statusCode, super.code]);
 }
 
 class ValidationFailure extends Failure {
-  const ValidationFailure(super.message, [super.statusCode]);
+  const ValidationFailure(super.message, [super.statusCode, super.code]);
 }
 
 class CacheFailure extends Failure {
-  const CacheFailure(super.message, [super.statusCode]);
+  const CacheFailure(super.message, [super.statusCode, super.code]);
 }
