@@ -16,7 +16,19 @@ migrate_working_dir/
 **/android/key.properties
 *.jks
 *.keystore
+*.p12
+*.pem
 key.properties
+.env
+.env.*
+
+# Bases locales y copias sacadas del celular (pueden tener datos reales)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
 
 # IntelliJ related
 *.iml

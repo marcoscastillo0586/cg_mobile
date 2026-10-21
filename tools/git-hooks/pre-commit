@@ -1,0 +1,39 @@
+#!/bin/sh
+# Bloquea commits con secretos o archivos sensibles.
+# Activación (una vez por clon):  git config core.hooksPath tools/git-hooks
+# Nunca imprime el secreto: solo archivo y línea.
+
+fail=0
+
+# 1. Archivos que nunca se versionan.
+blocked_files=$(git diff --cached --name-only --diff-filter=ACMR |
+  grep -iE '\.(db|db-journal|db-wal|sqlite|sqlite3|jks|keystore|p12|pem)$|(^|/)key\.properties$|(^|/)\.env(\..*)?$|(^|/)local\.properties$')
+if [ -n "$blocked_files" ]; then
+  echo "pre-commit: archivos bloqueados (base de datos, keystore o secretos):"
+  echo "$blocked_files" | sed 's/^/  - /'
+  fail=1
+fi
+
+# 2. Contenido con forma de secreto, solo en las líneas agregadas.
+pattern='AIza[0-9A-Za-z_-]{35}|AQ\.[A-Za-z0-9_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|(api[_-]?key|secret|password|passwd|token)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"' ]{12,}["'"'"']'
+
+for f in $(git diff --cached --name-only --diff-filter=ACMR); do
+  case "$f" in
+    pubspec.lock|tools/git-hooks/pre-commit) continue ;;
+  esac
+  hits=$(git diff --cached -U0 -- "$f" | awk '
+    /^@@/ { split($3, a, ","); line = substr(a[1], 2) - 1; next }
+    /^\+\+\+/ { next }
+    /^\+/ { line++; print line ":" substr($0, 2); next }
+  ' | grep -iE "$pattern" | cut -d: -f1)
+  for l in $hits; do
+    echo "pre-commit: posible secreto en $f:$l (no se muestra el valor)"
+    fail=1
+  done
+done
+
+if [ "$fail" -ne 0 ]; then
+  echo "pre-commit: commit bloqueado. Sacá el secreto o el archivo y volvé a intentar."
+  exit 1
+fi
+exit 0
