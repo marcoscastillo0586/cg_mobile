@@ -1,0 +1,435 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../../../core/errors/failures.dart';
+import '../../../dashboard/data/datasources/dashboard_remote_data_source.dart';
+import '../../../movements/data/repositories/movement_repository_impl.dart';
+import '../../../movements/domain/repositories/movement_repository.dart';
+import '../../domain/entities/category_entity.dart';
+import '../../domain/entities/expense_form_data_entity.dart';
+import '../../domain/entities/renglon_gasto.dart';
+import '../../domain/entities/ticket_parse_result.dart';
+import '../../domain/repositories/expense_repository.dart';
+import '../../data/repositories/expense_repository_impl.dart';
+import 'expense_form_state.dart';
+
+final expenseFormNotifierProvider =
+    StateNotifierProvider.autoDispose<ExpenseFormNotifier, ExpenseFormState>((ref) {
+  final repository = ref.watch(expenseRepositoryProvider);
+  final dashboardDataSource = ref.watch(dashboardRemoteDataSourceProvider);
+  return ExpenseFormNotifier(repository, dashboardDataSource, ref);
+});
+
+class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
+  final ExpenseRepository _repository;
+  final DashboardRemoteDataSource? _dashboardDataSource;
+  final Ref _ref;
+
+  ExpenseFormNotifier(this._repository, [this._dashboardDataSource, Ref? ref])
+      : _ref = ref!,
+        super(ExpenseFormState.initial()) {
+    inicializar();
+  }
+
+  Future<void> inicializar() async {
+    state = state.copyWith(status: ExpenseFormStatus.loadingData);
+    try {
+      var formData = await _repository.getFormData();
+
+      // Punto 6.6: Sincronizar saldos reales de las cuentas desde el dashboard
+      if (_dashboardDataSource != null) {
+        try {
+          final summary = await _dashboardDataSource.getSaldos();
+          if (summary.cuentas.isNotEmpty) {
+            formData = ExpenseFormDataEntity(
+              lugares: summary.cuentas,
+              categorias: formData.categorias,
+              conceptos: formData.conceptos,
+            );
+          }
+        } catch (_) {}
+      }
+
+      final defaultCategoria = formData.categorias.isNotEmpty ? formData.categorias.first : null;
+
+      final primerRenglon = RenglonGasto.nuevo(
+        defaultCategoriaId: defaultCategoria?.idCategoria,
+        defaultCategoria: defaultCategoria,
+      );
+
+      state = state.copyWith(
+        status: ExpenseFormStatus.ready,
+        formData: formData,
+        selectedLugarId: null, // Punto 6.5: Inicia sin ninguna cuenta seleccionada en alta
+        renglones: [primerRenglon],
+      );
+    } on Failure catch (e) {
+      state = state.copyWith(
+        status: ExpenseFormStatus.error,
+        errorMessage: e.message,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status: ExpenseFormStatus.error,
+        errorMessage: 'Error al inicializar formulario: $e',
+      );
+    }
+  }
+
+  Future<void> cargarGastoParaEditar(int editId, MovementRepository movementRepository) async {
+    state = state.copyWith(status: ExpenseFormStatus.loadingData);
+    try {
+      var formData = await _repository.getFormData();
+      if (_dashboardDataSource != null) {
+        try {
+          final summary = await _dashboardDataSource.getSaldos();
+          if (summary.cuentas.isNotEmpty) {
+            formData = ExpenseFormDataEntity(
+              lugares: summary.cuentas,
+              categorias: formData.categorias,
+              conceptos: formData.conceptos,
+            );
+          }
+        } catch (_) {}
+      }
+
+      final detail = await movementRepository.getMovementDetail(editId);
+      final lugarSaved = detail.detalles.isNotEmpty ? detail.detalles.first.idLugar : null;
+
+      final List<RenglonGasto> renglonesEdit = [];
+      int idx = 0;
+      for (final d in detail.detalles) {
+        idx++;
+        final catEntity = formData.categorias.cast<CategoryEntity?>().firstWhere(
+              (c) => c?.idCategoria == d.idCategoria,
+              orElse: () => null,
+            );
+        renglonesEdit.add(
+          RenglonGasto(
+            id: 'edit_${DateTime.now().microsecondsSinceEpoch}_$idx',
+            concepto: d.concepto,
+            monto: d.monto.abs(),
+            categoriaId: d.idCategoria,
+            categoria: catEntity,
+          ),
+        );
+      }
+
+      final fechaEdit = DateTime.tryParse(detail.fecha) ?? DateTime.now();
+
+      state = state.copyWith(
+        status: ExpenseFormStatus.ready,
+        formData: formData,
+        selectedLugarId: lugarSaved, // Carga la cuenta guardada
+        conceptoGeneral: detail.conceptoGeneral,
+        fecha: fechaEdit,
+        renglones: renglonesEdit.isNotEmpty ? renglonesEdit : [RenglonGasto.nuevo()],
+        editingId: editId,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status: ExpenseFormStatus.error,
+        errorMessage: 'Error al cargar egreso para editar: $e',
+      );
+    }
+  }
+
+  void setLugar(int idLugar) {
+    state = state.copyWith(selectedLugarId: idLugar);
+  }
+
+  void setFecha(DateTime fecha) {
+    state = state.copyWith(fecha: fecha);
+  }
+
+  void setConceptoGeneral(String concepto) {
+    state = state.copyWith(conceptoGeneral: concepto);
+  }
+
+  void agregarRenglon() {
+    final defaultCategoria = state.formData?.categorias.isNotEmpty == true
+        ? state.formData!.categorias.first
+        : null;
+
+    final nuevoRenglon = RenglonGasto.nuevo(
+      defaultCategoriaId: defaultCategoria?.idCategoria,
+      defaultCategoria: defaultCategoria,
+    );
+
+    state = state.copyWith(
+      renglones: [...state.renglones, nuevoRenglon],
+    );
+  }
+
+  void eliminarRenglon(String id) {
+    if (state.renglones.length <= 1) return;
+
+    final actualizados = state.renglones.where((r) => r.id != id).toList();
+    state = state.copyWith(renglones: actualizados);
+  }
+
+  void actualizarConcepto(String id, String concepto) {
+    final actualizados = state.renglones.map((r) {
+      if (r.id == id) {
+        return r.copyWith(concepto: concepto);
+      }
+      return r;
+    }).toList();
+
+    state = state.copyWith(renglones: actualizados);
+    _verificarSugerenciaCategoria(id, concepto);
+  }
+
+  void actualizarMonto(String id, double monto) {
+    final actualizados = state.renglones.map((r) {
+      if (r.id == id) {
+        return r.copyWith(monto: monto);
+      }
+      return r;
+    }).toList();
+
+    state = state.copyWith(renglones: actualizados);
+  }
+
+  void actualizarCategoria(String id, int categoriaId) {
+    CategoryEntity? categoriaEntity;
+    if (state.formData != null) {
+      categoriaEntity = state.formData!.categorias.cast<CategoryEntity?>().firstWhere(
+            (c) => c?.idCategoria == categoriaId,
+            orElse: () => null,
+          );
+    }
+
+    final actualizados = state.renglones.map((r) {
+      if (r.id == id) {
+        return r.copyWith(
+          categoriaId: categoriaId,
+          categoria: categoriaEntity,
+        );
+      }
+      return r;
+    }).toList();
+
+    state = state.copyWith(renglones: actualizados);
+  }
+
+  Future<void> _verificarSugerenciaCategoria(String renglonId, String concepto) async {
+    if (concepto.trim().length >= 3) {
+      final sugerida = await _repository.suggestCategory(concepto);
+      if (sugerida != null && mounted) {
+        final index = state.renglones.indexWhere((r) => r.id == renglonId);
+        if (index != -1) {
+          actualizarCategoria(renglonId, sugerida);
+        }
+      }
+    }
+  }
+
+  void aplicarResultadoTicket(TicketParseResult parseResult) {
+    final List<RenglonGasto> renglonesNuevos = [];
+    int idx = 0;
+
+    for (final item in parseResult.items) {
+      idx++;
+      final catId = item.idCategoriaSugerida ??
+          (state.formData?.categorias.isNotEmpty == true
+              ? state.formData!.categorias.first.idCategoria
+              : 3);
+      final catEntity = state.formData?.categorias.cast<CategoryEntity?>().firstWhere(
+            (c) => c?.idCategoria == catId,
+            orElse: () => null,
+          );
+
+      renglonesNuevos.add(
+        RenglonGasto(
+          id: 'ocr_${DateTime.now().microsecondsSinceEpoch}_$idx',
+          concepto: item.nombre,
+          monto: item.precio,
+          categoriaId: catId,
+          categoria: catEntity,
+        ),
+      );
+    }
+
+    final suma = parseResult.sumaRenglones;
+    final totalD = parseResult.totalDetectado;
+
+    String feedback;
+    if (totalD != null) {
+      if (parseResult.tieneDiferenciaTotal) {
+        feedback = 'Suma de renglones (\$${suma.toStringAsFixed(2)}) difiere del total detectado (\$$totalD). Verifica los montos.';
+      } else {
+        feedback = 'Ticket leído: Suma \$${suma.toStringAsFixed(2)} | Total \$${totalD.toStringAsFixed(2)}';
+      }
+    } else {
+      feedback = 'Suma de renglones: \$${suma.toStringAsFixed(2)} (No se detectó un total explícito en el ticket).';
+    }
+
+    state = state.copyWith(
+      status: ExpenseFormStatus.ready,
+      ticketParseResult: parseResult,
+      renglones: renglonesNuevos.isNotEmpty ? renglonesNuevos : [RenglonGasto.nuevo()],
+      qrFeedback: feedback,
+    );
+  }
+
+  Future<bool> procesarQrTicket(String qrData) async {
+    state = state.copyWith(status: ExpenseFormStatus.parsingQr, qrFeedback: null);
+    try {
+      final parsed = await _repository.parseQrTicket(qrData);
+
+      final List<RenglonGasto> renglonesTicket = [];
+      int idx = 0;
+      for (final it in parsed.items) {
+        idx++;
+        final catId = it.idCategoriaSugerida ?? (state.formData?.categorias.first.idCategoria ?? 3);
+        final catEntity = state.formData?.categorias.cast<CategoryEntity?>().firstWhere(
+              (c) => c?.idCategoria == catId,
+              orElse: () => null,
+            );
+
+        renglonesTicket.add(
+          RenglonGasto(
+            id: 'qr_${DateTime.now().microsecondsSinceEpoch}_$idx',
+            concepto: it.nombre,
+            monto: it.precio,
+            categoriaId: catId,
+            categoria: catEntity,
+          ),
+        );
+      }
+
+      state = state.copyWith(
+        status: ExpenseFormStatus.ready,
+        renglones: renglonesTicket.isNotEmpty ? renglonesTicket : [RenglonGasto.nuevo()],
+        conceptoGeneral: state.conceptoGeneral.isEmpty ? 'Ticket Escaneado' : state.conceptoGeneral,
+        qrFeedback: '¡Ticket procesado con éxito! Se cargaron ${renglonesTicket.length} renglones (\$${parsed.total.toStringAsFixed(2)})',
+      );
+      return true;
+    } on Failure catch (e) {
+      state = state.copyWith(
+        status: ExpenseFormStatus.ready,
+        errorMessage: 'Error al procesar QR: ${e.message}',
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(
+        status: ExpenseFormStatus.ready,
+        errorMessage: 'Error al escanear ticket: $e',
+      );
+      return false;
+    }
+  }
+
+  void limpiarItemsTicket() {
+    final defaultCat = state.formData?.categorias.isNotEmpty == true
+        ? state.formData!.categorias.first
+        : null;
+
+    state = state.copyWith(
+      ticketParseResult: null,
+      renglones: [
+        RenglonGasto.nuevo(
+          defaultCategoriaId: defaultCat?.idCategoria,
+          defaultCategoria: defaultCat,
+        )
+      ],
+      qrFeedback: null,
+    );
+  }
+
+  /// Valida y registra o actualiza el gasto con todos sus renglones en el backend
+  Future<bool> guardarEgreso() async {
+    if (state.selectedLugarId == null) {
+      state = state.copyWith(errorMessage: 'Debes seleccionar una cuenta de origen');
+      return false;
+    }
+
+    if (state.conceptoGeneral.trim().isEmpty) {
+      state = state.copyWith(errorMessage: 'El Concepto General es obligatorio');
+      return false;
+    }
+
+    if (state.renglones.isEmpty) {
+      state = state.copyWith(errorMessage: 'Debes ingresar al menos un renglón de gasto');
+      return false;
+    }
+
+    for (int i = 0; i < state.renglones.length; i++) {
+      final r = state.renglones[i];
+      final numRenglon = i + 1;
+
+      if (r.monto <= 0) {
+        state = state.copyWith(
+          errorMessage: 'El Renglón #$numRenglon debe tener un monto válido mayor a 0',
+        );
+        return false;
+      }
+
+      if (r.categoriaId == null || r.categoriaId! <= 0) {
+        state = state.copyWith(
+          errorMessage: 'Debes seleccionar una categoría para el Renglón #$numRenglon',
+        );
+        return false;
+      }
+    }
+
+    final fechaStr = DateFormat('yyyy-MM-dd').format(state.fecha);
+    final conceptoGral = state.conceptoGeneral.trim().isEmpty ? 'Gasto' : state.conceptoGeneral.trim();
+
+    final itemsAEnviar = state.renglones.map((r) {
+      return r.toExpenseItemEntity(fallbackConcepto: conceptoGral);
+    }).toList();
+
+    state = state.copyWith(status: ExpenseFormStatus.submitting, errorMessage: null);
+
+    try {
+      final bool ok;
+      if (state.isEditing) {
+        final movementRepository = _ref.read(movementRepositoryProvider);
+        ok = await movementRepository.updateMovement({
+          'id_movimiento_enc': state.editingId,
+          'tipo_movimiento': 2,
+          'fecha': fechaStr,
+          'concepto_general': conceptoGral,
+          'id_lugar': state.selectedLugarId,
+          'items': itemsAEnviar.map((it) => {
+            'monto': it.monto,
+            'id_categoria': it.idCategoria,
+            'concepto': it.concepto,
+            'id_lugar': state.selectedLugarId,
+          }).toList(),
+        });
+      } else {
+        ok = await _repository.createExpense(
+          idLugar: state.selectedLugarId!,
+          fecha: fechaStr,
+          conceptoGeneral: conceptoGral,
+          items: itemsAEnviar,
+        );
+      }
+
+      if (ok) {
+        state = state.copyWith(status: ExpenseFormStatus.success);
+        return true;
+      } else {
+        state = state.copyWith(
+          status: ExpenseFormStatus.ready,
+          errorMessage: 'No se pudo guardar el egreso en el servidor',
+        );
+        return false;
+      }
+    } on Failure catch (e) {
+      state = state.copyWith(
+        status: ExpenseFormStatus.ready,
+        errorMessage: e.message,
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(
+        status: ExpenseFormStatus.ready,
+        errorMessage: 'Error al registrar: $e',
+      );
+      return false;
+    }
+  }
+}

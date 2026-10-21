@@ -1,0 +1,301 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/utils/app_feedback.dart';
+import '../../../dashboard/presentation/providers/dashboard_notifier.dart';
+import '../providers/transfer_form_notifier.dart';
+
+class CreateTransferScreen extends ConsumerStatefulWidget {
+  const CreateTransferScreen({super.key});
+
+  @override
+  ConsumerState<CreateTransferScreen> createState() => _CreateTransferScreenState();
+}
+
+class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
+  final _montoController = TextEditingController();
+  final _conceptoController = TextEditingController();
+
+  @override
+  void dispose() {
+    _montoController.dispose();
+    _conceptoController.dispose();
+    super.dispose();
+  }
+
+  void _seleccionarFecha(BuildContext context) async {
+    final estado = ref.read(transferFormNotifierProvider);
+    final seleccionada = await showDatePicker(
+      context: context,
+      initialDate: estado.fecha,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
+      helpText: 'Fecha de la transferencia',
+    );
+
+    if (seleccionada != null) {
+      ref.read(transferFormNotifierProvider.notifier).setFecha(seleccionada);
+    }
+  }
+
+  void _confirmarTransferencia() async {
+    final monto = double.tryParse(_montoController.text.replaceAll(',', '.')) ?? 0.0;
+    ref.read(transferFormNotifierProvider.notifier).setMonto(monto);
+    ref.read(transferFormNotifierProvider.notifier).setConcepto(_conceptoController.text.trim());
+
+    final ok = await ref.read(transferFormNotifierProvider.notifier).realizarTransferencia();
+
+    if (ok && mounted) {
+      await ref.read(dashboardNotifierProvider.notifier).cargarDashboard();
+
+      if (mounted) {
+        AppFeedback.showSuccess(context, '¡Transferencia realizada con éxito!');
+        context.pop();
+      }
+    } else if (mounted) {
+      final error = ref.read(transferFormNotifierProvider).errorMessage ?? 'Error al transferir';
+      AppFeedback.showError(context, error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(transferFormNotifierProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final formatoFecha = DateFormat('dd/MM/yyyy').format(state.fecha);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Transferir Dinero'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 14.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. Card de Cuentas (Origen -> Destino con botón de intercambio)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    // Cuenta Origen
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.rose.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.arrow_upward_rounded, color: AppColors.rose, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Desde (Origen)',
+                                style: TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
+                              ),
+                              DropdownButtonHideUnderline(
+                                child: DropdownButton<int>(
+                                  isExpanded: true,
+                                  value: state.selectedOrigenId,
+                                  hint: const Text('Seleccionar origen'),
+                                  items: state.lugares.map((lug) {
+                                    return DropdownMenuItem<int>(
+                                      value: lug.idLugar,
+                                      child: Text(
+                                        '${lug.nombre.toUpperCase()} (${lug.simboloMoneda} ${lug.montoOriginal.toStringAsFixed(2)})',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      AppFeedback.selection();
+                                      ref.read(transferFormNotifierProvider.notifier).setOrigen(val);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Botón de Intercambio
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Expanded(child: Divider()),
+                        IconButton(
+                          icon: const Icon(Icons.swap_vert_rounded, color: AppColors.primary),
+                          tooltip: 'Invertir cuentas',
+                          onPressed: () {
+                            AppFeedback.medium();
+                            ref.read(transferFormNotifierProvider.notifier).intercambiarCuentas();
+                          },
+                        ),
+                        const Expanded(child: Divider()),
+                      ],
+                    ),
+
+                    // Cuenta Destino
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.emerald.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.arrow_downward_rounded, color: AppColors.emerald, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Hacia (Destino)',
+                                style: TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
+                              ),
+                              DropdownButtonHideUnderline(
+                                child: DropdownButton<int>(
+                                  isExpanded: true,
+                                  value: state.selectedDestinoId,
+                                  hint: const Text('Seleccionar destino'),
+                                  items: state.lugares.map((lug) {
+                                    return DropdownMenuItem<int>(
+                                      value: lug.idLugar,
+                                      child: Text(
+                                        '${lug.nombre.toUpperCase()} (${lug.simboloMoneda} ${lug.montoOriginal.toStringAsFixed(2)})',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      ref.read(transferFormNotifierProvider.notifier).setDestino(val);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // 2. Monto a Transferir
+            const Text(
+              'Monto a Transferir',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _montoController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.primary),
+              decoration: const InputDecoration(
+                prefixText: '\$ ',
+                prefixStyle: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.primary),
+                hintText: '0,00',
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // 3. Concepto / Motivo (Punto 9.2: Máximo 20 caracteres alfanuméricos)
+            const Text(
+              'Concepto / Referencia',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _conceptoController,
+              maxLength: 20,
+              inputFormatters: [
+                LengthLimitingTextInputFormatter(20),
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]')),
+              ],
+              decoration: const InputDecoration(
+                hintText: 'Ej: Extraccion',
+                prefixIcon: Icon(Icons.swap_horiz_rounded, size: 20),
+                counterText: '',
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // 4. Fecha
+            const Text(
+              'Fecha',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: () => _seleccionarFecha(context),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.calendar_today_outlined, size: 18),
+                        const SizedBox(width: 10),
+                        Text(formatoFecha, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                    const Icon(Icons.chevron_right, size: 18, color: AppColors.lightTextSecondary),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // 5. Botón Confirmar
+            ElevatedButton(
+              onPressed: state.isSubmitting ? null : _confirmarTransferencia,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
+              child: state.isSubmitting
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text('Confirmar Transferencia'),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+}
