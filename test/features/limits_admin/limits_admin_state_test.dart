@@ -1,101 +1,89 @@
+// Datos SINTÉTICOS: prueban el parseo del BudgetDto y las reglas de la pantalla y de la
+// campana. No prueban la API real (eso lo hace el test en vivo).
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gastos_mobile/features/limits_admin/domain/entities/expense_limit_admin_entity.dart';
+import 'package:gastos_mobile/core/errors/exceptions.dart';
+import 'package:gastos_mobile/features/dashboard/domain/entities/novedad_entity.dart';
+import 'package:gastos_mobile/features/dashboard/presentation/providers/novedades_notifier.dart';
+import 'package:gastos_mobile/features/limits_admin/data/budgets_repository.dart';
+import 'package:gastos_mobile/features/limits_admin/domain/budget.dart';
 import 'package:gastos_mobile/features/limits_admin/presentation/providers/limits_admin_state.dart';
 
+Map<String, dynamic> _json({
+  int id = 1,
+  int limit = 100000,
+  int consumed = 50000,
+  num? percent = 50,
+  bool due = false,
+  List<String> cats = const ['Comida'],
+}) =>
+    {
+      'id': id,
+      'startDate': '2026-10-01',
+      'endDate': '2026-10-31',
+      'limitCents': limit,
+      'consumedCents': consumed,
+      'remainingCents': limit - consumed,
+      'percent': percent,
+      'dueForRenewal': due,
+      'categories': [for (var i = 0; i < cats.length; i++) {'id': i + 10, 'name': cats[i]}],
+      'accounts': [{'id': 3, 'name': 'Efectivo'}],
+    };
+
+Budget _b({int id = 1, int limit = 100000, int consumed = 50000, num? percent = 50, bool due = false, List<String> cats = const ['Comida']}) =>
+    BudgetsRepository.parse(_json(id: id, limit: limit, consumed: consumed, percent: percent, due: due, cats: cats));
+
 void main() {
-  group('LimitsAdminState & Entity Tests', () {
-    final limitActivo = ExpenseLimitAdminEntity(
-      idLimiteGasto: 1,
-      desde: DateTime(2026, 10, 1),
-      hasta: DateTime(2026, 10, 31),
-      montoLimite: 100000.0,
-      montoConsumido: 40000.0,
-      resto: 60000.0,
-      porcentaje: 40.0,
-      vencido: false,
-      categoria: '3,8',
-      categoriasNombres: 'Comida, Bebidas',
-      lugar: '1,2',
-      lugaresNombres: 'Efectivo, Galicia',
-    );
+  test('parsea BudgetDto en centavos y usa los valores del servidor tal cual', () {
+    final b = _b(limit: 123456, consumed: 130000, percent: 105.3);
+    expect(b.limitCents, 123456);
+    expect(b.consumedCents, 130000);
+    expect(b.remainingCents, -6544);
+    expect(b.percent, 105.3);
+    expect(b.exceeded, isTrue);
+    expect(b.accounts.single.name, 'Efectivo');
+  });
 
-    final limitExcedido = ExpenseLimitAdminEntity(
-      idLimiteGasto: 2,
-      desde: DateTime(2026, 10, 1),
-      hasta: DateTime(2026, 10, 31),
-      montoLimite: 50000.0,
-      montoConsumido: 75000.0,
-      resto: -25000.0,
-      porcentaje: 150.0,
-      vencido: false,
-      categoria: '11',
-      categoriasNombres: 'Esparcimiento',
-      lugar: '11',
-      lugaresNombres: 'Mercado Pago',
-    );
+  test('título: categorías ordenadas por nombre', () {
+    expect(_b(cats: ['Super', 'Almacén']).title, 'Almacén, Super');
+  });
 
-    final limitVencido = ExpenseLimitAdminEntity(
-      idLimiteGasto: 3,
-      desde: DateTime(2026, 9, 1),
-      hasta: DateTime(2026, 9, 30),
-      montoLimite: 80000.0,
-      montoConsumido: 50000.0,
-      resto: 30000.0,
-      porcentaje: 62.5,
-      vencido: true,
-      categoria: '7',
-      categoriasNombres: 'Farmacia',
-      lugar: '1',
-      lugaresNombres: 'Efectivo',
-    );
+  test('un importe con decimales es error de contrato, no se redondea', () {
+    final j = _json()..['consumedCents'] = 10.5;
+    expect(() => BudgetsRepository.parse(j), throwsA(isA<ServerException>()));
+  });
 
-    test('calcula correctamente propiedades de ExpenseLimitAdminEntity', () {
-      expect(limitActivo.excedido, isFalse);
-      expect(limitExcedido.excedido, isTrue);
-      expect(limitActivo.factorUso, 0.4);
-      expect(limitExcedido.factorUso, 1.0); // Clamped to 1.0
-      expect(limitActivo.categoriasIds, [3, 8]);
-      expect(limitActivo.lugaresIds, [1, 2]);
-    });
+  test('totales: solo presupuestos vigentes (no vencidos), sumando centavos', () {
+    final s = LimitsAdminState.initial().copyWith(limits: [
+      _b(id: 1, limit: 100000, consumed: 25000),
+      _b(id: 2, limit: 50000, consumed: 60000, percent: 120),
+      _b(id: 3, limit: 999999, consumed: 1, due: true),
+    ]);
+    expect(s.totalPresupuestadoCents, 150000);
+    expect(s.totalConsumidoCents, 85000);
+    expect(s.totalRestoCents, 65000);
+    expect(s.activosCount, 2);
+    expect(s.vencidosCount, 1);
+    expect(s.excedidosCount, 1);
+  });
 
-    test('calcula totales globales de presupuesto activo correctamente', () {
-      final state = LimitsAdminState.initial().copyWith(
-        status: LimitsAdminStatus.loaded,
-        limits: [limitActivo, limitExcedido, limitVencido],
-      );
+  test('filtros y orden por nombre', () {
+    final s = LimitsAdminState.initial().copyWith(limits: [
+      _b(id: 1, cats: ['Zapatos']),
+      _b(id: 2, cats: ['Agua'], due: true),
+      _b(id: 3, cats: ['Luz'], consumed: 200000, percent: 200),
+    ]);
+    expect(s.limitsFiltrados.map((b) => b.id), [2, 3, 1]);
+    expect(s.copyWith(filtroEstado: 'activos').limitsFiltrados.map((b) => b.id), [3, 1]);
+    expect(s.copyWith(filtroEstado: 'vencidos').limitsFiltrados.map((b) => b.id), [2]);
+    expect(s.copyWith(filtroEstado: 'excedidos').limitsFiltrados.map((b) => b.id), [3]);
+  });
 
-      // Solo toma los límites activos (no vencidos): 100k + 50k = 150k
-      expect(state.totalPresupuestado, 150000.0);
-      // Consumido activo: 40k + 75k = 115k
-      expect(state.totalConsumido, 115000.0);
-      // Resto activo: 150k - 115k = 35k
-      expect(state.totalResto, 35000.0);
-      expect(state.activosCount, 2);
-      expect(state.vencidosCount, 1);
-      expect(state.excedidosCount, 1);
-    });
-
-    test('filtra limites por estado adecuadamente', () {
-      var state = LimitsAdminState.initial().copyWith(
-        limits: [limitActivo, limitExcedido, limitVencido],
-      );
-
-      // Todos
-      expect(state.limitsFiltrados.length, 3);
-
-      // Activos
-      state = state.copyWith(filtroEstado: 'activos');
-      expect(state.limitsFiltrados.length, 2);
-
-      // Excedidos
-      state = state.copyWith(filtroEstado: 'excedidos');
-      expect(state.limitsFiltrados.length, 1);
-      expect(state.limitsFiltrados.first.idLimiteGasto, 2);
-
-      // Vencidos
-      state = state.copyWith(filtroEstado: 'vencidos');
-      expect(state.limitsFiltrados.length, 1);
-      expect(state.limitsFiltrados.first.idLimiteGasto, 3);
-    });
+  test('campana: umbrales exactos con el percent del servidor', () {
+    expect(tipoNovedad(_b(percent: 74.99)), isNull);
+    expect(tipoNovedad(_b(percent: 75)), NovedadTipo.cerca);
+    expect(tipoNovedad(_b(percent: 99.99)), NovedadTipo.cerca);
+    expect(tipoNovedad(_b(percent: 100)), NovedadTipo.alcanzado);
+    expect(tipoNovedad(_b(percent: null)), isNull);
+    expect(tipoNovedad(_b(percent: 10, due: true)), NovedadTipo.vencido);
   });
 }

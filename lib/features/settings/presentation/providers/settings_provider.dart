@@ -61,29 +61,34 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   Future<void> inicializar() async {
-    final savedTheme = await _storageService.getThemeMode();
-    if (savedTheme != null) {
-      if (savedTheme == 'light') {
-        state = state.copyWith(themeMode: ThemeMode.light);
-      } else if (savedTheme == 'dark') {
-        state = state.copyWith(themeMode: ThemeMode.dark);
-      } else {
-        state = state.copyWith(themeMode: ThemeMode.system);
+    try {
+      final savedTheme = await _storageService.getThemeMode();
+      if (savedTheme != null) {
+        if (savedTheme == 'light') {
+          state = state.copyWith(themeMode: ThemeMode.light);
+        } else if (savedTheme == 'dark') {
+          state = state.copyWith(themeMode: ThemeMode.dark);
+        } else {
+          state = state.copyWith(themeMode: ThemeMode.system);
+        }
       }
-    }
 
-    final savedLang = await _storageService.getLanguage();
-    if (savedLang != null && savedLang.isNotEmpty) {
-      state = state.copyWith(language: savedLang);
-    }
+      final savedLang = await _storageService.getLanguage();
+      if (savedLang != null && savedLang.isNotEmpty) {
+        state = state.copyWith(language: savedLang);
+      }
 
-    final savedCurrency = await _storageService.getDefaultCurrency();
-    if (savedCurrency != null && savedCurrency.isNotEmpty) {
-      state = state.copyWith(defaultCurrency: savedCurrency);
-    }
+      final savedCurrency = await _storageService.getDefaultCurrency();
+      if (savedCurrency != null && savedCurrency.isNotEmpty) {
+        state = state.copyWith(defaultCurrency: savedCurrency);
+      }
 
-    final firstDone = await _storageService.isFirstLaunchDone();
-    state = state.copyWith(isFirstLaunch: !firstDone);
+      final firstDone = await _storageService.isFirstLaunchDone();
+      state = state.copyWith(isFirstLaunch: !firstDone);
+    } catch (e) {
+      // Ajustes ilegibles: se usan los valores por defecto y se registra el motivo.
+      debugPrint('[AJUSTES] No se pudieron leer los ajustes guardados: $e');
+    }
   }
 
   Future<void> cambiarIdioma(String lang) async {

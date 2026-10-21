@@ -27,28 +27,32 @@ class SecureStorageService {
   Future<void> writeValue(String key, String value) async {
     try {
       await _storage.write(key: key, value: value);
-    } catch (_) {}
+    } catch (e) {
+      throw CacheException('No se pudo guardar "$key": $e');
+    }
   }
 
   Future<String?> readValue(String key) async {
     try {
       return await _storage.read(key: key);
-    } catch (_) {
-      return null;
+    } catch (e) {
+      throw CacheException('No se pudo leer "$key": $e');
     }
   }
 
   Future<void> deleteValue(String key) async {
     try {
       await _storage.delete(key: key);
-    } catch (_) {}
+    } catch (e) {
+      throw CacheException('No se pudo borrar "$key": $e');
+    }
   }
 
   Future<Map<String, String>> readAllKeys() async {
     try {
       return await _storage.readAll();
-    } catch (_) {
-      return {};
+    } catch (e) {
+      throw CacheException('No se pudo leer el almacenamiento: $e');
     }
   }
 
@@ -174,8 +178,8 @@ class SecureStorageService {
     try {
       final val = await _storage.read(key: _keyFirstLaunch);
       return val == 'true';
-    } catch (_) {
-      return false;
+    } catch (e) {
+      throw CacheException('No se pudo leer el estado del primer inicio: $e');
     }
   }
 

@@ -1,224 +1,134 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
-import '../../../limits_admin/data/repositories/limits_admin_repository_impl.dart';
-import '../../../limits_admin/domain/entities/expense_limit_admin_entity.dart';
-import '../../../limits_admin/domain/repositories/limits_admin_repository.dart';
+import '../../../limits_admin/data/budgets_repository.dart';
+import '../../../limits_admin/domain/budget.dart';
 import '../../domain/entities/novedad_entity.dart';
 
 class NovedadesState {
   final bool isLoading;
   final List<NovedadEntity> novedades;
-  final String? errorMessage;
 
-  const NovedadesState({
-    this.isLoading = false,
-    this.novedades = const [],
-    this.errorMessage,
-  });
+  /// Error de la última carga (se registra; la campana queda sin novedades).
+  final Object? error;
 
-  List<NovedadEntity> get novedadesNoVistas =>
-      novedades.where((n) => !n.vista).toList();
+  const NovedadesState({this.isLoading = false, this.novedades = const [], this.error});
+
+  List<NovedadEntity> get novedadesNoVistas => novedades.where((n) => !n.vista).toList();
 
   bool get hasUnread => novedadesNoVistas.isNotEmpty;
 
   Color get gravedadMaxColor {
     final unread = novedadesNoVistas;
     if (unread.isEmpty) return Colors.grey;
-
-    if (unread.any((n) => n.tipo == NovedadTipo.alcanzado)) {
-      return AppColors.rose;
-    }
-    if (unread.any((n) => n.tipo == NovedadTipo.cerca)) {
-      return AppColors.amber;
-    }
+    if (unread.any((n) => n.tipo == NovedadTipo.alcanzado)) return AppColors.rose;
+    if (unread.any((n) => n.tipo == NovedadTipo.cerca)) return AppColors.amber;
     return AppColors.primary;
   }
 
-  NovedadesState copyWith({
-    bool? isLoading,
-    List<NovedadEntity>? novedades,
-    String? errorMessage,
-  }) {
+  NovedadesState copyWith({bool? isLoading, List<NovedadEntity>? novedades, Object? error, bool clearError = false}) {
     return NovedadesState(
       isLoading: isLoading ?? this.isLoading,
       novedades: novedades ?? this.novedades,
-      errorMessage: errorMessage ?? this.errorMessage,
+      error: clearError ? null : (error ?? this.error),
     );
   }
 }
 
-final novedadesNotifierProvider =
-    StateNotifierProvider<NovedadesNotifier, NovedadesState>((ref) {
-  final limitsRepository = ref.watch(limitsAdminRepositoryProvider);
-  final storageService = ref.watch(secureStorageServiceProvider);
-  return NovedadesNotifier(limitsRepository, storageService, ref);
+final novedadesNotifierProvider = StateNotifierProvider<NovedadesNotifier, NovedadesState>((ref) {
+  return NovedadesNotifier(ref.watch(budgetsRepositoryProvider), ref.watch(secureStorageServiceProvider), ref);
 });
 
+/// Tipo de novedad de un presupuesto según los valores del servidor (sin recalcular):
+/// vencido si `dueForRenewal`; alcanzado si percent ≥ 100; cerca si percent ≥ 75.
+NovedadTipo? tipoNovedad(Budget b) {
+  if (b.dueForRenewal) return NovedadTipo.vencido;
+  final p = b.percent;
+  if (p == null) return null;
+  if (p >= 100) return NovedadTipo.alcanzado;
+  if (p >= 75) return NovedadTipo.cerca;
+  return null;
+}
+
 class NovedadesNotifier extends StateNotifier<NovedadesState> {
-  final LimitsAdminRepository _limitsRepository;
-  final SecureStorageService _storageService;
+  final BudgetsRepository _budgets;
+  final SecureStorageService _storage;
   final Ref _ref;
 
-  NovedadesNotifier(
-    this._limitsRepository,
-    this._storageService,
-    this._ref,
-  ) : super(const NovedadesState()) {
+  NovedadesNotifier(this._budgets, this._storage, this._ref) : super(const NovedadesState()) {
     calcularNovedades();
   }
 
-  /// Id del usuario autenticado. Sin usuario no hay novedades que mostrar.
-  int? _resolverUserId() => _ref.read(authNotifierProvider).user?.idUsuario;
+  int? _userId() => _ref.read(authNotifierProvider).user?.idUsuario;
 
   Future<void> calcularNovedades() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
-
+    final userId = _userId();
+    if (userId == null) {
+      state = const NovedadesState();
+      return;
+    }
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final userId = _resolverUserId();
-      if (userId == null) {
-        state = state.copyWith(isLoading: false, novedades: []);
-        return;
+      final budgets = await _budgets.getBudgets();
+      final hoy = _hoy();
+      final candidatas = <NovedadEntity>[];
+      final keys = <String>{};
+      for (final b in budgets) {
+        if (b.startDate.compareTo(hoy) > 0) continue; // presupuestos futuros
+        final tipo = tipoNovedad(b);
+        if (tipo == null) continue;
+        final key = 'alerta_vista_${userId}_${b.id}_${tipo.name}_${b.startDate}_${b.endDate}';
+        keys.add(key);
+        candidatas.add(NovedadEntity(
+          idKey: key,
+          idLimiteGasto: b.id,
+          titulo: b.title,
+          tipo: tipo,
+          porcentaje: (b.percent ?? 0).floor(),
+          desde: DateTime.parse(b.startDate),
+          hasta: DateTime.parse(b.endDate),
+          vista: await _storage.readValue(key) == '1',
+        ));
       }
-
-      List<ExpenseLimitAdminEntity> limits = [];
-      try {
-        limits = await _limitsRepository.getLimits();
-      } catch (_) {
-        state = state.copyWith(isLoading: false, novedades: []);
-        return;
-      }
-
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final dateFormat = DateFormat('yyyy-MM-dd');
-
-      final List<NovedadEntity> candidatas = [];
-      final Set<String> keysActuales = {};
-
-      for (final limit in limits) {
-        final desdeDate = DateTime(
-          limit.desde.year,
-          limit.desde.month,
-          limit.desde.day,
-        );
-        final hastaDate = DateTime(
-          limit.hasta.year,
-          limit.hasta.month,
-          limit.hasta.day,
-        );
-
-        // Excluir límites futuros (desde > hoy)
-        if (desdeDate.isAfter(today)) {
-          continue;
-        }
-
-        final bool esVencido = today.isAfter(hastaDate);
-        NovedadTipo? tipo;
-
-        if (esVencido) {
-          tipo = NovedadTipo.vencido;
-        } else if (limit.montoLimite > 0) {
-          final consumido = limit.montoConsumido;
-          final limite = limit.montoLimite;
-
-          if (consumido >= limite) {
-            tipo = NovedadTipo.alcanzado;
-          } else if (consumido * 100 >= limite * 75) {
-            tipo = NovedadTipo.cerca;
-          }
-        }
-
-        if (tipo != null) {
-          final desdeStr = dateFormat.format(desdeDate);
-          final hastaStr = dateFormat.format(hastaDate);
-          final key = 'alerta_vista_${userId}_${limit.idLimiteGasto}_${tipo.name}_${desdeStr}_$hastaStr';
-          keysActuales.add(key);
-
-          final porcentajeInt = limit.montoLimite > 0
-              ? ((limit.montoConsumido * 100) / limit.montoLimite).floor()
-              : 0;
-
-          final fueVista = await _checkIfKeySeen(key);
-
-          candidatas.add(
-            NovedadEntity(
-              idKey: key,
-              idLimiteGasto: limit.idLimiteGasto,
-              titulo: limit.categoriasNombres,
-              tipo: tipo,
-              porcentaje: porcentajeInt,
-              desde: desdeDate,
-              hasta: hastaDate,
-              vista: fueVista,
-            ),
-          );
-        }
-      }
-
-      // Orden de prioridad: mayor porcentaje primero, empate A-Z, vencidos al final
+      // Mayor porcentaje primero, empate A-Z, vencidos al final.
       candidatas.sort((a, b) {
-        if (a.tipo == NovedadTipo.vencido && b.tipo != NovedadTipo.vencido) {
-          return 1;
-        }
-        if (a.tipo != NovedadTipo.vencido && b.tipo == NovedadTipo.vencido) {
-          return -1;
-        }
-        if (a.porcentaje != b.porcentaje) {
-          return b.porcentaje.compareTo(a.porcentaje);
-        }
+        final av = a.tipo == NovedadTipo.vencido, bv = b.tipo == NovedadTipo.vencido;
+        if (av != bv) return av ? 1 : -1;
+        if (a.porcentaje != b.porcentaje) return b.porcentaje.compareTo(a.porcentaje);
         return a.titulo.toLowerCase().compareTo(b.titulo.toLowerCase());
       });
-
-      unawaited(_limpiarClavesHuerfanas(userId, keysActuales));
-
-      state = state.copyWith(
-        isLoading: false,
-        novedades: candidatas,
-      );
+      await _limpiarClavesHuerfanas(userId, keys);
+      if (mounted) state = state.copyWith(isLoading: false, novedades: candidatas);
     } catch (e) {
-      state = state.copyWith(isLoading: false, novedades: []);
+      debugPrint('[NOVEDADES] No se pudieron calcular: $e');
+      if (mounted) state = state.copyWith(isLoading: false, novedades: [], error: e);
     }
-  }
-
-  Future<bool> _checkIfKeySeen(String key) async {
-    try {
-      final val = await _storageService.readValue(key);
-      return val == '1';
-    } catch (_) {}
-    return false;
   }
 
   Future<void> marcarComoVista(NovedadEntity novedad) async {
     try {
-      // Guardado seguro e independiente por clave única
-      await _storageService.writeValue(novedad.idKey, '1');
-
-      final actualizadas = state.novedades.map((n) {
-        if (n.idKey == novedad.idKey) {
-          return n.copyWith(vista: true);
-        }
-        return n;
-      }).toList();
-
-      state = state.copyWith(novedades: actualizadas);
-    } catch (_) {}
+      await _storage.writeValue(novedad.idKey, '1');
+      state = state.copyWith(
+        novedades: state.novedades.map((n) => n.idKey == novedad.idKey ? n.copyWith(vista: true) : n).toList(),
+      );
+    } catch (e) {
+      debugPrint('[NOVEDADES] No se pudo marcar como vista: $e');
+      state = state.copyWith(error: e);
+    }
   }
 
-  Future<void> _limpiarClavesHuerfanas(int userId, Set<String> keysValidas) async {
-    try {
-      final allStorage = await _storageService.readAllKeys();
-      final prefix = 'alerta_vista_${userId}_';
+  Future<void> _limpiarClavesHuerfanas(int userId, Set<String> validas) async {
+    final prefix = 'alerta_vista_${userId}_';
+    final todas = await _storage.readAllKeys();
+    for (final key in todas.keys) {
+      if (key.startsWith(prefix) && !validas.contains(key)) await _storage.deleteValue(key);
+    }
+  }
 
-      for (final key in allStorage.keys) {
-        if (key.startsWith(prefix) && !keysValidas.contains(key)) {
-          await _storageService.deleteValue(key);
-        }
-      }
-    } catch (_) {}
+  static String _hoy() {
+    final n = DateTime.now();
+    return '${n.year.toString().padLeft(4, '0')}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
   }
 }
