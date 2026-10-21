@@ -82,6 +82,7 @@ class MlKitTicketReader implements TicketReader {
       }
     } catch (e, stack) {
       logMsg('[TICKET-DEBUG] Error en Google ML Kit / Spatial Parser: $e\n$stack');
+      rethrow;
     } finally {
       await textRecognizer.close();
     }
