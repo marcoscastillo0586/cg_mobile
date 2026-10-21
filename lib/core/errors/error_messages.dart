@@ -28,6 +28,7 @@ class ErrorMessages {
     'RESERVED_CATEGORY': ('Esa categoría está reservada por el sistema.', 'That category is reserved by the system.'),
     'SAME_ACCOUNT': ('La cuenta de origen y la de destino no pueden ser iguales.', 'Source and destination accounts must differ.'),
     'INTERNAL_ERROR': ('Error interno del servidor.', 'Internal server error.'),
+    'NOT_AVAILABLE': ('Función no disponible por ahora.', 'Feature not available for now.'),
     'CONFIG_MISSING': (
       'La app no tiene configurada la dirección del servidor (API_BASE_URL).',
       'The app has no server address configured (API_BASE_URL).'

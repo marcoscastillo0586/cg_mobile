@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../dashboard/domain/entities/account_entity.dart';
 import '../../domain/repositories/transfer_repository.dart';
@@ -32,22 +31,8 @@ class TransferRepositoryImpl implements TransferRepository {
     required String concepto,
     required String fecha,
   }) async {
-    try {
-      return await _remoteDataSource.createTransfer(
-        idOrigen: idOrigen,
-        idDestino: idDestino,
-        monto: monto,
-        concepto: concepto,
-        fecha: fecha,
-      );
-    } on ServerException catch (e) {
-      throw ServerFailure(e.message, e.statusCode);
-    } on NetworkException catch (e) {
-      throw NetworkFailure(e.message);
-    } on AuthException catch (e) {
-      throw AuthFailure(e.message, e.statusCode);
-    } catch (e) {
-      throw ServerFailure('Error al realizar transferencia: $e');
-    }
+    // Las escrituras pasan por SQLite y la cola de sincronización (etapa 5). Hasta entonces
+    // se informa, en lugar de simular un éxito.
+    throw const ServerFailure('Función no disponible por ahora', null, 'NOT_AVAILABLE');
   }
 }

@@ -25,26 +25,4 @@ class TransferRemoteDataSource {
     return [];
   }
 
-  Future<bool> createTransfer({
-    required int idOrigen,
-    required int idDestino,
-    required double monto,
-    required String concepto,
-    required String fecha,
-  }) async {
-    final payload = {
-      'id_lugar_origen': idOrigen,
-      'id_lugar_destino': idDestino,
-      'monto': monto,
-      'concepto': concepto,
-      'fecha': fecha,
-    };
-
-    final response = await _dioClient.post(
-      ApiEndpoints.crearTransferencia,
-      data: payload,
-    );
-
-    return response != null;
-  }
 }

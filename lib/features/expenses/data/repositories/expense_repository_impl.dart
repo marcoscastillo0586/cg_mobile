@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/errors/failures.dart';
 import '../../domain/entities/expense_form_data_entity.dart';
 import '../../domain/entities/expense_item_entity.dart';
 import '../../domain/repositories/expense_repository.dart';
@@ -34,27 +35,9 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     required String conceptoGeneral,
     required List<ExpenseItemEntity> items,
   }) async {
-    // 1. Escribir inmediatamente en la base de datos local SQLite (Offline-first)
-    await _localDataSource.createExpenseLocally(
-      idLugar: idLugar,
-      fecha: fecha,
-      conceptoGeneral: conceptoGeneral,
-      items: items,
-    );
-
-    // 2. Intentar sincronización con el servidor remoto si hay red
-    try {
-      await _remoteDataSource.createExpense(
-        idLugar: idLugar,
-        fecha: fecha,
-        conceptoGeneral: conceptoGeneral,
-        items: items,
-      );
-    } catch (_) {
-      // Si no hay red, queda guardado en SQLite con sync_status = 'pending_create'
-    }
-
-    return true;
+    // Las escrituras pasan por SQLite y la cola de sincronización (etapa 5). Hasta entonces
+    // se informa, en lugar de simular un éxito.
+    throw const ServerFailure('Función no disponible por ahora', null, 'NOT_AVAILABLE');
   }
 
 

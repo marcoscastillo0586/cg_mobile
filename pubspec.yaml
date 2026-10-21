@@ -22,9 +22,6 @@ dependencies:
   path: ^1.9.0
   uuid: ^4.4.0
 
-  # Background Sync & Connectivity Listener
-  connectivity_plus: ^6.0.3
-  workmanager: ^0.10.10
 
 
   # Networking & HTTP

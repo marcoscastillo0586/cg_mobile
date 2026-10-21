@@ -3,7 +3,6 @@ import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
 import 'package:gastos_mobile/features/dashboard/data/models/account_model.dart';
 import '../../domain/entities/expense_form_data_entity.dart';
-import '../../domain/entities/expense_item_entity.dart';
 import '../models/category_model.dart';
 
 final expenseRemoteDataSourceProvider = Provider<ExpenseRemoteDataSource>((ref) {
@@ -44,37 +43,6 @@ class ExpenseRemoteDataSource {
     throw Exception('Formato de datos no válido para formulario de egreso');
   }
 
-  Future<bool> createExpense({
-    required int idLugar,
-    required String fecha,
-    required String conceptoGeneral,
-    required List<ExpenseItemEntity> items,
-  }) async {
-    final mappedItems = items
-        .map((it) => {
-              'monto': it.monto,
-              'id_categoria': it.idCategoria,
-              'categoria': it.idCategoria,
-              'concepto': it.concepto,
-            })
-        .toList();
-
-    final payload = {
-      'id_lugar': idLugar,
-      'fecha': fecha,
-      'concepto_general': conceptoGeneral,
-      'conceptoGeneral': conceptoGeneral,
-      'items': mappedItems,
-      'gasto': mappedItems,
-    };
-
-    final response = await _dioClient.post(
-      ApiEndpoints.crearEgreso,
-      data: payload,
-    );
-
-    return response != null;
-  }
 
   Future<int?> suggestCategory(String concepto) async {
     try {

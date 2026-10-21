@@ -4,66 +4,13 @@ import '../../../../core/database/app_local_database.dart';
 import '../../../dashboard/domain/entities/account_entity.dart';
 import '../../domain/entities/category_entity.dart';
 import '../../domain/entities/expense_form_data_entity.dart';
-import '../../domain/entities/expense_item_entity.dart';
 
 final expensesLocalDataSourceProvider = Provider<ExpensesLocalDataSource>((ref) {
   return ExpensesLocalDataSource();
 });
 
 class ExpensesLocalDataSource {
-  Future<bool> createExpenseLocally({
-    required int idLugar,
-    required String fecha,
-    required String conceptoGeneral,
-    required List<ExpenseItemEntity> items,
-  }) async {
-    final db = await AppLocalDatabase.instance;
-    final now = DateTime.now().toUtc().toIso8601String();
-    final encSyncId = AppLocalDatabase.generateUuid();
 
-    await db.transaction((txn) async {
-      await txn.insert('movimiento_enc_local', {
-        'sync_id': encSyncId,
-        'remote_id': null,
-        'tipo_movimiento': 2,
-        'concepto_general': conceptoGeneral,
-        'fecha_movimiento': fecha,
-        'sync_status': 'pending_create',
-        'created_at': now,
-        'updated_at': now,
-      });
-
-      for (final item in items) {
-        final detSyncId = AppLocalDatabase.generateUuid();
-        await txn.insert('movimiento_det_local', {
-          'sync_id': detSyncId,
-          'remote_id': null,
-          'movimiento_enc_sync_id': encSyncId,
-          'lugar_sync_id': 'lug_remote_$idLugar',
-          'lugar_remote_id': idLugar,
-          'categoria_sync_id': 'cat_remote_${item.idCategoria}',
-          'categoria_remote_id': item.idCategoria,
-          'concepto': item.concepto,
-          'monto': -item.monto.abs(),
-          'sync_status': 'pending_create',
-          'created_at': now,
-          'updated_at': now,
-        });
-      }
-
-      final totalMonto = items.fold(0.0, (acc, it) => acc + it.monto.abs());
-      await txn.rawUpdate(
-        'UPDATE lugares_local SET saldo_actual = saldo_actual - ? WHERE remote_id = ? OR id = ?',
-        [totalMonto, idLugar, idLugar],
-      );
-    });
-
-    if (kDebugMode) {
-      debugPrint('[SYNC-DEBUG] [WRITE] Tabla: movimiento_enc_local & det_local | Gasto creado en SQLite local');
-    }
-
-    return true;
-  }
 
   Future<int?> suggestCategoryLocally(String concepto) async {
     final db = await AppLocalDatabase.instance;

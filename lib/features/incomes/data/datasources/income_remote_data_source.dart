@@ -25,24 +25,4 @@ class IncomeRemoteDataSource {
     return [];
   }
 
-  Future<bool> createIncome({
-    required int idLugar,
-    required double monto,
-    required String concepto,
-    required String fecha,
-  }) async {
-    final payload = {
-      'id_lugar': idLugar,
-      'monto': monto,
-      'concepto': concepto,
-      'fecha': fecha,
-    };
-
-    final response = await _dioClient.post(
-      ApiEndpoints.crearIngreso,
-      data: payload,
-    );
-
-    return response != null;
-  }
 }
