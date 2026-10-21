@@ -3,8 +3,11 @@
 App Android (Flutter) para el control de gastos de CG (paquete `io.github.marcoscastillo0586.cg`, nombre visible `control_gastos`): cuentas, egresos, ingresos, transferencias, presupuestos, historial y lectura de tickets.
 
 > **Estado: adaptación en curso a la API nueva de CG (`/api/v1`).**
-> Etapa 1: autenticación contra `/api/v1`. El resto de las pantallas todavía usa rutas del
-> contrato PHP viejo, que la API nueva no tiene (responden 404): se migran desde la etapa 2.
+> Etapas 1 y 2: autenticación y **lectura** contra `/api/v1` (dashboard, cuentas, categorías,
+> presupuestos, campana, historial, buscador y reportes), con importes en centavos.
+> Todavía no se escribe: alta y edición de movimientos, ABM y tickets muestran
+> "Función no disponible por ahora" hasta sus etapas (5 a 9). Sin conexión, las pantallas
+> muestran el error; la base local y la sincronización llegan en las etapas 3 y 4.
 > El plan por etapas y el diagnóstico de partida están en [docs/auditoria_mobile.md](docs/auditoria_mobile.md).
 
 ## Requisitos
@@ -43,6 +46,16 @@ Para que el celular llegue a la API, abrir el puerto **solo para la subred local
 New-NetFirewallRule -DisplayName "CG API 3000 (LAN, pruebas)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 3000 -RemoteAddress LocalSubnet -Profile Private -InterfaceAlias "Ethernet"
 # Ver:    Get-NetFirewallRule -DisplayName "CG API 3000 (LAN, pruebas)"
 # Quitar: Remove-NetFirewallRule -DisplayName "CG API 3000 (LAN, pruebas)"
+```
+
+### Verificación de pantallas contra la API (celular real)
+
+`tools/verify_screens.mjs` inicia sesión en la API de pruebas, recorre las pantallas del celular por
+adb y compara cada saldo, total y porcentaje que se ve con el JSON de la API (misma regla de formato).
+La app tiene que estar abierta con la sesión del mismo usuario. Nunca usar contra la base real.
+
+```sh
+node tools/verify_screens.mjs http://192.168.0.50:3000/api/v1 <credenciales.json>
 ```
 
 ### Prueba en vivo de la sesión
@@ -92,16 +105,13 @@ Estado: Riverpod 2 (`StateNotifier`). Navegación: go_router.
 
 ## Tests
 
-`flutter test` → 46 pasan y 4 salteados: 2 de alta de egreso, que se reescriben en la etapa 5, y 2 en vivo, que necesitan servidor.
+`flutter test` → 52 pasan y 4 salteados: 2 de alta de egreso, que se reescriben en la etapa 5, y 2 en vivo, que necesitan servidor.
 
 Los tests con datos simulados no prueban red ni persistencia real. Los siguientes **no aportan verificación útil** y se reemplazarán al rehacer cada función:
 
 | Test | Por qué |
 |---|---|
-| `test/core/sync/sync_service_test.dart` | Solo prueba `copyWith` de `SyncState`; no ejecuta la sincronización |
-| `test/core/sync/background_sync_service_test.dart` | Construye un estado a mano; no ejecuta nada |
-| `test/features/dashboard/offline_first_dashboard_test.dart` | Arma entidades a mano; no toca la base ni el repositorio |
 | `test/features/expenses/coto_qr_parser_test.dart` | Solo comprueba que exista el HTML de ejemplo |
 | `test/widget_test.dart` | Solo verifica que la app se construye |
 
-Sí ejercitan lógica: `session_manager_test` y `auth_repository_test` (servidor simulado), el test en vivo de sesión, analítica (`analytics_state_test`, `product_price_test`), parser espacial (`ticket_reader_test`, `multi_photo_ticket_test`), `limits_admin_state_test`, `movement_detail_test`, `offline_database_test` (SQLite real vía ffi) y los 3 tests activos de `expense_form_notifier_test`.
+Sí ejercitan lógica: `session_manager_test` y `auth_repository_test` (servidor simulado), el test en vivo de sesión, `money_test`, `screens_json_test` (pantallas reales con JSON simulado), `reports_repository_test`, parser espacial (`ticket_reader_test`, `multi_photo_ticket_test`), `limits_admin_state_test`, `movement_detail_test`, `offline_database_test` (SQLite real vía ffi) y los 3 tests activos de `expense_form_notifier_test`.
