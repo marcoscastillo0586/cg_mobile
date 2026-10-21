@@ -3,7 +3,8 @@
 App Android (Flutter) para el control de gastos de CG (paquete `io.github.marcoscastillo0586.cg`, nombre visible `control_gastos`): cuentas, egresos, ingresos, transferencias, presupuestos, historial y lectura de tickets.
 
 > **Estado: adaptación en curso a la API nueva de CG (`/api/v1`).**
-> Hasta la etapa 1, la app sigue hablando con la API PHP vieja (`/gastos2.0/api/...`).
+> Etapa 1: autenticación contra `/api/v1`. El resto de las pantallas todavía usa rutas del
+> contrato PHP viejo, que la API nueva no tiene (responden 404): se migran desde la etapa 2.
 > El plan por etapas y el diagnóstico de partida están en [docs/auditoria_mobile.md](docs/auditoria_mobile.md).
 
 ## Requisitos
@@ -18,17 +19,50 @@ flutter pub get
 git config core.hooksPath tools/git-hooks   # activa el hook anti-secretos (una vez por clon)
 flutter analyze
 flutter test
-flutter run                                 # con un celular conectado por USB
 ```
 
-Compilar un APK de prueba:
+La dirección de la API **no está en el código**: se fija al compilar.
 
 ```sh
-flutter build apk --debug
-# build/app/outputs/flutter-apk/app-debug.apk
+flutter run --dart-define=API_BASE_URL=http://192.168.0.50:3000/api/v1
+flutter build apk --debug --dart-define=API_BASE_URL=http://192.168.0.50:3000/api/v1
 ```
 
-La firma de release lee `android/key.properties` (no versionado). Si no existe, release se firma con la clave debug: no distribuir ese APK.
+Sin `API_BASE_URL`, el login muestra "La app no tiene configurada la dirección del servidor".
+
+- **HTTP**: solo en debug y solo hacia `192.168.0.50` (`android/app/src/debug/res/xml/network_security_config.xml`). Release y profile exigen HTTPS.
+- La firma de release lee `android/key.properties` (no versionado). Si no existe, release se firma con la clave debug: no distribuir ese APK.
+
+### Servidor de pruebas (PC)
+
+La API de CG escucha en `0.0.0.0:3000` (todas las interfaces). Para pruebas se usa una **copia** de la base (`control_gastos_dev`), nunca `control_gastos`.
+
+Para que el celular llegue a la API, abrir el puerto **solo para la subred local** (PowerShell como administrador):
+
+```powershell
+New-NetFirewallRule -DisplayName "CG API 3000 (LAN, pruebas)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 3000 -RemoteAddress LocalSubnet -Profile Private -InterfaceAlias "Ethernet"
+# Ver:    Get-NetFirewallRule -DisplayName "CG API 3000 (LAN, pruebas)"
+# Quitar: Remove-NetFirewallRule -DisplayName "CG API 3000 (LAN, pruebas)"
+```
+
+### Prueba en vivo de la sesión
+
+`test/integration/auth_live_test.dart` usa el código de la app contra una API real (se saltea si faltan las variables):
+
+```sh
+CG_LIVE_API=http://192.168.0.50:3000/api/v1 CG_LIVE_TTL=20 CG_LIVE_EMAIL=... CG_LIVE_PASSWORD=...   flutter test test/integration/auth_live_test.dart
+```
+
+`CG_LIVE_TTL` debe coincidir con `JWT_ACCESS_TTL_SECONDS` del servidor de pruebas (un valor corto, p. ej. 20).
+
+## Sesión
+
+- Login por email con header `X-Client: mobile` (el servidor devuelve el refresh token en el cuerpo).
+- Access token **solo en memoria**; refresh token en el almacenamiento seguro, y siempre se guarda el nuevo antes de usarlo.
+- Un **único refresh en vuelo** (`SessionManager`): el servidor revoca toda la familia si se reutiliza un refresh viejo.
+- Sin red al abrir la app: se usa el último usuario confirmado por el servidor ("sin conexión"). No hay usuarios inventados.
+- **Cerrar sesión** (Ajustes): revoca en el servidor, borra la base local y la sesión, y conserva tema, idioma, moneda y onboarding.
+- Ajustes → "Diagnóstico de sesión" (solo debug): 2 llamadas en paralelo y cuántos refresh hubo.
 
 ## Estructura
 
@@ -58,19 +92,16 @@ Estado: Riverpod 2 (`StateNotifier`). Navegación: go_router.
 
 ## Tests
 
-`flutter test` → 32 pasan, 2 salteados con motivo (alta de egreso sin cuenta preseleccionada; se reescriben en la etapa 5).
+`flutter test` → 46 pasan y 4 salteados: 2 de alta de egreso, que se reescriben en la etapa 5, y 2 en vivo, que necesitan servidor.
 
 Los tests con datos simulados no prueban red ni persistencia real. Los siguientes **no aportan verificación útil** y se reemplazarán al rehacer cada función:
 
 | Test | Por qué |
 |---|---|
-| `test/core/network/network_config_test.dart` | Compara constantes de IP |
 | `test/core/sync/sync_service_test.dart` | Solo prueba `copyWith` de `SyncState`; no ejecuta la sincronización |
 | `test/core/sync/background_sync_service_test.dart` | Construye un estado a mano; no ejecuta nada |
-| `test/features/auth/offline_auth_test.dart` | Deserializa un JSON |
 | `test/features/dashboard/offline_first_dashboard_test.dart` | Arma entidades a mano; no toca la base ni el repositorio |
 | `test/features/expenses/coto_qr_parser_test.dart` | Solo comprueba que exista el HTML de ejemplo |
-| `test/features/settings/settings_notifier_test.dart` | Valida URLs PHP fijas que desaparecen en la etapa 1 |
 | `test/widget_test.dart` | Solo verifica que la app se construye |
 
-Sí ejercitan lógica: analítica (`analytics_state_test`, `product_price_test`), parser espacial (`ticket_reader_test`, `multi_photo_ticket_test`), `limits_admin_state_test`, `movement_detail_test`, `offline_database_test` (SQLite real vía ffi) y los 3 tests activos de `expense_form_notifier_test`.
+Sí ejercitan lógica: `session_manager_test` y `auth_repository_test` (servidor simulado), el test en vivo de sesión, analítica (`analytics_state_test`, `product_price_test`), parser espacial (`ticket_reader_test`, `multi_photo_ticket_test`), `limits_admin_state_test`, `movement_detail_test`, `offline_database_test` (SQLite real vía ffi) y los 3 tests activos de `expense_form_notifier_test`.
