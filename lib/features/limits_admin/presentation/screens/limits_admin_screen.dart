@@ -8,7 +8,6 @@ import '../../../../core/widgets/shimmer_loading.dart';
 import '../../domain/entities/expense_limit_admin_entity.dart';
 import '../providers/limits_admin_notifier.dart';
 import '../providers/limits_admin_state.dart';
-import '../widgets/limit_form_dialog.dart';
 
 class LimitsAdminScreen extends ConsumerStatefulWidget {
   const LimitsAdminScreen({super.key});
@@ -26,39 +25,9 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
     });
   }
 
+  // Alta y edición de presupuestos: con la cola de sincronización (etapa 8).
   void _abrirFormulario({ExpenseLimitAdminEntity? limit}) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => LimitFormDialog(
-        limit: limit,
-        onGuardar: ({
-          required DateTime desde,
-          required DateTime hasta,
-          required double montoLimite,
-          required List<int> categoriasIds,
-          required List<int> lugaresIds,
-        }) async {
-          if (limit == null) {
-            return await ref.read(limitsAdminNotifierProvider.notifier).crearLimite(
-                  desde: desde,
-                  hasta: hasta,
-                  montoLimite: montoLimite,
-                  categoriasIds: categoriasIds,
-                  lugaresIds: lugaresIds,
-                );
-          } else {
-            return await ref.read(limitsAdminNotifierProvider.notifier).editarLimite(
-                  idLimiteGasto: limit.idLimiteGasto,
-                  montoLimite: montoLimite,
-                  desde: desde,
-                  hasta: hasta,
-                  categoriasIds: categoriasIds,
-                  lugaresIds: lugaresIds,
-                );
-          }
-        },
-      ),
-    );
+    showNotAvailable(context, isEn: false);
   }
 
   void _confirmarRenovacion(ExpenseLimitAdminEntity limit) {

@@ -1,83 +1,59 @@
 import 'package:equatable/equatable.dart';
-import '../../domain/entities/category_admin_entity.dart';
+import '../../domain/category_item.dart';
 
 enum CategoriesAdminStatus { initial, loading, loaded, error }
 
 class CategoriesAdminState extends Equatable {
   final CategoriesAdminStatus status;
-  final List<CategoryAdminEntity> categorias;
+  final List<CategoryItem> categorias;
   final String busqueda;
   final String filtroEstado; // 'todas', 'activas', 'inactivas'
-  final bool isSaving;
-  final String? errorMessage;
-  final String? successMessage;
+  final Object? error;
 
   const CategoriesAdminState({
     required this.status,
     required this.categorias,
     required this.busqueda,
     required this.filtroEstado,
-    required this.isSaving,
-    this.errorMessage,
-    this.successMessage,
+    this.error,
   });
 
-  factory CategoriesAdminState.initial() {
-    return const CategoriesAdminState(
-      status: CategoriesAdminStatus.initial,
-      categorias: [],
-      busqueda: '',
-      filtroEstado: 'todas',
-      isSaving: false,
-    );
-  }
+  factory CategoriesAdminState.initial() => const CategoriesAdminState(
+        status: CategoriesAdminStatus.initial,
+        categorias: [],
+        busqueda: '',
+        filtroEstado: 'todas',
+      );
 
-  List<CategoryAdminEntity> get categoriasFiltradas {
+  List<CategoryItem> get categoriasFiltradas {
     var lista = categorias;
-    if (filtroEstado == 'activas') {
-      lista = lista.where((c) => c.activa).toList();
-    } else if (filtroEstado == 'inactivas') {
-      lista = lista.where((c) => !c.activa).toList();
-    }
-    if (busqueda.trim().isNotEmpty) {
-      final query = busqueda.trim().toLowerCase();
-      lista = lista.where((c) => c.nombre.toLowerCase().contains(query)).toList();
-    }
+    if (filtroEstado == 'activas') lista = lista.where((c) => c.active).toList();
+    if (filtroEstado == 'inactivas') lista = lista.where((c) => !c.active).toList();
+    final q = busqueda.trim().toLowerCase();
+    if (q.isNotEmpty) lista = lista.where((c) => c.name.toLowerCase().contains(q)).toList();
     return lista;
   }
 
-  int get activasCount => categorias.where((c) => c.activa).length;
-  int get inactivasCount => categorias.where((c) => !c.activa).length;
+  int get activasCount => categorias.where((c) => c.active).length;
+  int get inactivasCount => categorias.where((c) => !c.active).length;
 
   CategoriesAdminState copyWith({
     CategoriesAdminStatus? status,
-    List<CategoryAdminEntity>? categorias,
+    List<CategoryItem>? categorias,
     String? busqueda,
     String? filtroEstado,
-    bool? isSaving,
-    String? errorMessage,
-    String? successMessage,
-    bool clearMessages = false,
+    Object? error,
+    bool clearError = false,
   }) {
     return CategoriesAdminState(
       status: status ?? this.status,
       categorias: categorias ?? this.categorias,
       busqueda: busqueda ?? this.busqueda,
       filtroEstado: filtroEstado ?? this.filtroEstado,
-      isSaving: isSaving ?? this.isSaving,
-      errorMessage: clearMessages ? null : (errorMessage ?? this.errorMessage),
-      successMessage: clearMessages ? null : (successMessage ?? this.successMessage),
+      error: clearError ? null : (error ?? this.error),
     );
   }
 
   @override
-  List<Object?> get props => [
-        status,
-        categorias,
-        busqueda,
-        filtroEstado,
-        isSaving,
-        errorMessage,
-        successMessage,
-      ];
+  List<Object?> get props => [status, categorias, busqueda, filtroEstado, error];
 }

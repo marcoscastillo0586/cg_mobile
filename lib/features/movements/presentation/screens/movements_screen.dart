@@ -1,17 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/movements_skeleton.dart';
-import '../../../../routes/app_routes.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../domain/entities/movement_entity.dart';
 import '../providers/movement_list_notifier.dart';
 import '../providers/movement_list_state.dart';
-import '../widgets/edit_movement_dialog.dart';
 import '../widgets/movement_card.dart';
 import '../widgets/movement_summary_banner.dart';
 
@@ -75,25 +72,11 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
     }
   }
 
-  void _editarMovimiento(MovementEntity movement) async {
-    AppFeedback.selection();
-    if (movement.tipoMovimiento == 2) {
-      final ok = await context.push<bool>(
-        '${AppRoutes.expensesCreate}?edit_id=${movement.idMovimientoEnc}',
-      );
-      if (ok == true && mounted) {
-        unawaited(ref.read(movementListNotifierProvider.notifier).cargarMovimientos());
-      }
-    } else {
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => EditMovementDialog(movement: movement),
-      );
-      if (ok == true && mounted) {
-        unawaited(ref.read(movementListNotifierProvider.notifier).cargarMovimientos());
-      }
-    }
+  // Edición de movimientos: con la cola de sincronización (etapa 7).
+  void _editarMovimiento(MovementEntity movement) {
+    showNotAvailable(context, isEn: false);
   }
+
 
   void _confirmarEliminar(int idMovimiento, String concepto) {
     showDialog<void>(
