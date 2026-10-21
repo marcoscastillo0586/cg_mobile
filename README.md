@@ -77,6 +77,17 @@ CG_LIVE_API=http://192.168.0.50:3000/api/v1 CG_LIVE_TTL=20 CG_LIVE_EMAIL=... CG_
 - **Cerrar sesión** (Ajustes): revoca en el servidor, borra la base local y la sesión, y conserva tema, idioma, moneda y onboarding.
 - Ajustes → "Diagnóstico de sesión" (solo debug): 2 llamadas en paralelo y cuántos refresh hubo.
 
+## Base local
+
+`cg_local.db` (sqflite), esquema en `lib/core/database/migrations.dart`:
+
+- Cuentas, categorías, presupuestos, encabezados y renglones con `local_id`, `server_id`, `client_id` (UUID de las altas hechas en el celular), `version` del servidor y eliminado lógico.
+- Importes en centavos (`INTEGER` con `CHECK(typeof(...) = 'integer')`): la base rechaza decimales.
+- `outbox`: cola de operaciones en orden (`seq`), con `op_id` único, `status` y `error`. `sync_state`: cursor del pull.
+- Saldos: vista `account_balances` calculada en vivo (no hay tablas de caché).
+- Migraciones numeradas que se aplican en orden; una base de una versión más nueva que la app no se abre.
+- Al cerrar sesión se borran `cg_local.db` y el archivo viejo `gastos_offline.db`.
+
 ## Estructura
 
 ```
