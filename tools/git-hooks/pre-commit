@@ -15,17 +15,23 @@ if [ -n "$blocked_files" ]; then
 fi
 
 # 2. Contenido con forma de secreto, solo en las líneas agregadas.
-pattern='AIza[0-9A-Za-z_-]{35}|AQ\.[A-Za-z0-9_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|(api[_-]?key|secret|password|passwd|token)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"' ]{12,}["'"'"']'
+#    a) formatos conocidos (clave de Google, clave privada);
+#    b) asignación api_key/secret/password/token cuyo valor tiene 16+ caracteres y
+#       al menos un dígito (un nombre de clave como 'auth_refresh_token' no cuenta).
+strict='AIza[0-9A-Za-z_-]{35}|AQ\.[A-Za-z0-9_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+assign='(api[_-]?key|secret|password|passwd|token)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"' ]{16,}["'"'"']'
+digit_value='["'"'"'][^"'"'"' ]*[0-9][^"'"'"' ]*["'"'"']'
 
 for f in $(git diff --cached --name-only --diff-filter=ACMR); do
   case "$f" in
     pubspec.lock|tools/git-hooks/pre-commit) continue ;;
   esac
-  hits=$(git diff --cached -U0 -- "$f" | awk '
+  added=$(git diff --cached -U0 -- "$f" | awk '
     /^@@/ { split($3, a, ","); line = substr(a[1], 2) - 1; next }
     /^\+\+\+/ { next }
     /^\+/ { line++; print line ":" substr($0, 2); next }
-  ' | grep -iE "$pattern" | cut -d: -f1)
+  ')
+  hits=$( { echo "$added" | grep -E "$strict"; echo "$added" | grep -iE "$assign" | grep -E "$digit_value"; } | cut -d: -f1 | sort -un)
   for l in $hits; do
     echo "pre-commit: posible secreto en $f:$l (no se muestra el valor)"
     fail=1
