@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/utils/currency_utils.dart';
+import '../../../../core/money/money.dart';
 import '../../../../core/utils/date_utils.dart';
 
 class BalanceCard extends StatelessWidget {
-  final double totalPesos;
+  final int totalArsCents;
+
+  /// Texto de la cotización usada (p. ej. "Blue: $ 1.250,00" o "sin conexión").
+  final String? cotizacionTexto;
   final bool ocultarMontos;
   final VoidCallback onToggleOcultar;
   final VoidCallback onSelectFecha;
@@ -12,7 +15,8 @@ class BalanceCard extends StatelessWidget {
 
   const BalanceCard({
     super.key,
-    required this.totalPesos,
+    required this.totalArsCents,
+    this.cotizacionTexto,
     required this.ocultarMontos,
     required this.onToggleOcultar,
     required this.onSelectFecha,
@@ -22,11 +26,7 @@ class BalanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fechaFormatted = AppDateUtils.formatDateString(fechaFiltro);
-    final montoFormateado = AppCurrencyUtils.format(
-      totalPesos,
-      symbol: '\$',
-      ocultar: ocultarMontos,
-    );
+    final montoFormateado = Money.format(totalArsCents, hidden: ocultarMontos);
 
     return Container(
       width: double.infinity,
@@ -106,15 +106,28 @@ class BalanceCard extends StatelessWidget {
           const SizedBox(height: 12),
 
           // Monto Principal (Saldo Consolidado con símbolo al inicio: "$ 1.200,00")
-          Text(
-            montoFormateado,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              montoFormateado,
+              key: const ValueKey('saldo-consolidado'),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
             ),
           ),
+          if (cotizacionTexto != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              cotizacionTexto!,
+              key: const ValueKey('cotizacion'),
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
 
           if (fechaFiltro != null) ...[
             const SizedBox(height: 14),

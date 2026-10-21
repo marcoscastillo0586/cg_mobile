@@ -1,23 +1,24 @@
 import 'package:equatable/equatable.dart';
-import '../../domain/entities/dashboard_summary_entity.dart';
-import '../../domain/entities/expense_limit_entity.dart';
+import '../../domain/entities/balances.dart';
 
 enum DashboardStatus { initial, loading, loaded, error }
 
 class DashboardState extends Equatable {
   final DashboardStatus status;
-  final DashboardSummaryEntity? summary;
-  final List<ExpenseLimitEntity> limites;
-  final String? errorMessage;
+  final Balances? balances;
+
+  /// Error de la última carga (se traduce en la UI). Con [balances] previos se siguen mostrando.
+  final Object? error;
   final String? fechaFiltro;
   final bool ocultarMontos;
+
+  /// null = todas seleccionadas (por defecto).
   final Set<int>? cuentasSeleccionadasIds;
 
   const DashboardState({
     required this.status,
-    this.summary,
-    this.limites = const [],
-    this.errorMessage,
+    this.balances,
+    this.error,
     this.fechaFiltro,
     this.ocultarMontos = false,
     this.cuentasSeleccionadasIds,
@@ -27,19 +28,19 @@ class DashboardState extends Equatable {
 
   DashboardState copyWith({
     DashboardStatus? status,
-    DashboardSummaryEntity? summary,
-    List<ExpenseLimitEntity>? limites,
-    String? errorMessage,
+    Balances? balances,
+    Object? error,
+    bool clearError = false,
     String? fechaFiltro,
+    bool clearFecha = false,
     bool? ocultarMontos,
     Set<int>? cuentasSeleccionadasIds,
   }) {
     return DashboardState(
       status: status ?? this.status,
-      summary: summary ?? this.summary,
-      limites: limites ?? this.limites,
-      errorMessage: errorMessage ?? this.errorMessage,
-      fechaFiltro: fechaFiltro ?? this.fechaFiltro,
+      balances: balances ?? this.balances,
+      error: clearError ? null : (error ?? this.error),
+      fechaFiltro: clearFecha ? null : (fechaFiltro ?? this.fechaFiltro),
       ocultarMontos: ocultarMontos ?? this.ocultarMontos,
       cuentasSeleccionadasIds: cuentasSeleccionadasIds ?? this.cuentasSeleccionadasIds,
     );
@@ -47,33 +48,21 @@ class DashboardState extends Equatable {
 
   bool get isLoading => status == DashboardStatus.loading;
 
-  /// Obtiene los IDs de las cuentas seleccionadas (por defecto todas)
   Set<int> get idsSeleccionados {
-    if (summary == null) return {};
-    return cuentasSeleccionadasIds ?? summary!.cuentas.map((c) => c.idLugar).toSet();
+    final b = balances;
+    if (b == null) return {};
+    return cuentasSeleccionadasIds ?? b.accounts.map((c) => c.id).toSet();
   }
 
-  /// Calcula el saldo consolidado general sumando únicamente las cuentas con checkbox marcado
-  double get totalPesosConsolidado {
-    if (summary == null) return 0.0;
-    final seleccionadas = idsSeleccionados;
-    double total = 0.0;
-    for (final c in summary!.cuentas) {
-      if (seleccionadas.contains(c.idLugar)) {
-        total += c.montoPesos;
-      }
-    }
-    return total;
+  /// Consolidado en ARS de las cuentas seleccionadas (F1.11), con los saldos ya
+  /// convertidos por el servidor. Con todas seleccionadas coincide con totalArsCents.
+  int get totalSeleccionadoArsCents {
+    final b = balances;
+    if (b == null) return 0;
+    final ids = idsSeleccionados;
+    return b.accounts.where((c) => ids.contains(c.id)).fold(0, (sum, c) => sum + c.balanceArsCents);
   }
 
   @override
-  List<Object?> get props => [
-        status,
-        summary,
-        limites,
-        errorMessage,
-        fechaFiltro,
-        ocultarMontos,
-        cuentasSeleccionadasIds,
-      ];
+  List<Object?> get props => [status, balances, error, fechaFiltro, ocultarMontos, cuentasSeleccionadasIds];
 }

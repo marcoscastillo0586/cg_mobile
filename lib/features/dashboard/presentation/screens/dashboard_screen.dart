@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/sync/background_sync_service.dart';
-import '../../../../core/sync/sync_service.dart';
+import '../../../../core/errors/error_messages.dart';
+import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/dashboard_skeleton.dart';
 import 'package:gastos_mobile/routes/app_routes.dart';
@@ -49,16 +49,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       }
       ref.read(novedadesNotifierProvider.notifier).calcularNovedades();
-
-      // Inicializar servicio de escuchas de sincronización automática de fondo (Wi-Fi, Resume, Workmanager)
-      ref.read(backgroundSyncServiceProvider).initialize();
-
-      // Disparar sincronización automática de fondo al abrir la pantalla principal (100% desatendida)
-      unawaited(ref.read(syncServiceProvider.notifier).runFullSync(silent: true).then((_) {
-        if (mounted) {
-          ref.read(dashboardNotifierProvider.notifier).cargarDashboard();
-        }
-      }));
     });
   }
 
@@ -94,6 +84,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final dashboardState = ref.watch(dashboardNotifierProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isEn = ref.watch(settingsProvider).language == 'en';
 
     return Scaffold(
       appBar: AppBar(
@@ -133,17 +124,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           AppFeedback.light();
-          await ref.read(syncServiceProvider.notifier).runFullSync(silent: true);
-          await ref.read(dashboardNotifierProvider.notifier).cargarDashboard();
+          await ref.read(dashboardNotifierProvider.notifier).cargarDashboard(hasta: dashboardState.fechaFiltro);
           await ref.read(novedadesNotifierProvider.notifier).calcularNovedades();
         },
         child: Builder(
           builder: (context) {
-            if (dashboardState.status == DashboardStatus.loading && dashboardState.summary == null) {
+            final balances = dashboardState.balances;
+            if (dashboardState.status == DashboardStatus.loading && balances == null) {
               return const DashboardSkeleton();
             }
 
-            if (dashboardState.status == DashboardStatus.error && dashboardState.summary == null) {
+            if (dashboardState.status == DashboardStatus.error && balances == null) {
+              final error = dashboardState.error!;
+              final code = ErrorMessages.codeOf(error);
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
@@ -153,7 +146,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       const Icon(Icons.cloud_off_rounded, size: 54, color: AppColors.rose),
                       const SizedBox(height: 16),
                       Text(
-                        dashboardState.errorMessage ?? 'Error de conexión',
+                        ErrorMessages.describe(error, isEn: isEn) + (code != null ? '\n($code)' : ''),
+                        key: const ValueKey('dashboard-error'),
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                       ),
@@ -172,16 +166,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               );
             }
 
-            final summary = dashboardState.summary;
-            if (summary == null) {
+            if (balances == null) {
               return const SizedBox.shrink();
             }
+            final rate = balances.exchangeRate;
+            final cotizacion = rate.available
+                ? '${rate.name}: ${Money.format(rate.sellCents)}'
+                : (isEn ? 'Exchange rate: offline (1.00)' : 'Cotización: sin conexión (1,00)');
 
             return ListView(
               padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
               children: [
+                if (dashboardState.error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      '${isEn ? 'Showing the last loaded data' : 'Se muestran los datos de la última carga'}: '
+                      '${ErrorMessages.describe(dashboardState.error!, isEn: isEn)}',
+                      style: const TextStyle(color: AppColors.rose, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 BalanceCard(
-                  totalPesos: dashboardState.totalPesosConsolidado,
+                  totalArsCents: dashboardState.totalSeleccionadoArsCents,
+                  cotizacionTexto: cotizacion,
                   ocultarMontos: dashboardState.ocultarMontos,
                   fechaFiltro: dashboardState.fechaFiltro,
                   onToggleOcultar: () {
@@ -232,7 +239,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ),
                           child: Center(
                             child: Text(
-                              'Mis Cuentas (${summary.cuentas.length})',
+                              'Mis Cuentas (${balances.accounts.length})',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
@@ -285,9 +292,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                ...summary.cuentas.map(
+                ...balances.accounts.map(
                   (cuenta) {
-                    final isSelected = dashboardState.idsSeleccionados.contains(cuenta.idLugar);
+                    final isSelected = dashboardState.idsSeleccionados.contains(cuenta.id);
                     return AccountCard(
                       account: cuenta,
                       ocultarMontos: dashboardState.ocultarMontos,
@@ -296,11 +303,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         AppFeedback.selection();
                         ref
                             .read(dashboardNotifierProvider.notifier)
-                            .toggleCuentaSeleccionada(cuenta.idLugar);
+                            .toggleCuentaSeleccionada(cuenta.id);
                       },
                       onTap: () {
                         context.push(
-                          '${AppRoutes.movements}?id_lugar=${cuenta.idLugar}&nombre=${Uri.encodeComponent(cuenta.nombre)}',
+                          '${AppRoutes.movements}?id_lugar=${cuenta.id}&nombre=${Uri.encodeComponent(cuenta.name)}',
                         );
                       },
                     );

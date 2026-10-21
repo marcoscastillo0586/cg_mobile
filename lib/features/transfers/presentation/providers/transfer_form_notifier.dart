@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/errors/failures.dart';
-import '../../../dashboard/data/datasources/dashboard_remote_data_source.dart';
 import '../../domain/repositories/transfer_repository.dart';
 import 'package:gastos_mobile/features/transfers/data/repositories/transfer_repository_impl.dart';
 import 'transfer_form_state.dart';
@@ -9,32 +8,20 @@ import 'transfer_form_state.dart';
 final transferFormNotifierProvider =
     StateNotifierProvider.autoDispose<TransferFormNotifier, TransferFormState>((ref) {
   final repository = ref.watch(transferRepositoryProvider);
-  final dashboardDataSource = ref.watch(dashboardRemoteDataSourceProvider);
-  return TransferFormNotifier(repository, dashboardDataSource);
+  return TransferFormNotifier(repository);
 });
 
 class TransferFormNotifier extends StateNotifier<TransferFormState> {
   final TransferRepository _repository;
-  final DashboardRemoteDataSource? _dashboardDataSource;
 
-  TransferFormNotifier(this._repository, [this._dashboardDataSource]) : super(TransferFormState.initial()) {
+  TransferFormNotifier(this._repository) : super(TransferFormState.initial()) {
     cargarLugares();
   }
 
   Future<void> cargarLugares() async {
     state = state.copyWith(status: TransferFormStatus.loading);
     try {
-      var lugares = await _repository.getLugares();
-
-      // Punto 9.1: Sincronizar saldos reales de las cuentas desde el dashboard
-      if (_dashboardDataSource != null) {
-        try {
-          final summary = await _dashboardDataSource.getSaldos();
-          if (summary.cuentas.isNotEmpty) {
-            lugares = summary.cuentas;
-          }
-        } catch (_) {}
-      }
+      final lugares = await _repository.getLugares();
 
       final origen = lugares.isNotEmpty ? lugares.first.idLugar : null;
       final destino = lugares.length > 1 ? lugares[1].idLugar : null;

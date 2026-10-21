@@ -1,8 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gastos_mobile/core/network/dio_client.dart';
-import 'package:gastos_mobile/features/dashboard/data/datasources/dashboard_remote_data_source.dart';
-import 'package:gastos_mobile/features/dashboard/data/models/dashboard_summary_model.dart';
 import 'package:gastos_mobile/features/dashboard/domain/entities/account_entity.dart';
 import 'package:gastos_mobile/features/expenses/domain/entities/category_entity.dart';
 import 'package:gastos_mobile/features/expenses/domain/entities/expense_form_data_entity.dart';
@@ -10,15 +7,6 @@ import 'package:gastos_mobile/features/expenses/domain/entities/expense_item_ent
 import 'package:gastos_mobile/features/expenses/domain/repositories/expense_repository.dart';
 import 'package:gastos_mobile/features/expenses/data/repositories/expense_repository_impl.dart';
 import 'package:gastos_mobile/features/expenses/presentation/providers/expense_form_notifier.dart';
-
-/// Sin red en los tests: el notifier ignora el fallo y usa las cuentas del repositorio.
-class _OfflineDashboardDataSource extends DashboardRemoteDataSource {
-  _OfflineDashboardDataSource() : super(DioClient());
-
-  @override
-  Future<DashboardSummaryModel> getSaldos({String? hasta}) async =>
-      throw Exception('sin red en el test');
-}
 
 class FakeExpenseRepository implements ExpenseRepository {
   List<ExpenseItemEntity>? lastCreatedItems;
@@ -74,7 +62,6 @@ void main() {
     // El notifier necesita un Ref (lo usa al editar), así que se crea vía provider.
     container = ProviderContainer(overrides: [
       expenseRepositoryProvider.overrideWithValue(repository),
-      dashboardRemoteDataSourceProvider.overrideWithValue(_OfflineDashboardDataSource()),
     ]);
     container.listen(expenseFormNotifierProvider, (_, __) {}); // evita el autoDispose
     notifier = container.read(expenseFormNotifierProvider.notifier);

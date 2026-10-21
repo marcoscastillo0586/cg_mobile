@@ -1,78 +1,46 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/repositories/dashboard_repository.dart';
-import '../../data/repositories/dashboard_repository_impl.dart';
+import '../../data/repositories/balances_repository.dart';
 import 'dashboard_state.dart';
 
-final dashboardNotifierProvider =
-    StateNotifierProvider<DashboardNotifier, DashboardState>((ref) {
-  final repository = ref.watch(dashboardRepositoryProvider);
-  return DashboardNotifier(repository);
+final dashboardNotifierProvider = StateNotifierProvider<DashboardNotifier, DashboardState>((ref) {
+  return DashboardNotifier(ref.watch(balancesRepositoryProvider));
 });
 
 class DashboardNotifier extends StateNotifier<DashboardState> {
-  final DashboardRepository _repository;
+  final BalancesRepository _repository;
 
   DashboardNotifier(this._repository) : super(DashboardState.initial()) {
     cargarDashboard();
   }
 
+  /// Carga los saldos. [hasta] (`yyyy-MM-dd`) filtra a una fecha de corte; null = hoy.
   Future<void> cargarDashboard({String? hasta}) async {
-    if (state.summary == null) {
-      state = state.copyWith(status: DashboardStatus.loading, fechaFiltro: hasta);
-    } else {
-      state = state.copyWith(fechaFiltro: hasta);
-    }
-
+    state = state.copyWith(
+      status: DashboardStatus.loading,
+      fechaFiltro: hasta,
+      clearFecha: hasta == null,
+      clearError: true,
+    );
     try {
-      final summary = await _repository.getSaldos(hasta: hasta);
-      final limites = await _repository.getLimites();
-
-      final seleccionadas = state.cuentasSeleccionadasIds ?? summary.cuentas.map((c) => c.idLugar).toSet();
-
-      state = state.copyWith(
-        status: DashboardStatus.loaded,
-        summary: summary,
-        limites: limites,
-        cuentasSeleccionadasIds: seleccionadas,
-        errorMessage: null,
-      );
+      final balances = await _repository.getBalances(until: hasta);
+      if (!mounted) return;
+      final ids = balances.accounts.map((c) => c.id).toSet();
+      // Se conserva la selección del usuario, limitada a las cuentas que siguen apareciendo.
+      final seleccion = state.cuentasSeleccionadasIds?.intersection(ids) ?? ids;
+      state = state.copyWith(status: DashboardStatus.loaded, balances: balances, cuentasSeleccionadasIds: seleccion);
     } catch (e) {
-      if (state.summary != null) {
-        state = state.copyWith(
-          status: DashboardStatus.loaded,
-          errorMessage: 'Modo sin conexión: mostrando datos guardados',
-        );
-      } else {
-        try {
-          final summary = await _repository.getSaldos(hasta: hasta);
-          final limites = await _repository.getLimites();
-          state = state.copyWith(
-            status: DashboardStatus.loaded,
-            summary: summary,
-            limites: limites,
-            cuentasSeleccionadasIds: summary.cuentas.map((c) => c.idLugar).toSet(),
-          );
-        } catch (_) {
-          state = state.copyWith(
-            status: DashboardStatus.loaded,
-            errorMessage: 'Modo sin conexión: mostrando datos guardados',
-          );
-        }
-      }
+      debugPrint('[DASHBOARD] No se pudieron cargar los saldos: $e');
+      if (!mounted) return;
+      state = state.copyWith(status: DashboardStatus.error, error: e);
     }
   }
 
-  void toggleVisibilidadMontos() {
-    state = state.copyWith(ocultarMontos: !state.ocultarMontos);
-  }
+  void toggleVisibilidadMontos() => state = state.copyWith(ocultarMontos: !state.ocultarMontos);
 
-  void toggleCuentaSeleccionada(int idLugar) {
+  void toggleCuentaSeleccionada(int id) {
     final actuales = Set<int>.from(state.idsSeleccionados);
-    if (actuales.contains(idLugar)) {
-      actuales.remove(idLugar);
-    } else {
-      actuales.add(idLugar);
-    }
+    if (!actuales.remove(id)) actuales.add(id);
     state = state.copyWith(cuentasSeleccionadasIds: actuales);
   }
 }

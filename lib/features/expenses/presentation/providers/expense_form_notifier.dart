@@ -1,11 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/errors/failures.dart';
-import '../../../dashboard/data/datasources/dashboard_remote_data_source.dart';
 import '../../../movements/data/repositories/movement_repository_impl.dart';
 import '../../../movements/domain/repositories/movement_repository.dart';
 import '../../domain/entities/category_entity.dart';
-import '../../domain/entities/expense_form_data_entity.dart';
 import '../../domain/entities/renglon_gasto.dart';
 import '../../domain/entities/ticket_parse_result.dart';
 import '../../domain/repositories/expense_repository.dart';
@@ -15,39 +13,21 @@ import 'expense_form_state.dart';
 final expenseFormNotifierProvider =
     StateNotifierProvider.autoDispose<ExpenseFormNotifier, ExpenseFormState>((ref) {
   final repository = ref.watch(expenseRepositoryProvider);
-  final dashboardDataSource = ref.watch(dashboardRemoteDataSourceProvider);
-  return ExpenseFormNotifier(repository, dashboardDataSource, ref);
+  return ExpenseFormNotifier(repository, ref);
 });
 
 class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
   final ExpenseRepository _repository;
-  final DashboardRemoteDataSource? _dashboardDataSource;
   final Ref _ref;
 
-  ExpenseFormNotifier(this._repository, [this._dashboardDataSource, Ref? ref])
-      : _ref = ref!,
-        super(ExpenseFormState.initial()) {
+  ExpenseFormNotifier(this._repository, this._ref) : super(ExpenseFormState.initial()) {
     inicializar();
   }
 
   Future<void> inicializar() async {
     state = state.copyWith(status: ExpenseFormStatus.loadingData);
     try {
-      var formData = await _repository.getFormData();
-
-      // Punto 6.6: Sincronizar saldos reales de las cuentas desde el dashboard
-      if (_dashboardDataSource != null) {
-        try {
-          final summary = await _dashboardDataSource.getSaldos();
-          if (summary.cuentas.isNotEmpty) {
-            formData = ExpenseFormDataEntity(
-              lugares: summary.cuentas,
-              categorias: formData.categorias,
-              conceptos: formData.conceptos,
-            );
-          }
-        } catch (_) {}
-      }
+      final formData = await _repository.getFormData();
 
       final defaultCategoria = formData.categorias.isNotEmpty ? formData.categorias.first : null;
 
@@ -78,19 +58,7 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
   Future<void> cargarGastoParaEditar(int editId, MovementRepository movementRepository) async {
     state = state.copyWith(status: ExpenseFormStatus.loadingData);
     try {
-      var formData = await _repository.getFormData();
-      if (_dashboardDataSource != null) {
-        try {
-          final summary = await _dashboardDataSource.getSaldos();
-          if (summary.cuentas.isNotEmpty) {
-            formData = ExpenseFormDataEntity(
-              lugares: summary.cuentas,
-              categorias: formData.categorias,
-              conceptos: formData.conceptos,
-            );
-          }
-        } catch (_) {}
-      }
+      final formData = await _repository.getFormData();
 
       final detail = await movementRepository.getMovementDetail(editId);
       final lugarSaved = detail.detalles.isNotEmpty ? detail.detalles.first.idLugar : null;
