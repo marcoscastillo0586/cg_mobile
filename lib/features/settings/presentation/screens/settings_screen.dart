@@ -1,7 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/auth/session_providers.dart';
 import '../../../../core/config/api_config.dart';
+import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/errors/error_messages.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import 'package:gastos_mobile/routes/app_routes.dart';
@@ -16,6 +21,27 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  String? _diagnostico;
+
+  /// Dispara 2 llamadas autenticadas en paralelo y muestra cuántos refresh hubo.
+  Future<void> _diagnosticarSesion() async {
+    final session = ref.read(sessionManagerProvider);
+    final client = ref.read(dioClientProvider);
+    final antes = session.refreshRequests;
+    setState(() => _diagnostico = 'Probando…');
+    try {
+      final r = await Future.wait([client.get(ApiEndpoints.me), client.get(ApiEndpoints.me)]);
+      final ids = r.map((e) => (e as Map)['id']).join(', ');
+      final msg = 'OK: ids [$ids] · refresh en esta prueba: ${session.refreshRequests - antes}';
+      debugPrint('[DIAG] $msg');
+      setState(() => _diagnostico = msg);
+    } catch (e) {
+      final msg = 'Error: ${ErrorMessages.describe(e, isEn: false)} (${ErrorMessages.codeOf(e) ?? '-'})';
+      debugPrint('[DIAG] $msg');
+      setState(() => _diagnostico = msg);
+    }
+  }
+
   Future<void> _confirmarCerrarSesion(bool isEn) async {
     final confirmado = await showDialog<bool>(
       context: context,
@@ -159,6 +185,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 20),
+
+          // Solo en debug: diagnóstico de la sesión (verificación de la etapa 1).
+          if (kDebugMode) ...[
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.bug_report_outlined),
+                title: const Text('Diagnóstico de sesión (debug)'),
+                subtitle: Text(_diagnostico ?? '2 GET /auth/me en paralelo', style: const TextStyle(fontSize: 12)),
+                onTap: _diagnosticarSesion,
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
 
           // 3. Sección: Servidor (solo lectura; se fija al compilar)
           _buildSectionHeader(isEn ? 'Server' : 'Servidor'),
