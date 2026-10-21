@@ -42,9 +42,6 @@ class DioClient {
 
   Dio get dio => _dio;
 
-  void updateBaseUrl(String newBaseUrl) {
-    _dio.options.baseUrl = newBaseUrl;
-  }
 
 
   Future<dynamic> get(

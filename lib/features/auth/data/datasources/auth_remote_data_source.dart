@@ -63,7 +63,7 @@ class AuthRemoteDataSource {
 
     // 2. Intentar verificación con el servidor en segundo plano
     try {
-      final response = await _dioClient.get(ApiEndpoints.checkAuth);
+      final response = await _dioClient.get(ApiEndpoints.me);
       if (response is Map<String, dynamic>) {
         final user = UserModel.fromJson(response);
         await _storageService.saveUserJson(jsonEncode(user.toJson()));

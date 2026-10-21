@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/config/api_config.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import 'package:gastos_mobile/routes/app_routes.dart';
@@ -14,54 +15,11 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final TextEditingController _urlController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    final settings = ref.read(settingsProvider);
-    _urlController.text = settings.baseUrl;
-  }
-
-  @override
-  void dispose() {
-    _urlController.dispose();
-    super.dispose();
-  }
-
-  void _probarConexion() async {
-    AppFeedback.selection();
-    final url = _urlController.text.trim();
-    if (url.isEmpty) {
-      AppFeedback.showError(context, 'Ingresa una URL de servidor válida');
-      return;
-    }
-    await ref.read(settingsProvider.notifier).probarConexion(url);
-  }
-
-  void _guardarUrl() async {
-    AppFeedback.selection();
-    final url = _urlController.text.trim();
-    if (url.isEmpty) {
-      AppFeedback.showError(context, 'Ingresa una URL de servidor válida');
-      return;
-    }
-    await ref.read(settingsProvider.notifier).cambiarBaseUrl(url);
-    if (mounted) {
-      AppFeedback.showSuccess(context, 'URL base del servidor actualizada correctamente');
-    }
-  }
-
-  void _seleccionarPreset(String url) {
-    AppFeedback.selection();
-    _urlController.text = url;
-    _guardarUrl();
-  }
-
   @override
   Widget build(BuildContext context) {
     final settingsState = ref.watch(settingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isEn = settingsState.language == 'en';
 
     return Scaffold(
       appBar: AppBar(
@@ -136,130 +94,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
-          // 3. Sección: Servidor y Selector de Red / IP
-          _buildSectionHeader('Conectividad y Servidor Backend'),
+          // 3. Sección: Servidor (solo lectura; se fija al compilar)
+          _buildSectionHeader(isEn ? 'Server' : 'Servidor'),
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
               side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'URL Base de la API',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Permite alternar entre tu PC en la red Wi-Fi, emulador o servidor remoto sin reinstalar la app.',
-                    style: TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
-                  ),
-                  const SizedBox(height: 12),
-
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ActionChip(
-                        avatar: const Icon(Icons.wifi_rounded, size: 16),
-                        label: const Text('Wi-Fi LAN (192.168.0.50)'),
-                        onPressed: () => _seleccionarPreset('http://192.168.0.50/gastos2.0'),
-                      ),
-                      ActionChip(
-                        avatar: const Icon(Icons.phone_android_rounded, size: 16),
-                        label: const Text('Emulador (10.0.2.2)'),
-                        onPressed: () => _seleccionarPreset('http://10.0.2.2/gastos2.0'),
-                      ),
-                      ActionChip(
-                        avatar: const Icon(Icons.computer_rounded, size: 16),
-                        label: const Text('Localhost'),
-                        onPressed: () => _seleccionarPreset('http://localhost/gastos2.0'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  TextField(
-                    controller: _urlController,
-                    decoration: InputDecoration(
-                      labelText: 'Dirección URL del Backend',
-                      prefixIcon: const Icon(Icons.dns_rounded),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  if (settingsState.connectionStatus != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: (settingsState.connectionOk == true ? AppColors.emerald : AppColors.rose)
-                            .withValues(alpha: isDark ? 0.2 : 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: (settingsState.connectionOk == true ? AppColors.emerald : AppColors.rose)
-                              .withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            settingsState.connectionOk == true
-                                ? Icons.check_circle_outline_rounded
-                                : Icons.error_outline_rounded,
-                            color: settingsState.connectionOk == true ? AppColors.emerald : AppColors.rose,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              settingsState.connectionStatus!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: settingsState.connectionOk == true
-                                    ? AppColors.emerald
-                                    : AppColors.rose,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: settingsState.isTestingConnection ? null : _probarConexion,
-                          icon: settingsState.isTestingConnection
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.network_ping_rounded, size: 18),
-                          label: const Text('Probar Conexión'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                          onPressed: _guardarUrl,
-                          icon: const Icon(Icons.save_rounded, size: 18),
-                          label: const Text('Guardar IP'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            child: ListTile(
+              leading: const Icon(Icons.dns_rounded),
+              title: Text(isEn ? 'API address' : 'Dirección de la API'),
+              subtitle: Text(
+                ApiConfig.isConfigured
+                    ? ApiConfig.baseUrl
+                    : (isEn ? 'Not configured (API_BASE_URL)' : 'Sin configurar (API_BASE_URL)'),
+                style: const TextStyle(fontSize: 12),
               ),
             ),
           ),

@@ -15,7 +15,6 @@ class SecureStorageService {
 
   static const String _keyToken = 'auth_token';
   static const String _keyUser = 'auth_user';
-  static const String _keyBaseUrl = 'custom_base_url';
   static const String _keyThemeMode = 'app_theme_mode';
   static const String _keyLanguage = 'app_language';
   static const String _keyDefaultCurrency = 'app_default_currency';
@@ -88,30 +87,6 @@ class SecureStorageService {
       return await _storage.read(key: _keyUser);
     } catch (e) {
       throw CacheException('No se pudo leer la sesión del usuario: $e');
-    }
-  }
-
-  Future<void> saveBaseUrl(String url) async {
-    try {
-      await _storage.write(key: _keyBaseUrl, value: url);
-    } catch (e) {
-      throw CacheException('No se pudo guardar la URL base: $e');
-    }
-  }
-
-  Future<String?> getBaseUrl() async {
-    try {
-      return await _storage.read(key: _keyBaseUrl);
-    } catch (e) {
-      throw CacheException('No se pudo leer la URL base: $e');
-    }
-  }
-
-  Future<void> deleteBaseUrl() async {
-    try {
-      await _storage.delete(key: _keyBaseUrl);
-    } catch (e) {
-      throw CacheException('No se pudo eliminar la URL base: $e');
     }
   }
 

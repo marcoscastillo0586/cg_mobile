@@ -1,28 +1,21 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import '../config/api_config.dart';
 
 class ApiEndpoints {
   ApiEndpoints._();
 
-  /// Detecta automáticamente el host adecuado:
-  /// - En Android (Dispositivo físico o emulador en LAN): 'http://192.168.0.50/gastos2.0'
-  /// - En iOS, Web o Desktop: 'http://localhost/gastos2.0'
-  static String _resolveDefaultBaseUrl() {
-    if (kIsWeb) return 'http://localhost/gastos2.0';
-    try {
-      if (Platform.isAndroid) {
-        return 'http://192.168.0.50/gastos2.0';
-      }
-    } catch (_) {}
-    return 'http://localhost/gastos2.0';
-  }
+  /// Base de la API nueva (`/api/v1`), fijada al compilar con `--dart-define=API_BASE_URL`.
+  static String get baseUrl => ApiConfig.baseUrl;
 
-  static String baseUrl = _resolveDefaultBaseUrl();
+  // Auth (API nueva; rutas relativas a la base del cliente)
+  static const String login = '/auth/login';
+  static const String refresh = '/auth/refresh';
+  static const String logout = '/auth/logout';
+  static const String me = '/auth/me';
 
-  // Auth
-  static String get login => '$baseUrl/api/auth/login';
-  static String get logout => '$baseUrl/api/auth/logout';
-  static String get checkAuth => '$baseUrl/api/auth/me';
+  // ---------------------------------------------------------------------------
+  // CONTRATO PHP VIEJO. Estas rutas no existen en /api/v1 (responden 404) y se
+  // reemplazan función por función a partir de la etapa 2.
+  // ---------------------------------------------------------------------------
 
   // Dashboard & Saldos
   static String get dashboardSaldos => '$baseUrl/api/dashboard/saldos';

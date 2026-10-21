@@ -37,12 +37,12 @@ class SyncNotifier extends StateNotifier<SyncState> {
       final response = await dio.get<dynamic>('${ApiEndpoints.baseUrl}/api/dashboard/saldos');
       final isOk = response.statusCode == 200 || response.statusCode == 401;
       if (kDebugMode) {
-        debugPrint('[SYNC-DEBUG] [PING] Servidor 192.168.0.50 responde: $isOk');
+        debugPrint('[SYNC-DEBUG] [PING] Servidor ${ApiEndpoints.baseUrl} responde: $isOk');
       }
       return isOk;
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[SYNC-DEBUG] [PING] Servidor 192.168.0.50 no disponible (Modo Offline): $e');
+        debugPrint('[SYNC-DEBUG] [PING] Servidor ${ApiEndpoints.baseUrl} no disponible (Modo Offline): $e');
       }
       return false;
     }
