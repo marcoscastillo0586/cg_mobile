@@ -3,10 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
-import '../../../dashboard/presentation/providers/dashboard_notifier.dart';
+import '../../../../core/widgets/account_picker.dart';
+import '../../../movements/presentation/local_write_feedback.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/income_form_notifier.dart';
+import '../providers/income_form_state.dart';
+import '../../../movements/data/local_movement_writer.dart' show conceptMax;
 
 class CreateIncomeScreen extends ConsumerStatefulWidget {
   const CreateIncomeScreen({super.key});
@@ -18,6 +22,7 @@ class CreateIncomeScreen extends ConsumerStatefulWidget {
 class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
   final _montoController = TextEditingController();
   final _conceptoController = TextEditingController();
+  bool _montoInvalido = false;
 
   @override
   void dispose() {
@@ -43,22 +48,19 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
   }
 
   void _guardarIngreso() async {
-    final monto = double.tryParse(_montoController.text.replaceAll(',', '.')) ?? 0.0;
-    ref.read(incomeFormNotifierProvider.notifier).setMonto(monto);
-    ref.read(incomeFormNotifierProvider.notifier).setConcepto(_conceptoController.text.trim());
+    final isEn = ref.read(settingsProvider).language == 'en';
+    final notifier = ref.read(incomeFormNotifierProvider.notifier);
+    notifier.setMonto(Money.parseInput(_montoController.text) ?? 0);
+    notifier.setConcepto(_conceptoController.text.trim());
 
-    final ok = await ref.read(incomeFormNotifierProvider.notifier).guardarIngreso();
-
-    if (ok && mounted) {
-      await ref.read(dashboardNotifierProvider.notifier).cargarDashboard();
-
-      if (mounted) {
-        AppFeedback.showSuccess(context, '¡Ingreso registrado con éxito!');
-        context.pop();
-      }
-    } else if (mounted) {
-      final error = ref.read(incomeFormNotifierProvider).errorMessage ?? 'Error al guardar';
-      AppFeedback.showError(context, error);
+    final ok = await notifier.guardarIngreso();
+    if (!mounted) return;
+    if (ok) {
+      await afterLocalWrite(context, ref, isEn ? 'Income' : 'Ingreso', isEn: isEn);
+      if (mounted) context.pop();
+    } else {
+      final error = ref.read(incomeFormNotifierProvider).error;
+      if (error != null) AppFeedback.showError(context, describeWithCode(error, isEn: isEn));
     }
   }
 
@@ -69,7 +71,11 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final formatoFecha = DateFormat('dd/MM/yyyy').format(state.fecha);
 
-    final tituloModulo = settings.language == 'en' ? 'New Income' : 'Nuevo Ingreso';
+    final isEn = settings.language == 'en';
+    if (state.status == IncomeFormStatus.error) {
+      return LocalDataError(error: state.error!, isEn: isEn, onRetry: ref.read(incomeFormNotifierProvider.notifier).cargarCuentas);
+    }
+    final tituloModulo = isEn ? 'New Income' : 'Nuevo Ingreso';
     final labelCuenta = settings.language == 'en' ? 'Destination account.' : 'Cuenta de destino.';
 
     return Scaffold(
@@ -87,26 +93,11 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 8),
-            SizedBox(
-              height: 52,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: state.lugares.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final lug = state.lugares[index];
-                  final isSelected = lug.idLugar == state.selectedLugarId;
-                  return ChoiceChip(
-                    label: Text(lug.nombre.toUpperCase()),
-                    selected: isSelected,
-                    selectedColor: AppColors.emerald.withValues(alpha: 0.2),
-                    onSelected: (_) {
-                      AppFeedback.selection();
-                      ref.read(incomeFormNotifierProvider.notifier).setLugar(lug.idLugar);
-                    },
-                  );
-                },
-              ),
+            AccountPicker(
+              cuentas: state.cuentas,
+              selectedId: state.selectedCuentaId,
+              isEn: isEn,
+              onSelect: (id) => ref.read(incomeFormNotifierProvider.notifier).setCuenta(id),
             ),
             const SizedBox(height: 20),
 
@@ -119,11 +110,13 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
             TextField(
               controller: _montoController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (v) => setState(() => _montoInvalido = v.trim().isNotEmpty && Money.parseInput(v) == null),
               style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.emerald),
-              decoration: const InputDecoration(
-                prefixText: '\$ ',
-                prefixStyle: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.emerald),
+              decoration: InputDecoration(
+                prefixText: '${state.cuentaSeleccionada?.currency.symbol ?? r'$'} ',
+                prefixStyle: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.emerald),
                 hintText: '0,00',
+                errorText: _montoInvalido ? (isEn ? 'Invalid amount (max. 2 decimals)' : 'Importe inválido (máx. 2 decimales)') : null,
               ),
             ),
             const SizedBox(height: 18),
@@ -136,8 +129,10 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
             const SizedBox(height: 6),
             TextField(
               controller: _conceptoController,
+              maxLength: conceptMax,
               decoration: const InputDecoration(
-                hintText: 'Ej: Sueldo, Cobro freelance, Venta...',
+                counterText: '',
+                hintText: 'Ej: Sueldo, Cobro freelance, Venta... (vacío: "$conceptoIngresoPorDefecto")',
                 prefixIcon: Icon(Icons.arrow_downward_rounded, size: 20, color: AppColors.emerald),
               ),
             ),
@@ -180,6 +175,7 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
 
             // 5. Botón Guardar
             ElevatedButton(
+              key: const ValueKey('guardar-ingreso'),
               onPressed: state.isSubmitting ? null : _guardarIngreso,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.emerald,

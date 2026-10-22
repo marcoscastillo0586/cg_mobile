@@ -1,62 +1,63 @@
 import 'package:equatable/equatable.dart';
-import '../../../dashboard/domain/entities/account_entity.dart';
+import '../../../../core/database/local_catalog.dart';
 
 enum IncomeFormStatus { initial, loading, ready, submitting, success, error }
 
 class IncomeFormState extends Equatable {
   final IncomeFormStatus status;
-  final List<AccountEntity> lugares;
-  final int? selectedLugarId;
-  final double monto;
+  final List<LocalAccount> cuentas;
+
+  /// Id local de la cuenta de destino.
+  final int? selectedCuentaId;
+  final int montoCents;
   final String concepto;
   final DateTime fecha;
-  final String? errorMessage;
+
+  /// Último error (se traduce en la pantalla).
+  final Object? error;
 
   const IncomeFormState({
     required this.status,
-    this.lugares = const [],
-    this.selectedLugarId,
-    this.monto = 0.0,
+    this.cuentas = const [],
+    this.selectedCuentaId,
+    this.montoCents = 0,
     this.concepto = '',
     required this.fecha,
-    this.errorMessage,
+    this.error,
   });
 
-  factory IncomeFormState.initial() => IncomeFormState(
-        status: IncomeFormStatus.initial,
-        fecha: DateTime.now(),
-      );
+  factory IncomeFormState.initial() => IncomeFormState(status: IncomeFormStatus.initial, fecha: DateTime.now());
 
   IncomeFormState copyWith({
     IncomeFormStatus? status,
-    List<AccountEntity>? lugares,
-    int? selectedLugarId,
-    double? monto,
+    List<LocalAccount>? cuentas,
+    int? selectedCuentaId,
+    int? montoCents,
     String? concepto,
     DateTime? fecha,
-    String? errorMessage,
+    Object? error,
+    bool clearError = false,
   }) {
     return IncomeFormState(
       status: status ?? this.status,
-      lugares: lugares ?? this.lugares,
-      selectedLugarId: selectedLugarId ?? this.selectedLugarId,
-      monto: monto ?? this.monto,
+      cuentas: cuentas ?? this.cuentas,
+      selectedCuentaId: selectedCuentaId ?? this.selectedCuentaId,
+      montoCents: montoCents ?? this.montoCents,
       concepto: concepto ?? this.concepto,
       fecha: fecha ?? this.fecha,
-      errorMessage: errorMessage ?? this.errorMessage,
+      error: clearError ? null : (error ?? this.error),
     );
   }
 
   bool get isSubmitting => status == IncomeFormStatus.submitting;
 
+  LocalAccount? get cuentaSeleccionada {
+    for (final c in cuentas) {
+      if (c.localId == selectedCuentaId) return c;
+    }
+    return null;
+  }
+
   @override
-  List<Object?> get props => [
-        status,
-        lugares,
-        selectedLugarId,
-        monto,
-        concepto,
-        fecha,
-        errorMessage,
-      ];
+  List<Object?> get props => [status, cuentas, selectedCuentaId, montoCents, concepto, fecha, error];
 }
