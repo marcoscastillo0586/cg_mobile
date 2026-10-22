@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/database/local_database.dart';
+import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
@@ -52,7 +53,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ref.read(novedadesNotifierProvider.notifier).calcularNovedades();
 
       // Crea o migra la base local al entrar; si no se puede abrir, se avisa.
-      ref.read(localDatabaseProvider).then<void>((_) {}, onError: (Object e) {
+      // Crea o migra la base local y descarga los cambios del servidor (pull).
+      ref.read(localDatabaseProvider).then<void>((_) {
+        if (mounted) ref.read(syncControllerProvider.notifier).sync();
+      }, onError: (Object e) {
         debugPrint('[DB] No se pudo abrir la base local: $e');
         if (mounted) AppFeedback.showError(context, 'No se pudo abrir la base local: $e');
       });
@@ -92,6 +96,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final dashboardState = ref.watch(dashboardNotifierProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isEn = ref.watch(settingsProvider).language == 'en';
+
+    // La sincronización avisa si falla o si la base local no coincide con el servidor.
+    ref.listen<SyncState>(syncControllerProvider, (prev, next) {
+      if (prev?.status == next.status) return;
+      if (next.status == SyncStatus.error && next.error != null) {
+        AppFeedback.showError(
+          context,
+          '${isEn ? 'Sync failed' : 'No se pudo sincronizar'}: ${ErrorMessages.describe(next.error!, isEn: isEn)}',
+        );
+      } else if (next.status == SyncStatus.mismatch) {
+        AppFeedback.showError(
+          context,
+          isEn ? 'Local data does not match the server; a full download will run next time.'
+               : 'Los datos locales no coinciden con el servidor; la próxima vez se descarga todo.',
+        );
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(

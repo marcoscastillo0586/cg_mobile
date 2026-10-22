@@ -7,6 +7,7 @@ import '../../../../core/config/api_config.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/sync/sync_status_card.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import 'package:gastos_mobile/routes/app_routes.dart';
@@ -184,6 +185,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 20),
+
+          // Datos guardados en el celular y sincronización.
+          _buildSectionHeader(isEn ? 'Offline data' : 'Datos sin conexión'),
+          SyncStatusCard(isEn: isEn),
           const SizedBox(height: 20),
 
           // Solo en debug: diagnóstico de la sesión (verificación de la etapa 1).
