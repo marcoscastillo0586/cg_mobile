@@ -50,6 +50,9 @@ const db = new DatabaseSync(dbPath, { readOnly: true });
 const one = (sql, ...a) => db.prepare(sql).get(...a);
 const all = (sql, ...a) => db.prepare(sql).all(...a);
 const live = 'd.deleted = 0 AND h.deleted = 0';
+// Lo que ya vino del servidor. Lo cargado en el celular y pendiente de enviar (sin server_id)
+// todavía no existe allá: se compara aparte.
+const synced = `${live} AND d.server_id IS NOT NULL`;
 
 // ---------- servidor ----------
 const [accounts, categories, budgets, balances, movs] = await Promise.all([
@@ -68,16 +71,23 @@ check('accounts', 'filas', accounts.length, one('SELECT COUNT(*) n FROM accounts
 check('categories', 'filas', categories.length, one('SELECT COUNT(*) n FROM categories WHERE server_id IS NOT NULL AND deleted = 0').n);
 check('budgets', 'filas', budgets.length, one('SELECT COUNT(*) n FROM budgets WHERE server_id IS NOT NULL AND deleted = 0').n);
 check('movement_headers', 'comprobantes con renglones', movs.total,
-  one(`SELECT COUNT(DISTINCT h.local_id) n FROM movement_headers h JOIN movement_details d ON d.header_local_id = h.local_id WHERE ${live}`).n);
+  one(`SELECT COUNT(DISTINCT h.local_id) n FROM movement_headers h JOIN movement_details d ON d.header_local_id = h.local_id WHERE ${synced}`).n);
 check('movement_details', 'renglones', accounts.reduce((a, x) => a + x.movementsCount, 0),
-  one(`SELECT COUNT(*) n FROM movement_details d JOIN movement_headers h ON h.local_id = d.header_local_id WHERE ${live}`).n);
+  one(`SELECT COUNT(*) n FROM movement_details d JOIN movement_headers h ON h.local_id = d.header_local_id WHERE ${synced}`).n);
 check('movement_details', 'suma de montos (centavos)', accounts.reduce((a, x) => a + x.balanceCents, 0),
-  one(`SELECT COALESCE(SUM(d.amount_cents), 0) s FROM movement_details d JOIN movement_headers h ON h.local_id = d.header_local_id WHERE ${live}`).s);
+  one(`SELECT COALESCE(SUM(d.amount_cents), 0) s FROM movement_details d JOIN movement_headers h ON h.local_id = d.header_local_id WHERE ${synced}`).s);
+
+// Pendiente de enviar: comprobantes sin server_id y operaciones de la outbox.
+const pendingHeaders = one(`SELECT COUNT(*) n FROM movement_headers WHERE server_id IS NULL AND deleted = 0`).n;
+const pendingOps = one(`SELECT COUNT(*) n FROM outbox WHERE status = 'pending'`).n;
+const pendingByAccount = new Map(all(`SELECT a.server_id id, SUM(d.amount_cents) s FROM movement_details d
+  JOIN movement_headers h ON h.local_id = d.header_local_id JOIN accounts a ON a.local_id = d.account_local_id
+  WHERE ${live} AND d.server_id IS NULL GROUP BY a.local_id`).map((r) => [r.id, r.s]));
 
 // Saldo y renglones por cuenta (GET /accounts)
 const localByAccount = new Map(
-  all(`SELECT a.server_id id, COALESCE(SUM(CASE WHEN ${live} THEN d.amount_cents END), 0) bal,
-              COUNT(CASE WHEN ${live} THEN d.local_id END) n
+  all(`SELECT a.server_id id, COALESCE(SUM(CASE WHEN ${synced} THEN d.amount_cents END), 0) bal,
+              COUNT(CASE WHEN ${synced} THEN d.local_id END) n
        FROM accounts a
        LEFT JOIN movement_details d ON d.account_local_id = a.local_id
        LEFT JOIN movement_headers h ON h.local_id = d.header_local_id
@@ -88,9 +98,12 @@ for (const a of accounts) {
   check('cuenta', `saldo ${a.name}`, a.balanceCents, l.bal);
   check('cuenta', `renglones ${a.name}`, a.movementsCount, l.n);
 }
-// Vista de saldos contra GET /accounts/balances (cuentas activas con saldo ≠ 0)
+// Vista de saldos (la que usa la app) = GET /accounts/balances + lo pendiente de esa cuenta.
 const view = new Map(all(`SELECT a.server_id id, b.balance_cents bal FROM account_balances b JOIN accounts a ON a.local_id = b.account_local_id`).map((r) => [r.id, r.bal]));
-for (const a of balances.accounts) check('account_balances', `vista ${a.name}`, a.balanceCents, view.get(a.id) ?? 'falta');
+for (const a of balances.accounts) {
+  const pend = pendingByAccount.get(a.id) ?? 0;
+  check('account_balances', `vista ${a.name}${pend ? ` (pendiente ${pend})` : ''}`, a.balanceCents + pend, view.get(a.id) ?? 'falta');
+}
 
 db.close();
 if (tmp) rmSync(tmp, { recursive: true, force: true });
@@ -103,5 +116,6 @@ for (const r of rows) {
   console.log(`${pad(r.tabla, 17)} ${pad(r.dato, 32)} ${pad(r.servidor, 14)} ${pad(r.local, 14)} ${diff}`);
 }
 const bad = rows.filter((r) => !r.ok).length;
-console.log(`\n${rows.length - bad} OK, ${bad} FALLA`);
+console.log(`\nPendiente de enviar en el celular: ${pendingHeaders} comprobantes, ${pendingOps} operaciones en la outbox`);
+console.log(`${rows.length - bad} OK, ${bad} FALLA`);
 process.exit(bad ? 1 : 0);
