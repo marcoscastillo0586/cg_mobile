@@ -47,6 +47,29 @@ class Money {
     throw ServerException('Importe inválido en "$field": $value', null, 'UNEXPECTED_RESPONSE');
   }
 
+  /// Lo que escribe el usuario → centavos, sin pasar por double. Acepta "1234", "1234,5",
+  /// "1.234,56" y "1234.56". Devuelve null si está vacío, no es un número, tiene más de 2
+  /// decimales o es negativo.
+  static int? parseInput(String text) {
+    final m = _input.firstMatch(text.trim().replaceAll(' ', ''));
+    if (m == null) return null;
+    final group = m.group(2), decimal = m.group(3);
+    if (group != null && group == decimal) return null; // "1.234.56": ambiguo
+    final units = m.group(1)!.replaceAll(RegExp(r'[.,]'), '');
+    if (units.length > 13) return null;
+    final frac = (m.group(4) ?? '').padRight(2, '0');
+    return int.parse(units) * 100 + int.parse(frac);
+  }
+
+  /// Entero con miles agrupados de a 3 ("1.234.567") o sin agrupar, y hasta 2 decimales.
+  static final _input = RegExp(r'^(\d{1,3}([.,])\d{3}(?:\2\d{3})*|\d+)(?:([.,])(\d{1,2}))?$');
+
+  /// Centavos → decimal con punto para la API ("1234.56"); el signo lo pone el servidor.
+  static String toApiDecimal(int cents) {
+    final abs = cents.abs();
+    return '${cents < 0 ? '-' : ''}${abs ~/ 100}.${(abs % 100).toString().padLeft(2, '0')}';
+  }
+
   static String _group(int units) {
     final digits = units.toString();
     final buffer = StringBuffer();
