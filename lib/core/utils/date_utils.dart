@@ -20,23 +20,17 @@ class AppDateUtils {
   /// Formatea una cadena ISO o 'yyyy-MM-dd' a 'dd/MM/yyyy'
   static String formatDateString(String? dateStr) {
     if (dateStr == null || dateStr.trim().isEmpty) return '';
-    try {
-      final parsed = DateTime.parse(dateStr);
-      return _dateFormat.format(parsed);
-    } catch (_) {
-      return dateStr;
-    }
+    // Una fecha que no se puede leer (p. ej. '0000-00-00 00:00:00' heredada) se muestra tal cual.
+    final parsed = DateTime.tryParse(dateStr);
+    return parsed == null ? dateStr : _dateFormat.format(parsed);
   }
 
   /// Formatea una cadena ISO a 'dd/MM/yyyy HH:mm'
   static String formatDateTimeString(String? dateStr) {
     if (dateStr == null || dateStr.trim().isEmpty) return '';
-    try {
-      final parsed = DateTime.parse(dateStr);
-      return _dateTimeFormat.format(parsed);
-    } catch (_) {
-      return dateStr;
-    }
+    // Una fecha que no se puede leer (p. ej. '0000-00-00 00:00:00' heredada) se muestra tal cual.
+    final parsed = DateTime.tryParse(dateStr);
+    return parsed == null ? dateStr : _dateTimeFormat.format(parsed);
   }
 
   /// Convierte una fecha a string para la API ('yyyy-MM-dd')

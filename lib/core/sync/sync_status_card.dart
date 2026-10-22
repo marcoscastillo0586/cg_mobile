@@ -45,7 +45,8 @@ class _SyncStatusCardState extends ConsumerState<SyncStatusCard> {
             Text(
               '${isEn ? 'Last complete sync' : 'Última sincronización completa'}: $last\n'
               '${isEn ? 'On this phone' : 'En este celular'}: ${s.localMovements} ${isEn ? 'movements' : 'comprobantes'}, '
-              '${s.localDetails} ${isEn ? 'lines' : 'renglones'}',
+              '${s.localDetails} ${isEn ? 'lines' : 'renglones'}\n'
+              '${isEn ? 'Pending to send' : 'Pendientes de enviar'}: ${s.pendingOps}',
               key: const ValueKey('sync-totales'),
               style: const TextStyle(fontSize: 12),
             ),

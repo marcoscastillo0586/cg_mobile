@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/local_database.dart';
 import '../network/dio_client.dart';
+import 'outbox.dart';
 import 'pull_service.dart';
 
 enum SyncStatus { idle, syncing, complete, mismatch, error }
@@ -18,6 +19,9 @@ class SyncState {
   final int localMovements;
   final int localDetails;
 
+  /// Operaciones en la outbox todavía sin resultado del servidor.
+  final int pendingOps;
+
   const SyncState({
     this.status = SyncStatus.idle,
     this.lastResult,
@@ -25,6 +29,7 @@ class SyncState {
     this.lastCompleteAt,
     this.localMovements = 0,
     this.localDetails = 0,
+    this.pendingOps = 0,
   });
 
   SyncState copyWith({
@@ -35,6 +40,7 @@ class SyncState {
     String? lastCompleteAt,
     int? localMovements,
     int? localDetails,
+    int? pendingOps,
   }) =>
       SyncState(
         status: status ?? this.status,
@@ -43,6 +49,7 @@ class SyncState {
         lastCompleteAt: lastCompleteAt ?? this.lastCompleteAt,
         localMovements: localMovements ?? this.localMovements,
         localDetails: localDetails ?? this.localDetails,
+        pendingOps: pendingOps ?? this.pendingOps,
       );
 }
 
@@ -70,6 +77,7 @@ class SyncController extends StateNotifier<SyncState> {
         lastCompleteAt: counts.$3,
         localMovements: counts.$1,
         localDetails: counts.$2,
+        pendingOps: counts.$4,
       );
     } catch (e) {
       debugPrint('[SYNC] Falló la sincronización: $e');
@@ -82,18 +90,18 @@ class SyncController extends StateNotifier<SyncState> {
   Future<void> refreshCounts() async {
     try {
       final c = await _counts();
-      if (mounted) state = state.copyWith(localMovements: c.$1, localDetails: c.$2, lastCompleteAt: c.$3);
+      if (mounted) state = state.copyWith(localMovements: c.$1, localDetails: c.$2, lastCompleteAt: c.$3, pendingOps: c.$4);
     } catch (e) {
       debugPrint('[SYNC] No se pudo leer la base local: $e');
       if (mounted) state = state.copyWith(error: e);
     }
   }
 
-  Future<(int, int, String?)> _counts() async {
+  Future<(int, int, String?, int)> _counts() async {
     final db = await _ref.read(localDatabaseProvider);
     final h = (await db.rawQuery('SELECT COUNT(*) AS n FROM movement_headers WHERE deleted = 0')).first['n']! as int;
     final d = (await db.rawQuery('SELECT COUNT(*) AS n FROM movement_details WHERE deleted = 0')).first['n']! as int;
     final last = (await db.query('sync_state')).single['last_pull_at'] as String?;
-    return (h, d, last);
+    return (h, d, last, await Outbox.pendingCount(db));
   }
 }
