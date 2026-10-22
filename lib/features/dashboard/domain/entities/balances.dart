@@ -16,7 +16,8 @@ class ExchangeRate extends Equatable {
   List<Object?> get props => [name, sellCents, available];
 }
 
-/// Cuenta con saldo (GET /accounts/balances): solo cuentas activas con saldo ≠ 0.
+/// Cuenta con saldo: solo cuentas activas con saldo ≠ 0 (misma regla que GET /accounts/balances).
+/// `id` es el id LOCAL de la cuenta.
 class BalanceAccount extends Equatable {
   final int id;
   final String name;
@@ -51,8 +52,11 @@ class Balances extends Equatable {
   final int totalArsCents;
   final List<BalanceAccount> accounts;
 
-  const Balances({required this.until, required this.exchangeRate, required this.totalArsCents, required this.accounts});
+  /// Por qué no se pudo obtener la cotización del servidor (null si se obtuvo o no hacía falta).
+  final Object? rateError;
+
+  const Balances({required this.until, required this.exchangeRate, required this.totalArsCents, required this.accounts, this.rateError});
 
   @override
-  List<Object?> get props => [until, exchangeRate, totalArsCents, accounts];
+  List<Object?> get props => [until, exchangeRate, totalArsCents, accounts, rateError];
 }

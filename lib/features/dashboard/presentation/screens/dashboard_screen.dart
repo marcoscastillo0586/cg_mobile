@@ -7,6 +7,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/database/local_database.dart';
 import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/errors/error_messages.dart';
+import '../../../../core/errors/exceptions.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/dashboard_skeleton.dart';
@@ -67,11 +68,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final estado = ref.read(dashboardNotifierProvider);
     DateTime fechaInicial = DateTime.now();
 
-    if (estado.fechaFiltro != null) {
-      try {
-        fechaInicial = DateTime.parse(estado.fechaFiltro!);
-      } catch (_) {}
-    }
+    // fechaFiltro la arma este mismo picker (yyyy-MM-dd).
+    if (estado.fechaFiltro != null) fechaInicial = DateTime.tryParse(estado.fechaFiltro!) ?? fechaInicial;
 
     final seleccionada = await showDatePicker(
       context: context,
@@ -100,6 +98,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     // La sincronización avisa si falla o si la base local no coincide con el servidor.
     ref.listen<SyncState>(syncControllerProvider, (prev, next) {
       if (prev?.status == next.status) return;
+      // Los saldos salen de la base local: después de descargar, se recalculan.
+      if (next.status == SyncStatus.complete || next.status == SyncStatus.mismatch) {
+        ref.read(dashboardNotifierProvider.notifier).cargarDashboard(hasta: ref.read(dashboardNotifierProvider).fechaFiltro);
+      }
       if (next.status == SyncStatus.error && next.error != null) {
         AppFeedback.showError(
           context,
@@ -198,9 +200,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               return const SizedBox.shrink();
             }
             final rate = balances.exchangeRate;
+            final rateError = balances.rateError;
             final cotizacion = rate.available
                 ? '${rate.name}: ${Money.format(rate.sellCents)}'
-                : (isEn ? 'Exchange rate: offline (1.00)' : 'Cotización: sin conexión (1,00)');
+                : rateError == null || rateError is NetworkException
+                    ? (isEn ? 'Exchange rate: offline (1.00)' : 'Cotización: sin conexión (1,00)')
+                    : '${isEn ? 'Exchange rate unavailable (1.00)' : 'Cotización no disponible (1,00)'}: '
+                        '${ErrorMessages.describe(rateError, isEn: isEn)}';
 
             return ListView(
               padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
