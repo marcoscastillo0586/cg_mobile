@@ -27,6 +27,16 @@ class ErrorMessages {
     'INSUFFICIENT_FUNDS': ('No hay fondos suficientes en la cuenta.', 'Not enough funds in the account.'),
     'RESERVED_CATEGORY': ('Esa categoría está reservada por el sistema.', 'That category is reserved by the system.'),
     'SAME_ACCOUNT': ('La cuenta de origen y la de destino no pueden ser iguales.', 'Source and destination accounts must differ.'),
+    'CURRENCY_MISMATCH': (
+      'No se puede transferir entre cuentas de distinta moneda.',
+      'Cannot transfer between accounts in different currencies.'
+    ),
+    'ACCOUNT_INACTIVE': ('La cuenta está inactiva.', 'The account is inactive.'),
+    'CATEGORY_INACTIVE': ('La categoría está inactiva.', 'The category is inactive.'),
+    'CATALOG_NOT_SYNCED': (
+      'Faltan datos del servidor en el celular: sincronizá con conexión.',
+      'Server data is missing on this phone: sync while online.'
+    ),
     'INTERNAL_ERROR': ('Error interno del servidor.', 'Internal server error.'),
     'NOT_AVAILABLE': ('Función no disponible por ahora.', 'Feature not available for now.'),
     'CONFIG_MISSING': (
@@ -54,6 +64,8 @@ class ErrorMessages {
     } else if (error is Failure) {
       code = error.code;
       message = error.message;
+      // Validación hecha en el celular: el mensaje ya es específico (cuenta, disponible, renglón).
+      if (error is ValidationFailure && !isEn) return message;
     }
     return forCode(code, message, isEn: isEn);
   }
