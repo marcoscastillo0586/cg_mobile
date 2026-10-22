@@ -10,6 +10,7 @@ import 'package:gastos_mobile/core/database/local_database.dart';
 import 'package:gastos_mobile/core/errors/exceptions.dart';
 import 'package:gastos_mobile/core/network/dio_client.dart';
 import 'package:gastos_mobile/core/sync/pull_service.dart';
+import 'package:gastos_mobile/features/movements/data/local_movement_writer.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -196,6 +197,41 @@ void main() {
     ])).pull();
     await expectLater(r, throwsA(isA<ServerException>()));
     expect(firstInt(await db.rawQuery('SELECT COUNT(*) FROM accounts')), 0); // rollback
+  });
+
+  Future<SavedMovement> pendingExpense(int cents) async {
+    final banco = firstInt(await db.rawQuery('SELECT local_id FROM accounts WHERE server_id = 1'));
+    final comida = firstInt(await db.rawQuery('SELECT local_id FROM categories WHERE server_id = 7'));
+    return LocalMovementWriter(db).createExpense(ExpenseDraft(
+      accountLocalId: banco, date: DateTime(2026, 10, 21), generalConcept: 'offline',
+      lines: [ExpenseLine(concept: 'pan', categoryLocalId: comida, amountCents: cents)],
+    ));
+  }
+
+  test('lo cargado sin conexión no genera diferencia ni lo borra la descarga completa', () async {
+    await service(_Server(fullWindow())).pull();
+    final saved = await pendingExpense(1000);
+    await db.update('sync_state', {'cursor': null}, where: 'id = 1'); // fuerza otra completa
+    final r = await service(_Server(fullWindow())).pull();
+    expect(r.complete, isTrue, reason: r.mismatches.join('\n'));
+    expect((await db.query('movement_headers', where: 'local_id = ?', whereArgs: [saved.headerLocalId])), hasLength(1));
+    expect(firstInt(await db.rawQuery("SELECT COUNT(*) FROM outbox WHERE status = 'pending'")), 1);
+    expect((await balances())[1], 49950 - 1000); // el saldo local sigue descontado
+  });
+
+  test('el comprobante que vuelve del servidor con su clientId reemplaza los renglones locales (sin duplicar)', () async {
+    await service(_Server(fullWindow())).pull();
+    final saved = await pendingExpense(1000);
+    final m = mov(4, [det(40, 1, -1000)])..['clientId'] = saved.clientId;
+    final r = await service(_Server([
+      page(full: false, accounts: [acc(1, 'Banco', 49950 - 1000, 3), acc(2, 'Efectivo', -3000, 1)], movements: [m], cursor: 'c-4'),
+    ])).pull();
+    expect(r.complete, isTrue, reason: r.mismatches.join('\n'));
+    final h = (await db.query('movement_headers', where: 'client_id = ?', whereArgs: [saved.clientId])).single;
+    expect((h['local_id'], h['server_id']), (saved.headerLocalId, 4));
+    final d = await db.query('movement_details', where: 'header_local_id = ?', whereArgs: [saved.headerLocalId]);
+    expect(d.map((x) => (x['server_id'], x['amount_cents'])), [(40, -1000)]);
+    expect((await balances())[1], 49950 - 1000);
   });
 
   test('dos pulls simultáneos comparten uno solo', () async {

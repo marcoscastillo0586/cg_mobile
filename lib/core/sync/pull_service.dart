@@ -200,6 +200,9 @@ class PullService {
         await txn.update('movement_details', values, where: 'local_id = ?', whereArgs: [existing.first['local_id']]);
       }
     }
+    // Si el comprobante se cargó en el celular (encontrado por clientId), el servidor ya lo
+    // registró: sus renglones reemplazan a los locales sin server_id (no se duplican).
+    await txn.delete('movement_details', where: 'header_local_id = ? AND server_id IS NULL', whereArgs: [headerId]);
     // El servidor manda el comprobante completo: los renglones del servidor que ya no vienen se borraron.
     await txn.delete(
       'movement_details',
@@ -249,12 +252,15 @@ class PullService {
   // ---------------- verificación ----------------
 
   /// Saldo y cantidad de renglones por cuenta: base local contra lo que informó el servidor.
+  /// Solo cuenta lo que ya vino del servidor: lo cargado en el celular y pendiente de enviar
+  /// (renglones sin server_id) todavía no existe allá.
   Future<List<AccountMismatch>> _verify(List<Map<String, dynamic>> serverAccounts) async {
+    const synced = 'd.deleted = 0 AND h.deleted = 0 AND d.server_id IS NOT NULL';
     final local = {
       for (final r in await _db.rawQuery('''
         SELECT a.server_id AS id,
-               COALESCE(SUM(CASE WHEN d.deleted = 0 AND h.deleted = 0 THEN d.amount_cents END), 0) AS balance,
-               COUNT(CASE WHEN d.deleted = 0 AND h.deleted = 0 THEN d.local_id END) AS n
+               COALESCE(SUM(CASE WHEN $synced THEN d.amount_cents END), 0) AS balance,
+               COUNT(CASE WHEN $synced THEN d.local_id END) AS n
         FROM accounts a
         LEFT JOIN movement_details d ON d.account_local_id = a.local_id
         LEFT JOIN movement_headers h ON h.local_id = d.header_local_id
