@@ -87,6 +87,8 @@ CG_LIVE_API=http://192.168.0.50:3000/api/v1 CG_LIVE_TTL=20 CG_LIVE_EMAIL=... CG_
 - Saldos: vista `account_balances` calculada en vivo (no hay tablas de caché).
 - Migraciones numeradas que se aplican en orden; una base de una versión más nueva que la app no se abre.
 - Al cerrar sesión se borran `cg_local.db` y el archivo viejo `gastos_offline.db`.
+- Prueba en el dispositivo (SQLite de Android): `flutter test integration_test/local_database_device_test.dart -d <id>`.
+  **Reinstala la app y borra sus datos**: no correrla con operaciones pendientes.
 
 ## Estructura
 
