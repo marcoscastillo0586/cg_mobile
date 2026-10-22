@@ -58,6 +58,20 @@ La app tiene que estar abierta con la sesión del mismo usuario. Nunca usar cont
 node tools/verify_screens.mjs http://192.168.0.50:3000/api/v1 <credenciales.json>
 ```
 
+### Verificación de la sincronización (celular real)
+
+`tools/verify_sync.mjs` copia `cg_local.db` del celular por adb (`run-as`, solo app debug), consulta la API
+de pruebas con un token firmado en memoria con el `JWT_ACCESS_SECRET` del servidor de pruebas (sin
+contraseñas) y compara filas por tabla, suma de montos, saldo y renglones por cuenta (`GET /accounts`),
+la vista `account_balances` (`GET /accounts/balances`) y los comprobantes (`GET /movements`).
+Imprime una tabla OK/FALLA; sale con código 1 si hay alguna falla. Requiere Node >= 22.5.
+
+```sh
+node tools/verify_sync.mjs http://192.168.0.50:3000/api/v1 <archivo-con-el-secreto> <userId> [cg_local.db]
+```
+
+`GET /movements` solo cuenta comprobantes con renglones; los comprobantes vacíos no entran en esa fila.
+
 ### Prueba en vivo de la sesión
 
 `test/integration/auth_live_test.dart` usa el código de la app contra una API real (se saltea si faltan las variables):
@@ -87,6 +101,10 @@ CG_LIVE_API=http://192.168.0.50:3000/api/v1 CG_LIVE_TTL=20 CG_LIVE_EMAIL=... CG_
 - Saldos: vista `account_balances` calculada en vivo (no hay tablas de caché).
 - Migraciones numeradas que se aplican en orden; una base de una versión más nueva que la app no se abre.
 - Al cerrar sesión se borran `cg_local.db` y el archivo viejo `gastos_offline.db`.
+- Descarga (`lib/core/sync/pull_service.dart`): `GET /sync/pull` de a 500 mientras `hasMore`, cada página en
+  su transacción, upsert por `server_id`, aplica `deleted[]` y, en la descarga completa, borra lo que el servidor
+  ya no tiene. Al final compara saldo y cantidad de renglones por cuenta con el servidor: el cursor se guarda
+  y la sincronización se marca "completa" solo si todo coincide; si no, se descarta el cursor y se muestran las diferencias.
 - Prueba en el dispositivo (SQLite de Android): `flutter test integration_test/local_database_device_test.dart -d <id>`.
   **Reinstala la app y borra sus datos**: no correrla con operaciones pendientes.
 
