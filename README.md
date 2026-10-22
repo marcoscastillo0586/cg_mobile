@@ -71,6 +71,14 @@ node tools/verify_sync.mjs http://192.168.0.50:3000/api/v1 <archivo-con-el-secre
 ```
 
 `GET /movements` solo cuenta comprobantes con renglones; los comprobantes vacíos no entran en esa fila.
+Lo cargado en el celular y todavía no enviado (sin `server_id`) se excluye de esas comparaciones; la vista
+local se compara contra el saldo del servidor más lo pendiente de cada cuenta.
+
+`tools/outbox_dump.mjs` muestra la outbox y los comprobantes pendientes del celular (sin red ni API):
+
+```sh
+node tools/outbox_dump.mjs
+```
 
 ### Prueba en vivo de la sesión
 
@@ -101,6 +109,13 @@ CG_LIVE_API=http://192.168.0.50:3000/api/v1 CG_LIVE_TTL=20 CG_LIVE_EMAIL=... CG_
 - Saldos: vista `account_balances` calculada en vivo (no hay tablas de caché).
 - Migraciones numeradas que se aplican en orden; una base de una versión más nueva que la app no se abre.
 - Al cerrar sesión se borran `cg_local.db` y el archivo viejo `gastos_offline.db`.
+- Altas sin conexión (`lib/features/movements/data/local_movement_writer.dart`): egreso, ingreso y transferencia
+  escriben comprobante, renglones y una operación de la outbox (`op_id` y `client_id` UUID) en **una** transacción.
+  Validan como el servidor contra el saldo local (que incluye lo pendiente): fondos, categorías reservadas o
+  inactivas, cuenta inactiva, misma moneda en transferencias. Los formularios avisan la falta de fondos antes de
+  guardar. Cuentas, categorías y sugerencias salen de SQLite.
+- Dashboard: saldos calculados de la base local con la regla de `GET /accounts/balances`; solo la cotización
+  viene del servidor (sin conexión: 1,00, indicado en pantalla).
 - Descarga (`lib/core/sync/pull_service.dart`): `GET /sync/pull` de a 500 mientras `hasMore`, cada página en
   su transacción, upsert por `server_id`, aplica `deleted[]` y, en la descarga completa, borra lo que el servidor
   ya no tiene. Al final compara saldo y cantidad de renglones por cuenta con el servidor: el cursor se guarda
