@@ -4,9 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/database/local_catalog.dart';
+import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
-import '../../../dashboard/presentation/providers/dashboard_notifier.dart';
+import '../../../../core/widgets/account_picker.dart';
+import '../../../movements/presentation/local_write_feedback.dart';
+import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/transfer_form_notifier.dart';
+import '../providers/transfer_form_state.dart';
 
 class CreateTransferScreen extends ConsumerStatefulWidget {
   const CreateTransferScreen({super.key});
@@ -18,6 +23,7 @@ class CreateTransferScreen extends ConsumerStatefulWidget {
 class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
   final _montoController = TextEditingController();
   final _conceptoController = TextEditingController();
+  bool _montoInvalido = false;
 
   @override
   void dispose() {
@@ -42,30 +48,34 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
   }
 
   void _confirmarTransferencia() async {
-    final monto = double.tryParse(_montoController.text.replaceAll(',', '.')) ?? 0.0;
-    ref.read(transferFormNotifierProvider.notifier).setMonto(monto);
-    ref.read(transferFormNotifierProvider.notifier).setConcepto(_conceptoController.text.trim());
+    final isEn = ref.read(settingsProvider).language == 'en';
+    final notifier = ref.read(transferFormNotifierProvider.notifier);
+    notifier.setConcepto(_conceptoController.text.trim());
 
-    final ok = await ref.read(transferFormNotifierProvider.notifier).realizarTransferencia();
-
-    if (ok && mounted) {
-      await ref.read(dashboardNotifierProvider.notifier).cargarDashboard();
-
-      if (mounted) {
-        AppFeedback.showSuccess(context, '¡Transferencia realizada con éxito!');
-        context.pop();
-      }
-    } else if (mounted) {
-      final error = ref.read(transferFormNotifierProvider).errorMessage ?? 'Error al transferir';
-      AppFeedback.showError(context, error);
+    final ok = await notifier.realizarTransferencia();
+    if (!mounted) return;
+    if (ok) {
+      await afterLocalWrite(context, ref, isEn ? 'Transfer' : 'Transferencia', isEn: isEn);
+      if (mounted) context.pop();
+    } else {
+      final error = ref.read(transferFormNotifierProvider).error;
+      if (error != null) AppFeedback.showError(context, describeWithCode(error, isEn: isEn));
     }
   }
+
+  static String _etiqueta(LocalAccount c) =>
+      '${c.name.toUpperCase()} (${Money.format(c.balanceCents, currency: c.currency)})';
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(transferFormNotifierProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final formatoFecha = DateFormat('dd/MM/yyyy').format(state.fecha);
+    final isEn = ref.watch(settingsProvider).language == 'en';
+    if (state.status == TransferFormStatus.error) {
+      return LocalDataError(error: state.error!, isEn: isEn, onRetry: ref.read(transferFormNotifierProvider.notifier).cargarCuentas);
+    }
+    final origen = state.origen;
 
     return Scaffold(
       appBar: AppBar(
@@ -107,11 +117,11 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
                                   isExpanded: true,
                                   value: state.selectedOrigenId,
                                   hint: const Text('Seleccionar origen'),
-                                  items: state.lugares.map((lug) {
+                                  items: state.cuentas.map((lug) {
                                     return DropdownMenuItem<int>(
-                                      value: lug.idLugar,
+                                      value: lug.localId,
                                       child: Text(
-                                        '${lug.nombre.toUpperCase()} (${lug.simboloMoneda} ${lug.montoOriginal.toStringAsFixed(2)})',
+                                        _etiqueta(lug),
                                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -172,12 +182,14 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
                                 child: DropdownButton<int>(
                                   isExpanded: true,
                                   value: state.selectedDestinoId,
-                                  hint: const Text('Seleccionar destino'),
-                                  items: state.lugares.map((lug) {
+                                  hint: Text(origen != null && state.destinosValidos.isEmpty
+                                      ? (isEn ? 'No other account in ${origen.currency.code}' : 'No hay otra cuenta en ${origen.currency.code}')
+                                      : (isEn ? 'Select destination' : 'Seleccionar destino')),
+                                  items: state.destinosValidos.map((lug) {
                                     return DropdownMenuItem<int>(
-                                      value: lug.idLugar,
+                                      value: lug.localId,
                                       child: Text(
-                                        '${lug.nombre.toUpperCase()} (${lug.simboloMoneda} ${lug.montoOriginal.toStringAsFixed(2)})',
+                                        _etiqueta(lug),
                                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -210,11 +222,17 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
             TextField(
               controller: _montoController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (v) {
+                final cents = Money.parseInput(v);
+                setState(() => _montoInvalido = v.trim().isNotEmpty && cents == null);
+                ref.read(transferFormNotifierProvider.notifier).setMonto(cents ?? 0);
+              },
               style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.primary),
-              decoration: const InputDecoration(
-                prefixText: '\$ ',
-                prefixStyle: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.primary),
+              decoration: InputDecoration(
+                prefixText: '${origen?.currency.symbol ?? r'$'} ',
+                prefixStyle: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.primary),
                 hintText: '0,00',
+                errorText: _montoInvalido ? (isEn ? 'Invalid amount (max. 2 decimals)' : 'Importe inválido (máx. 2 decimales)') : null,
               ),
             ),
             const SizedBox(height: 18),
@@ -275,9 +293,14 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
             ),
             const SizedBox(height: 32),
 
+            // Aviso de fondos antes de guardar (saldo local del origen).
+            if (origen != null && state.fondosInsuficientes)
+              FundsWarning(cuenta: origen, amountCents: state.montoCents, isEn: isEn),
+
             // 5. Botón Confirmar
             ElevatedButton(
-              onPressed: state.isSubmitting ? null : _confirmarTransferencia,
+              key: const ValueKey('guardar-transferencia'),
+              onPressed: state.isSubmitting || state.fondosInsuficientes ? null : _confirmarTransferencia,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
               ),

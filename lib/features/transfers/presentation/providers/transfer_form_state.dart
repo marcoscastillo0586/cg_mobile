@@ -1,67 +1,81 @@
 import 'package:equatable/equatable.dart';
-import '../../../dashboard/domain/entities/account_entity.dart';
+import '../../../../core/database/local_catalog.dart';
 
 enum TransferFormStatus { initial, loading, ready, submitting, success, error }
 
 class TransferFormState extends Equatable {
   final TransferFormStatus status;
-  final List<AccountEntity> lugares;
+  final List<LocalAccount> cuentas;
+
+  /// Ids locales de origen y destino.
   final int? selectedOrigenId;
   final int? selectedDestinoId;
-  final double monto;
+  final int montoCents;
   final String concepto;
   final DateTime fecha;
-  final String? errorMessage;
+  final Object? error;
 
   const TransferFormState({
     required this.status,
-    this.lugares = const [],
+    this.cuentas = const [],
     this.selectedOrigenId,
     this.selectedDestinoId,
-    this.monto = 0.0,
+    this.montoCents = 0,
     this.concepto = '',
     required this.fecha,
-    this.errorMessage,
+    this.error,
   });
 
-  factory TransferFormState.initial() => TransferFormState(
-        status: TransferFormStatus.initial,
-        fecha: DateTime.now(),
-      );
+  factory TransferFormState.initial() => TransferFormState(status: TransferFormStatus.initial, fecha: DateTime.now());
 
   TransferFormState copyWith({
     TransferFormStatus? status,
-    List<AccountEntity>? lugares,
+    List<LocalAccount>? cuentas,
     int? selectedOrigenId,
     int? selectedDestinoId,
-    double? monto,
+    bool clearDestino = false,
+    int? montoCents,
     String? concepto,
     DateTime? fecha,
-    String? errorMessage,
+    Object? error,
+    bool clearError = false,
   }) {
     return TransferFormState(
       status: status ?? this.status,
-      lugares: lugares ?? this.lugares,
+      cuentas: cuentas ?? this.cuentas,
       selectedOrigenId: selectedOrigenId ?? this.selectedOrigenId,
-      selectedDestinoId: selectedDestinoId ?? this.selectedDestinoId,
-      monto: monto ?? this.monto,
+      selectedDestinoId: clearDestino ? null : (selectedDestinoId ?? this.selectedDestinoId),
+      montoCents: montoCents ?? this.montoCents,
       concepto: concepto ?? this.concepto,
       fecha: fecha ?? this.fecha,
-      errorMessage: errorMessage ?? this.errorMessage,
+      error: clearError ? null : (error ?? this.error),
     );
   }
 
   bool get isSubmitting => status == TransferFormStatus.submitting;
 
+  LocalAccount? _byId(int? id) {
+    for (final c in cuentas) {
+      if (c.localId == id) return c;
+    }
+    return null;
+  }
+
+  LocalAccount? get origen => _byId(selectedOrigenId);
+  LocalAccount? get destino => _byId(selectedDestinoId);
+
+  /// Solo cuentas de la misma moneda que el origen (CURRENCY_MISMATCH en el servidor).
+  List<LocalAccount> get destinosValidos {
+    final o = origen;
+    return cuentas.where((c) => o == null || (c.localId != o.localId && c.currency == o.currency)).toList();
+  }
+
+  /// Aviso previo: el monto supera el saldo local del origen.
+  bool get fondosInsuficientes {
+    final o = origen;
+    return o != null && montoCents > o.balanceCents;
+  }
+
   @override
-  List<Object?> get props => [
-        status,
-        lugares,
-        selectedOrigenId,
-        selectedDestinoId,
-        monto,
-        concepto,
-        fecha,
-        errorMessage,
-      ];
+  List<Object?> get props => [status, cuentas, selectedOrigenId, selectedDestinoId, montoCents, concepto, fecha, error];
 }
