@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../domain/entities/category_entity.dart';
+import '../../../../core/database/local_catalog.dart';
+import '../../../../core/money/money.dart';
 import '../../domain/entities/renglon_gasto.dart';
 
 class RenglonGastoCard extends StatefulWidget {
   final int index;
   final RenglonGasto renglon;
-  final List<CategoryEntity> categorias;
+  final List<LocalCategory> categorias;
   final List<String> sugerenciasConcepto;
   final bool canDelete;
   final VoidCallback onEliminar;
   final ValueChanged<String> onConceptoChanged;
-  final ValueChanged<double> onMontoChanged;
+  /// Centavos; 0 si el texto no es un importe válido.
+  final ValueChanged<int> onMontoChanged;
   final ValueChanged<int> onCategoriaChanged;
 
   const RenglonGastoCard({
@@ -41,13 +43,7 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
   void initState() {
     super.initState();
     _conceptoController = TextEditingController(text: widget.renglon.concepto);
-    _montoController = TextEditingController(
-      text: widget.renglon.monto > 0
-          ? (widget.renglon.monto % 1 == 0
-              ? widget.renglon.monto.toInt().toString()
-              : widget.renglon.monto.toStringAsFixed(2))
-          : '',
-    );
+    _montoController = TextEditingController(text: _textoMonto(widget.renglon.montoCents));
     _conceptoFocusNode = FocusNode();
     _montoFocusNode = FocusNode();
 
@@ -68,14 +64,17 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
     }
 
     // Si el monto cambió externamente (ej: escaneo QR) y no tiene foco activo
-    final currentParsedMonto = double.tryParse(_montoController.text.replaceAll(',', '.')) ?? 0.0;
-    if ((widget.renglon.monto - currentParsedMonto).abs() > 0.001 && !_montoFocusNode.hasFocus) {
-      _montoController.text = widget.renglon.monto > 0
-          ? (widget.renglon.monto % 1 == 0
-              ? widget.renglon.monto.toInt().toString()
-              : widget.renglon.monto.toStringAsFixed(2))
-          : '';
+    final actual = Money.parseInput(_montoController.text) ?? 0;
+    if (widget.renglon.montoCents != actual && !_montoFocusNode.hasFocus) {
+      _montoController.text = _textoMonto(widget.renglon.montoCents);
     }
+  }
+
+  /// Centavos → texto editable ("1500" o "1500,50"), sin pasar por double.
+  static String _textoMonto(int cents) {
+    if (cents <= 0) return '';
+    final frac = cents % 100;
+    return frac == 0 ? '${cents ~/ 100}' : '${cents ~/ 100},${frac.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -87,9 +86,12 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
     super.dispose();
   }
 
+  bool _montoInvalido = false;
+
   void _onMontoChanged(String value) {
-    final parsed = double.tryParse(value.replaceAll(',', '.')) ?? 0.0;
-    widget.onMontoChanged(parsed);
+    final cents = Money.parseInput(value);
+    setState(() => _montoInvalido = value.trim().isNotEmpty && cents == null);
+    widget.onMontoChanged(cents ?? 0);
   }
 
   @override
@@ -255,14 +257,15 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           prefixText: '\$ ',
-                          prefixStyle: TextStyle(
+                          prefixStyle: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                           hintText: '0,00',
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          errorText: _montoInvalido ? 'Importe inválido (máx. 2 decimales)' : null,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         ),
                       ),
                     ],
@@ -298,9 +301,9 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                             hint: const Text('Categoría', style: TextStyle(fontSize: 13)),
                             items: widget.categorias.map((cat) {
                               return DropdownMenuItem<int>(
-                                value: cat.idCategoria,
+                                value: cat.localId,
                                 child: Text(
-                                  cat.nombre,
+                                  cat.name,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(fontSize: 13),
                                 ),

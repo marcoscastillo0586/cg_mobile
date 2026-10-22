@@ -1,18 +1,17 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
-import '../../../../core/utils/currency_utils.dart';
 import '../../../../core/utils/date_utils.dart';
+import '../../../../core/widgets/account_picker.dart';
 import '../../../../routes/app_routes.dart';
-import '../../../dashboard/presentation/providers/dashboard_notifier.dart';
-import '../../../dashboard/presentation/providers/novedades_notifier.dart';
+import '../../../movements/presentation/local_write_feedback.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../domain/entities/ticket_parse_result.dart';
 import '../providers/expense_form_notifier.dart';
-import '../widgets/expense_account_selector.dart';
+import '../providers/expense_form_state.dart';
 import '../widgets/renglon_gasto_card.dart';
 
 class CreateExpenseScreen extends ConsumerStatefulWidget {
@@ -65,26 +64,15 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
   }
 
   void _guardarGasto() async {
-    if (_conceptoGeneralController.text.trim().isEmpty) {
-      AppFeedback.showError(context, 'El Concepto General es obligatorio');
-      return;
-    }
-
+    final isEn = ref.read(settingsProvider).language == 'en';
     final ok = await ref.read(expenseFormNotifierProvider.notifier).guardarEgreso();
-
-    if (ok && mounted) {
-      await ref.read(dashboardNotifierProvider.notifier).cargarDashboard();
-      unawaited(ref.read(novedadesNotifierProvider.notifier).calcularNovedades());
-
-      if (mounted) {
-        const mensajeStr = '¡Egreso registrado correctamente!';
-        AppFeedback.showSuccess(context, mensajeStr);
-        context.pop(true);
-      }
-    } else if (mounted) {
-      final error = ref.read(expenseFormNotifierProvider).errorMessage ??
-          'Ocurrió un error al guardar el gasto';
-      AppFeedback.showError(context, error);
+    if (!mounted) return;
+    if (ok) {
+      await afterLocalWrite(context, ref, isEn ? 'Expense' : 'Egreso', isEn: isEn);
+      if (mounted) context.pop(true);
+    } else {
+      final error = ref.read(expenseFormNotifierProvider).error;
+      if (error != null) AppFeedback.showError(context, describeWithCode(error, isEn: isEn));
     }
   }
 
@@ -99,19 +87,17 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-
-    final lugares = state.formData?.lugares ?? [];
-    final categorias = state.formData?.categorias ?? [];
-    final sugerenciasConceptos = state.formData?.conceptos ?? [];
-    final formatoFecha = AppDateUtils.formatDate(state.fecha);
-
-    final totalFormateado = AppCurrencyUtils.format(
-      state.totalCalculado,
-      symbol: '\$',
-    );
-
-    // Título y texto de botón según idioma e inicio de edición
     final isEn = settings.language == 'en';
+    if (state.status == ExpenseFormStatus.error) {
+      return LocalDataError(error: state.error!, isEn: isEn, onRetry: ref.read(expenseFormNotifierProvider.notifier).inicializar);
+    }
+
+    final categorias = state.categorias;
+    final sugerenciasConceptos = state.conceptos;
+    final formatoFecha = AppDateUtils.formatDate(state.fecha);
+    final cuenta = state.cuentaSeleccionada;
+    final totalFormateado = Money.format(state.totalCents, currency: cuenta?.currency ?? Currency.ars);
+
     final tituloModulo = isEn ? 'New Expense' : 'Nuevo Egreso';
     final textoBoton = (isEn ? 'Register Expense ($totalFormateado)' : 'Registrar Gasto ($totalFormateado)');
 
@@ -137,12 +123,11 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                   const SizedBox(height: 8),
-                  ExpenseAccountSelector(
-                    cuentas: lugares,
-                    selectedId: state.selectedLugarId,
-                    onSelect: (idLugar) {
-                      ref.read(expenseFormNotifierProvider.notifier).setLugar(idLugar);
-                    },
+                  AccountPicker(
+                    cuentas: state.cuentas,
+                    selectedId: state.selectedCuentaId,
+                    isEn: isEn,
+                    onSelect: (id) => ref.read(expenseFormNotifierProvider.notifier).setCuenta(id),
                   ),
                   const SizedBox(height: 18),
 
@@ -423,9 +408,14 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                   ),
                   const SizedBox(height: 20),
 
+                  // Aviso de fondos antes de guardar (saldo local, ya descuenta lo pendiente).
+                  if (cuenta != null && state.fondosInsuficientes)
+                    FundsWarning(cuenta: cuenta, amountCents: state.totalCents, isEn: isEn),
+
                   // 5. Botón Final
                   ElevatedButton(
-                    onPressed: state.isSubmitting ? null : _guardarGasto,
+                    key: const ValueKey('guardar-egreso'),
+                    onPressed: state.isSubmitting || state.fondosInsuficientes ? null : _guardarGasto,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: state.isFormComplete ? AppColors.primary : AppColors.rose,
                       minimumSize: const Size.fromHeight(52),
