@@ -81,7 +81,7 @@ class PullService {
           seen.budgets.add(b['id'] as int);
         }
         for (final m in _list(page['movements']).cast<Map<String, dynamic>>()) {
-          await _upsertMovement(txn, m);
+          await upsertMovement(txn, m);
           seen.headers.add(m['id'] as int);
           movementsApplied++;
         }
@@ -165,7 +165,9 @@ class PullService {
     }
   }
 
-  Future<void> _upsertMovement(Transaction txn, Map<String, dynamic> m) async {
+  /// Aplica un comprobante completo del servidor (MovementDto + id/version/clientId/updatedAt).
+  /// También lo usa el push para aplicar el `current` de un conflicto (gana el servidor).
+  Future<void> upsertMovement(Transaction txn, Map<String, dynamic> m) async {
     if (m['partialDetails'] == true) throw _bad('movimiento ${m['id']} con renglones parciales');
     final updatedAt = m['updatedAt'] as String? ?? DateTime.now().toUtc().toIso8601String();
     final headerId = await _upsert(txn, 'movement_headers', m, {
@@ -252,10 +254,11 @@ class PullService {
   // ---------------- verificación ----------------
 
   /// Saldo y cantidad de renglones por cuenta: base local contra lo que informó el servidor.
-  /// Solo cuenta lo que ya vino del servidor: lo cargado en el celular y pendiente de enviar
-  /// (renglones sin server_id) todavía no existe allá.
+  /// Solo cuenta comprobantes que el servidor ya tiene (con server_id): lo cargado en el
+  /// celular y pendiente de enviar todavía no existe allá. Un comprobante recién aplicado por
+  /// el push ya tiene server_id aunque sus renglones reciban el suyo en un pull posterior.
   Future<List<AccountMismatch>> _verify(List<Map<String, dynamic>> serverAccounts) async {
-    const synced = 'd.deleted = 0 AND h.deleted = 0 AND d.server_id IS NOT NULL';
+    const synced = 'd.deleted = 0 AND h.deleted = 0 AND h.server_id IS NOT NULL';
     final local = {
       for (final r in await _db.rawQuery('''
         SELECT a.server_id AS id,

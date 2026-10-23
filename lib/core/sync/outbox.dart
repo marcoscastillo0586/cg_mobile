@@ -16,6 +16,7 @@ class Outbox {
     Map<String, Object>? ref,
     int? baseVersion,
     required Map<String, Object?> data,
+    Map<String, Object?>? undo,
   }) async {
     final opId = LocalDatabase.newId();
     final now = DateTime.now().toUtc().toIso8601String();
@@ -27,11 +28,21 @@ class Outbox {
       'ref': ref == null ? null : jsonEncode(ref),
       'base_version': baseVersion,
       'data': jsonEncode(data),
+      'undo': undo == null ? null : jsonEncode(undo),
       'created_at': now,
       'updated_at': now,
     });
     return opId;
   }
+
+  /// Tabla local de cada entidad de la API.
+  static const tables = {
+    'account': 'accounts',
+    'category': 'categories',
+    'budget': 'budgets',
+    'movement': 'movement_headers',
+    'movement_detail': 'movement_details',
+  };
 
   /// Operaciones que todavía no tienen resultado del servidor.
   static Future<int> pendingCount(DatabaseExecutor db) async =>

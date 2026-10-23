@@ -65,7 +65,8 @@ class LocalMovementWriter {
 
   LocalMovementWriter(this._db, {DateTime Function()? now}) : _now = now ?? DateTime.now;
 
-  Future<SavedMovement> createExpense(ExpenseDraft d) => _db.transaction((txn) async {
+  /// [replacingSeq]: corrige un alta rechazada (la reemplaza en la misma transacción).
+  Future<SavedMovement> createExpense(ExpenseDraft d, {int? replacingSeq}) => _db.transaction((txn) async {
         final catalog = LocalCatalog(txn);
         final general = _concept(d.generalConcept, 'El concepto general');
         if (d.lines.isEmpty) throw _invalid('Debe ingresar al menos un gasto');
@@ -86,6 +87,7 @@ class LocalMovementWriter {
         final total = d.lines.fold<int>(0, (s, l) => s + l.amountCents);
         _assertFunds(account, total);
 
+        await _dropReplaced(txn, replacingSeq);
         final clientId = LocalDatabase.newId();
         final headerId = await _insertHeader(txn, 2, general, d.date, clientId);
         for (final (line, cat, concept) in items) {
@@ -105,13 +107,14 @@ class LocalMovementWriter {
         return SavedMovement(headerId, clientId, opId);
       });
 
-  Future<SavedMovement> createIncome(IncomeDraft d) => _db.transaction((txn) async {
+  Future<SavedMovement> createIncome(IncomeDraft d, {int? replacingSeq}) => _db.transaction((txn) async {
         final catalog = LocalCatalog(txn);
         final account = await _usableAccount(catalog, d.accountLocalId, 'Debe seleccionar la cuenta de destino');
         final concept = _concept(d.concept, 'El concepto');
         _positive(d.amountCents, 'ingreso');
         final category = await _roleCategory(catalog, CategoryRoles.income);
 
+        await _dropReplaced(txn, replacingSeq);
         final clientId = LocalDatabase.newId();
         final headerId = await _insertHeader(txn, 1, concept, d.date, clientId);
         await _insertDetail(txn, headerId, account.localId, category.localId, concept, d.amountCents);
@@ -125,7 +128,7 @@ class LocalMovementWriter {
         return SavedMovement(headerId, clientId, opId);
       });
 
-  Future<SavedMovement> createTransfer(TransferDraft d) => _db.transaction((txn) async {
+  Future<SavedMovement> createTransfer(TransferDraft d, {int? replacingSeq}) => _db.transaction((txn) async {
         if (d.fromLocalId == d.toLocalId) {
           throw const ValidationFailure('La cuenta de origen y de destino no pueden ser iguales', null, 'SAME_ACCOUNT');
         }
@@ -146,6 +149,7 @@ class LocalMovementWriter {
         final category = await _roleCategory(catalog, CategoryRoles.transfer);
         final concept = typed.isNotEmpty ? typed : 'Transferencia desde ${from.name.toUpperCase()} hacia ${to.name.toUpperCase()}';
 
+        await _dropReplaced(txn, replacingSeq);
         final clientId = LocalDatabase.newId();
         final headerId = await _insertHeader(txn, 3, concept, d.date, clientId);
         // Partida doble, en el mismo orden que el servidor: crédito en destino y débito en origen.
@@ -161,6 +165,55 @@ class LocalMovementWriter {
         });
         return SavedMovement(headerId, clientId, opId);
       });
+
+  /// Edición mínima del encabezado (concepto general y/o fecha; la hora se conserva, como
+  /// `MovementEditService.updateHeader`). Se aplica en la base local y se encola un `update`
+  /// con `baseVersion` = versión conocida del servidor, para detectar conflictos.
+  Future<String> updateHeader(int headerLocalId, {String? generalConcept, DateTime? date}) => _db.transaction((txn) async {
+        final rows = await txn.query('movement_headers', where: 'local_id = ? AND deleted = 0', whereArgs: [headerLocalId]);
+        if (rows.isEmpty) throw _invalid('El comprobante no está en el celular; sincronizá y volvé a intentar');
+        final h = rows.single;
+        final before = {'general_concept': h['general_concept'], 'occurred_at': h['occurred_at']};
+        final changes = <String, Object?>{};
+        final data = <String, Object?>{};
+        if (generalConcept != null) {
+          final c = _concept(generalConcept, 'El concepto general');
+          if (c != h['general_concept']) {
+            changes['general_concept'] = c;
+            data['generalConcept'] = c;
+          }
+        }
+        if (date != null) {
+          final occurred = h['occurred_at']! as String;
+          final next = '${_isoDate(date)} ${occurred.substring(11)}';
+          if (next != occurred) {
+            changes['occurred_at'] = next;
+            data['date'] = _isoDate(date);
+          }
+        }
+        if (changes.isEmpty) throw _invalid('No hay cambios para guardar');
+        await txn.update('movement_headers', {...changes, 'updated_at': _now().toUtc().toIso8601String()},
+            where: 'local_id = ?', whereArgs: [headerLocalId]);
+        return Outbox.enqueue(
+          txn,
+          entity: 'movement',
+          action: 'update',
+          ref: syncRef(h['server_id'] as int?, h['client_id'] as String?),
+          // Sin server_id todavía (alta pendiente): no hay versión que comparar.
+          baseVersion: h['server_id'] == null ? null : h['version'] as int?,
+          data: data,
+          undo: {'table': 'movement_headers', 'local_id': headerLocalId, 'values': before},
+        );
+      });
+
+  /// Corrección: borra el alta rechazada que se reemplaza (comprobante local y su operación).
+  static Future<void> _dropReplaced(Transaction txn, int? seq) async {
+    if (seq == null) return;
+    final ops = await txn.query('outbox', where: "seq = ? AND status = 'rejected' AND action = 'create'", whereArgs: [seq]);
+    if (ops.isEmpty) throw _invalid('La operación a corregir ya no está rechazada');
+    await txn.delete('movement_headers', where: 'client_id = ? AND server_id IS NULL', whereArgs: [ops.single['client_id']]);
+    await txn.delete('outbox', where: 'seq = ?', whereArgs: [seq]);
+  }
 
   // ---------------- reglas ----------------
 
