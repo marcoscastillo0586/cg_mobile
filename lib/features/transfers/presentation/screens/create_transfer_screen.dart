@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/database/local_catalog.dart';
 import '../../../../core/money/money.dart';
+import '../../../../core/sync/outbox_repository.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/account_picker.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
@@ -14,7 +15,9 @@ import '../providers/transfer_form_notifier.dart';
 import '../providers/transfer_form_state.dart';
 
 class CreateTransferScreen extends ConsumerStatefulWidget {
-  const CreateTransferScreen({super.key});
+  /// Alta rechazada a corregir (desde "Pendientes y rechazados").
+  final CorrectionSource? correction;
+  const CreateTransferScreen({super.key, this.correction});
 
   @override
   ConsumerState<CreateTransferScreen> createState() => _CreateTransferScreenState();
@@ -24,6 +27,19 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
   final _montoController = TextEditingController();
   final _conceptoController = TextEditingController();
   bool _montoInvalido = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final c = widget.correction;
+    if (c != null) {
+      ref.read(transferFormNotifierProvider.notifier).prefill(c).then((_) {
+        if (!mounted) return;
+        _montoController.text = Money.toApiDecimal(c.amountCents).replaceAll('.', ',');
+        _conceptoController.text = c.concept;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -79,7 +95,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Transferir Dinero'),
+        title: Text(widget.correction != null ? (isEn ? 'Correct Transfer' : 'Corregir Transferencia') : (isEn ? 'Transfer Money' : 'Transferir Dinero')),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 14.0),

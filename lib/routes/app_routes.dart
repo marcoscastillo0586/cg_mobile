@@ -14,4 +14,5 @@ class AppRoutes {
   static const String limitsAdmin = '/admin/limits';
   static const String analytics = '/analytics';
   static const String settings = '/settings';
+  static const String syncPending = '/sync/pending';
 }

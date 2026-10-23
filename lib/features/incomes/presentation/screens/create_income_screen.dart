@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
+import '../../../../core/sync/outbox_repository.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/account_picker.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
@@ -13,7 +14,9 @@ import '../providers/income_form_state.dart';
 import '../../../movements/data/local_movement_writer.dart' show conceptMax;
 
 class CreateIncomeScreen extends ConsumerStatefulWidget {
-  const CreateIncomeScreen({super.key});
+  /// Alta rechazada a corregir (desde "Pendientes y rechazados").
+  final CorrectionSource? correction;
+  const CreateIncomeScreen({super.key, this.correction});
 
   @override
   ConsumerState<CreateIncomeScreen> createState() => _CreateIncomeScreenState();
@@ -23,6 +26,19 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
   final _montoController = TextEditingController();
   final _conceptoController = TextEditingController();
   bool _montoInvalido = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final c = widget.correction;
+    if (c != null) {
+      ref.read(incomeFormNotifierProvider.notifier).prefill(c).then((_) {
+        if (!mounted) return;
+        _montoController.text = Money.toApiDecimal(c.amountCents).replaceAll('.', ',');
+        _conceptoController.text = c.concept;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -75,7 +91,9 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
     if (state.status == IncomeFormStatus.error) {
       return LocalDataError(error: state.error!, isEn: isEn, onRetry: ref.read(incomeFormNotifierProvider.notifier).cargarCuentas);
     }
-    final tituloModulo = isEn ? 'New Income' : 'Nuevo Ingreso';
+    final tituloModulo = widget.correction != null
+        ? (isEn ? 'Correct Income' : 'Corregir Ingreso')
+        : (isEn ? 'New Income' : 'Nuevo Ingreso');
     final labelCuenta = settings.language == 'en' ? 'Destination account.' : 'Cuenta de destino.';
 
     return Scaffold(

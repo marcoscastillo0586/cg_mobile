@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/local_catalog.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/money/money.dart';
+import '../../../../core/sync/outbox_repository.dart';
 import '../../../movements/data/local_movement_writer.dart';
 import '../../domain/entities/renglon_gasto.dart';
 import '../../domain/entities/ticket_parse_result.dart';
@@ -19,8 +20,29 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
   final Future<LocalCatalog> _catalog;
   final Future<LocalMovementWriter> _writer;
 
+  late final Future<void> _loaded;
+
+  /// Alta rechazada que este formulario corrige (se reemplaza al guardar).
+  int? _replacingSeq;
+
   ExpenseFormNotifier(this._catalog, this._writer) : super(ExpenseFormState.initial()) {
-    inicializar();
+    _loaded = inicializar();
+  }
+
+  /// Precarga un egreso rechazado para corregirlo.
+  Future<void> prefill(CorrectionSource c) async {
+    await _loaded;
+    if (!mounted) return;
+    _replacingSeq = c.seq;
+    state = state.copyWith(
+      selectedCuentaId: c.accountLocalId,
+      fecha: c.date,
+      conceptoGeneral: c.concept,
+      renglones: [
+        for (final l in c.lines)
+          RenglonGasto.nuevo(defaultCategoriaId: l.categoryLocalId).copyWith(concepto: l.concept, montoCents: l.amountCents),
+      ],
+    );
   }
 
   Future<void> inicializar() async {
@@ -153,7 +175,7 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
               // Renglón sin concepto: usa el concepto general (como antes).
               ExpenseLine(concept: r.concepto.trim().isEmpty ? general : r.concepto, categoryLocalId: r.categoriaId!, amountCents: r.montoCents),
         ],
-      ));
+      ), replacingSeq: _replacingSeq);
       if (mounted) state = state.copyWith(status: ExpenseFormStatus.success);
       return true;
     } catch (e) {

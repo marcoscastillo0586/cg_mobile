@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/local_catalog.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/sync/outbox_repository.dart';
 import '../../../movements/data/local_movement_writer.dart';
 import 'income_form_state.dart';
 
@@ -18,8 +19,19 @@ class IncomeFormNotifier extends StateNotifier<IncomeFormState> {
   final Future<LocalCatalog> _catalog;
   final Future<LocalMovementWriter> _writer;
 
+  late final Future<void> _loaded;
+  int? _replacingSeq;
+
   IncomeFormNotifier(this._catalog, this._writer) : super(IncomeFormState.initial()) {
-    cargarCuentas();
+    _loaded = cargarCuentas();
+  }
+
+  /// Precarga un ingreso rechazado para corregirlo.
+  Future<void> prefill(CorrectionSource c) async {
+    await _loaded;
+    if (!mounted) return;
+    _replacingSeq = c.seq;
+    state = state.copyWith(selectedCuentaId: c.accountLocalId, montoCents: c.amountCents, concepto: c.concept, fecha: c.date);
   }
 
   Future<void> cargarCuentas() async {
@@ -53,6 +65,7 @@ class IncomeFormNotifier extends StateNotifier<IncomeFormState> {
     try {
       await (await _writer).createIncome(
         IncomeDraft(accountLocalId: cuenta, date: state.fecha, concept: concepto, amountCents: state.montoCents),
+        replacingSeq: _replacingSeq,
       );
       if (mounted) state = state.copyWith(status: IncomeFormStatus.success);
       return true;

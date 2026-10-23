@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
+import '../../../../core/sync/outbox_repository.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../../../../core/widgets/account_picker.dart';
@@ -15,7 +16,9 @@ import '../providers/expense_form_state.dart';
 import '../widgets/renglon_gasto_card.dart';
 
 class CreateExpenseScreen extends ConsumerStatefulWidget {
-  const CreateExpenseScreen({super.key});
+  /// Alta rechazada a corregir (desde "Pendientes y rechazados").
+  final CorrectionSource? correction;
+  const CreateExpenseScreen({super.key, this.correction});
 
   @override
   ConsumerState<CreateExpenseScreen> createState() => _CreateExpenseScreenState();
@@ -32,6 +35,12 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
           .read(expenseFormNotifierProvider.notifier)
           .setConceptoGeneral(_conceptoGeneralController.text);
     });
+    final c = widget.correction;
+    if (c != null) {
+      ref.read(expenseFormNotifierProvider.notifier).prefill(c).then((_) {
+        if (mounted) _conceptoGeneralController.text = c.concept;
+      });
+    }
   }
 
   @override
@@ -98,7 +107,9 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
     final cuenta = state.cuentaSeleccionada;
     final totalFormateado = Money.format(state.totalCents, currency: cuenta?.currency ?? Currency.ars);
 
-    final tituloModulo = isEn ? 'New Expense' : 'Nuevo Egreso';
+    final tituloModulo = widget.correction != null
+        ? (isEn ? 'Correct Expense' : 'Corregir Egreso')
+        : (isEn ? 'New Expense' : 'Nuevo Egreso');
     final textoBoton = (isEn ? 'Register Expense ($totalFormateado)' : 'Registrar Gasto ($totalFormateado)');
 
     return Scaffold(

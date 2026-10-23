@@ -16,6 +16,8 @@ import '../features/categories_admin/presentation/screens/categories_admin_scree
 import '../features/limits_admin/presentation/screens/limits_admin_screen.dart';
 import '../features/analytics/presentation/screens/analytics_screen.dart';
 import '../features/settings/presentation/screens/settings_screen.dart';
+import '../features/sync/presentation/pending_operations_screen.dart';
+import '../core/sync/outbox_repository.dart';
 import 'app_routes.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -57,7 +59,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.expensesCreate,
-        builder: (context, state) => const CreateExpenseScreen(),
+        builder: (context, state) => CreateExpenseScreen(correction: state.extra as CorrectionSource?),
       ),
       GoRoute(
         path: AppRoutes.scanTicket,
@@ -65,11 +67,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.incomesCreate,
-        builder: (context, state) => const CreateIncomeScreen(),
+        builder: (context, state) => CreateIncomeScreen(correction: state.extra as CorrectionSource?),
       ),
       GoRoute(
         path: AppRoutes.transfersCreate,
-        builder: (context, state) => const CreateTransferScreen(),
+        builder: (context, state) => CreateTransferScreen(correction: state.extra as CorrectionSource?),
       ),
       GoRoute(
         path: AppRoutes.movements,
@@ -102,6 +104,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.settings,
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.syncPending,
+        builder: (context, state) => const PendingOperationsScreen(),
       ),
     ],
   );

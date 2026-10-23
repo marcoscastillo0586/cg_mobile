@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/local_catalog.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/sync/outbox_repository.dart';
 import '../../../movements/data/local_movement_writer.dart';
 import 'transfer_form_state.dart';
 
@@ -15,8 +16,21 @@ class TransferFormNotifier extends StateNotifier<TransferFormState> {
   final Future<LocalCatalog> _catalog;
   final Future<LocalMovementWriter> _writer;
 
+  late final Future<void> _loaded;
+  int? _replacingSeq;
+
   TransferFormNotifier(this._catalog, this._writer) : super(TransferFormState.initial()) {
-    cargarCuentas();
+    _loaded = cargarCuentas();
+  }
+
+  /// Precarga una transferencia rechazada para corregirla.
+  Future<void> prefill(CorrectionSource c) async {
+    await _loaded;
+    if (!mounted) return;
+    _replacingSeq = c.seq;
+    if (c.fromLocalId != null) setOrigen(c.fromLocalId!);
+    if (c.toLocalId != null) setDestino(c.toLocalId!);
+    state = state.copyWith(montoCents: c.amountCents, concepto: c.concept, fecha: c.date);
   }
 
   Future<void> cargarCuentas() async {
@@ -73,7 +87,7 @@ class TransferFormNotifier extends StateNotifier<TransferFormState> {
         amountCents: state.montoCents,
         date: state.fecha,
         concept: state.concepto, // vacío: el del servidor ("Transferencia desde X hacia Y")
-      ));
+      ), replacingSeq: _replacingSeq);
       if (mounted) state = state.copyWith(status: TransferFormStatus.success);
       return true;
     } catch (e) {
