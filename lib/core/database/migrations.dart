@@ -145,6 +145,19 @@ CREATE TABLE sync_state (
 )''',
     'INSERT INTO sync_state (id) VALUES (1)',
   ]),
+  Migration(3, 'Envío de la cola: intentos, resultado, deshacer y dispositivo', [
+    // Intentos de envío (los reintentos usan el MISMO op_id).
+    'ALTER TABLE outbox ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0)',
+    'ALTER TABLE outbox ADD COLUMN last_attempt_at TEXT',
+    // Último resultado del servidor (JSON: status, error, current, version).
+    'ALTER TABLE outbox ADD COLUMN server_result TEXT',
+    // Cómo revertir el cambio local si se rechaza o se descarta (JSON; null en las altas:
+    // se revierte marcando el comprobante como eliminado).
+    'ALTER TABLE outbox ADD COLUMN undo TEXT',
+    // Identificador estable del celular para `deviceId` del push.
+    'ALTER TABLE sync_state ADD COLUMN device_id TEXT',
+    'UPDATE sync_state SET device_id = lower(hex(randomblob(16))) WHERE id = 1',
+  ]),
 ];
 
 /// Versión de esquema que espera esta compilación de la app.

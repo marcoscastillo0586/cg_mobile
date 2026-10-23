@@ -41,7 +41,7 @@ void main() {
   test('creación desde cero: versión, tablas, vista y fila única de sync_state', () async {
     final db = await _fresh();
     expect(await db.getVersion(), latestSchemaVersion);
-    expect(latestSchemaVersion, 2);
+    expect(latestSchemaVersion, 3);
     final names = (await db.rawQuery("SELECT name FROM sqlite_master WHERE type IN ('table','view')"))
         .map((r) => r['name'])
         .toSet();
@@ -49,14 +49,14 @@ void main() {
       'accounts', 'categories', 'budgets', 'budget_categories', 'budget_accounts',
       'movement_headers', 'movement_details', 'outbox', 'sync_state', 'account_balances',
     ]));
-    expect(await db.query('sync_state'), [
-      {'id': 1, 'cursor': null, 'last_pull_at': null, 'last_push_at': null},
-    ]);
+    final state = Map.of((await db.query('sync_state')).single);
+    expect(state..remove('device_id'), {'id': 1, 'cursor': null, 'last_pull_at': null, 'last_push_at': null});
+    expect((await db.query('sync_state')).single['device_id'], matches(RegExp(r'^[0-9a-f]{32}$')));
     expect((await db.rawQuery('PRAGMA foreign_keys')).first.values.first, 1);
     await db.close();
   });
 
-  test('migración 1 → 2: conserva los datos y el esquema queda igual al de una base nueva', () async {
+  test('migración 1 → última: conserva los datos y el esquema queda igual al de una base nueva', () async {
     // Base creada por una app con solo la migración 1.
     final path = _path();
     final v1 = await databaseFactoryFfi.openDatabase(path,
@@ -72,7 +72,7 @@ void main() {
     await v1.close();
 
     final upgraded = await LocalDatabase.open(path: path, factory: databaseFactoryFfi);
-    expect(await upgraded.getVersion(), 2);
+    expect(await upgraded.getVersion(), latestSchemaVersion);
     expect((await upgraded.query('accounts')).single['local_id'], acc);
     expect(await upgraded.query('sync_state'), hasLength(1));
 
@@ -80,6 +80,28 @@ void main() {
     expect(await _schema(upgraded), await _schema(fresh));
     await upgraded.close();
     await fresh.close();
+  });
+
+  test('migración 2 → 3: la outbox pendiente se conserva y queda con 0 intentos y un device_id', () async {
+    final path = _path();
+    final v2 = await databaseFactoryFfi.openDatabase(path,
+        options: OpenDatabaseOptions(
+          version: 2,
+          onCreate: (db, _) async {
+            for (final m in migrations.where((m) => m.version <= 2)) {
+              for (final sql in m.statements) {
+                await db.execute(sql);
+              }
+            }
+          },
+        ));
+    await v2.insert('outbox', {'op_id': 'op-1', 'entity': 'movement', 'action': 'create', 'client_id': 'c-1', 'created_at': now, 'updated_at': now});
+    await v2.close();
+    final db = await LocalDatabase.open(path: path, factory: databaseFactoryFfi);
+    final op = (await db.query('outbox')).single;
+    expect((op['op_id'], op['status'], op['attempts'], op['server_result'], op['undo']), ('op-1', 'pending', 0, null, null));
+    expect((await db.query('sync_state')).single['device_id'], isNotNull);
+    await db.close();
   });
 
   test('una base más nueva que la app no se abre (no se pierde nada)', () async {
