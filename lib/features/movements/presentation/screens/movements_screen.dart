@@ -11,6 +11,7 @@ import '../../../../core/widgets/movements_skeleton.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/movement_list_notifier.dart';
 import '../providers/movement_list_state.dart';
+import '../widgets/edit_header_dialog.dart';
 import '../widgets/movement_card.dart';
 
 class MovementsScreen extends ConsumerStatefulWidget {
@@ -178,8 +179,12 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
           return MovementCard(
             item: item,
             isEn: isEn,
-            // Edición y borrado con la cola de sincronización (etapa 7).
-            onEditar: () => showNotAvailable(context, isEn: isEn),
+            // Edición mínima (concepto y fecha) por la cola; el resto de la edición y el borrado, etapa 7.
+            onEditar: () async {
+              if (await editMovementHeader(context, ref, item, isEn: isEn)) {
+                await ref.read(movementListNotifierProvider.notifier).cargarMovimientos();
+              }
+            },
             onEliminar: () => showNotAvailable(context, isEn: isEn),
           );
         },
