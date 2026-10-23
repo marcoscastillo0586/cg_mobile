@@ -52,7 +52,7 @@ const all = (sql, ...a) => db.prepare(sql).all(...a);
 const live = 'd.deleted = 0 AND h.deleted = 0';
 // Lo que ya vino del servidor. Lo cargado en el celular y pendiente de enviar (sin server_id)
 // todavía no existe allá: se compara aparte.
-const synced = `${live} AND d.server_id IS NOT NULL`;
+const synced = `${live} AND h.server_id IS NOT NULL`;
 
 // ---------- servidor ----------
 const [accounts, categories, budgets, balances, movs] = await Promise.all([
@@ -80,9 +80,10 @@ check('movement_details', 'suma de montos (centavos)', accounts.reduce((a, x) =>
 // Pendiente de enviar: comprobantes sin server_id y operaciones de la outbox.
 const pendingHeaders = one(`SELECT COUNT(*) n FROM movement_headers WHERE server_id IS NULL AND deleted = 0`).n;
 const pendingOps = one(`SELECT COUNT(*) n FROM outbox WHERE status = 'pending'`).n;
+const outboxByStatus = all(`SELECT status, COUNT(*) n FROM outbox GROUP BY status ORDER BY status`).map((r) => `${r.status}=${r.n}`).join(', ') || 'vacía';
 const pendingByAccount = new Map(all(`SELECT a.server_id id, SUM(d.amount_cents) s FROM movement_details d
   JOIN movement_headers h ON h.local_id = d.header_local_id JOIN accounts a ON a.local_id = d.account_local_id
-  WHERE ${live} AND d.server_id IS NULL GROUP BY a.local_id`).map((r) => [r.id, r.s]));
+  WHERE ${live} AND h.server_id IS NULL GROUP BY a.local_id`).map((r) => [r.id, r.s]));
 
 // Saldo y renglones por cuenta (GET /accounts)
 const localByAccount = new Map(
@@ -116,6 +117,6 @@ for (const r of rows) {
   console.log(`${pad(r.tabla, 17)} ${pad(r.dato, 32)} ${pad(r.servidor, 14)} ${pad(r.local, 14)} ${diff}`);
 }
 const bad = rows.filter((r) => !r.ok).length;
-console.log(`\nPendiente de enviar en el celular: ${pendingHeaders} comprobantes, ${pendingOps} operaciones en la outbox`);
+console.log(`\nPendiente de enviar en el celular: ${pendingHeaders} comprobantes, ${pendingOps} operaciones en la outbox (outbox: ${outboxByStatus})`);
 console.log(`${rows.length - bad} OK, ${bad} FALLA`);
 process.exit(bad ? 1 : 0);
