@@ -10,6 +10,7 @@ class AccountCard extends StatelessWidget {
   final bool isSelected;
   final ValueChanged<bool?>? onToggleSelection;
   final VoidCallback? onTap;
+  final bool isEn;
 
   const AccountCard({
     super.key,
@@ -18,6 +19,7 @@ class AccountCard extends StatelessWidget {
     this.isSelected = true,
     this.onToggleSelection,
     this.onTap,
+    this.isEn = false,
   });
 
   @override
@@ -76,9 +78,18 @@ class AccountCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        // En negativo: en rojo (falta registrar un ingreso en esa cuenta).
+                        color: account.balanceCents < 0
+                            ? AppColors.rose
+                            : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
                       ),
                     ),
+                    if (account.balanceCents < 0 && !ocultarMontos)
+                      Text(
+                        isEn ? 'Record an income' : 'Registrá un ingreso',
+                        key: ValueKey('cuenta-negativa-${account.id}'),
+                        style: const TextStyle(fontSize: 11, color: AppColors.rose, fontWeight: FontWeight.w600),
+                      ),
                     if (isUsd && !ocultarMontos)
                       Text(
                         Money.format(account.balanceArsCents),

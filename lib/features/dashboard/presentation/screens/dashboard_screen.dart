@@ -337,6 +337,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   (cuenta) {
                     final isSelected = dashboardState.idsSeleccionados.contains(cuenta.id);
                     return AccountCard(
+                      isEn: isEn,
                       account: cuenta,
                       ocultarMontos: dashboardState.ocultarMontos,
                       isSelected: isSelected,
