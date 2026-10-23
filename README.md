@@ -80,6 +80,16 @@ local se compara contra el saldo del servidor más lo pendiente de cada cuenta.
 node tools/outbox_dump.mjs
 ```
 
+### Corte de red a mitad del envío
+
+`tools/net_cut_proxy.mjs` se pone entre el celular y la API de pruebas: con `--cut-push N` deja que el
+servidor procese los primeros N envíos y corta la conexión antes de entregar la respuesta.
+
+```sh
+# API de pruebas en 3002 y el proxy en el puerto que usa el celular (3000)
+node tools/net_cut_proxy.mjs --listen 0.0.0.0:3000 --upstream 127.0.0.1:3002 --cut-push 1
+```
+
 ### Prueba en vivo de la sesión
 
 `test/integration/auth_live_test.dart` usa el código de la app contra una API real (se saltea si faltan las variables):
@@ -116,7 +126,15 @@ CG_LIVE_API=http://192.168.0.50:3000/api/v1 CG_LIVE_TTL=20 CG_LIVE_EMAIL=... CG_
   guardar. Cuentas, categorías y sugerencias salen de SQLite.
 - Dashboard: saldos calculados de la base local con la regla de `GET /accounts/balances`; solo la cotización
   viene del servidor (sin conexión: 1,00, indicado en pantalla).
-- Descarga (`lib/core/sync/pull_service.dart`): `GET /sync/pull` de a 500 mientras `hasMore`, cada página en
+- Envío (`lib/core/sync/push_service.dart`): `POST /sync/push` en orden, con `opId` y `clientId` estables
+  (un reintento reenvía lo mismo y el servidor responde `duplicate`). `applied`/`duplicate` remapean
+  clientId → serverId; `rejected` revierte el cambio local; `TEMPORARY_ERROR` queda pendiente; `conflict`
+  aplica la versión del servidor. Lo no aplicado se ve en Ajustes → **Pendientes y rechazados**, donde se
+  corrige (reabre el formulario), se descarta (revierte el saldo local) o, en conflicto, se reintenta con los
+  cambios propios (`baseVersion` nuevo).
+- Un solo sincronizador (`SyncController`): primero envía y después descarga; si quedó algo pendiente por error
+  temporal no descarga. Informa "completa" solo si todo se aplicó y coincide con el servidor.
+- - Descarga (`lib/core/sync/pull_service.dart`): `GET /sync/pull` de a 500 mientras `hasMore`, cada página en
   su transacción, upsert por `server_id`, aplica `deleted[]` y, en la descarga completa, borra lo que el servidor
   ya no tiene. Al final compara saldo y cantidad de renglones por cuenta con el servidor: el cursor se guarda
   y la sincronización se marca "completa" solo si todo coincide; si no, se descarta el cursor y se muestran las diferencias.
