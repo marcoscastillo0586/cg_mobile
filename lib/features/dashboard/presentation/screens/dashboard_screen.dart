@@ -99,13 +99,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     ref.listen<SyncState>(syncControllerProvider, (prev, next) {
       if (prev?.status == next.status) return;
       // Los saldos salen de la base local: después de descargar, se recalculan.
-      if (next.status == SyncStatus.complete || next.status == SyncStatus.mismatch) {
+      if (next.status == SyncStatus.complete || next.status == SyncStatus.mismatch || next.status == SyncStatus.attention) {
         ref.read(dashboardNotifierProvider.notifier).cargarDashboard(hasta: ref.read(dashboardNotifierProvider).fechaFiltro);
       }
       if (next.status == SyncStatus.error && next.error != null) {
         AppFeedback.showError(
           context,
           '${isEn ? 'Sync failed' : 'No se pudo sincronizar'}: ${ErrorMessages.describe(next.error!, isEn: isEn)}',
+        );
+      } else if (next.status == SyncStatus.attention) {
+        AppFeedback.showError(
+          context,
+          isEn
+              ? '${next.needsAttention} operation(s) were not applied. See Settings → Pending and rejected.'
+              : '${next.needsAttention} operación(es) no se aplicaron. Ver Ajustes → Pendientes y rechazados.',
         );
       } else if (next.status == SyncStatus.mismatch) {
         AppFeedback.showError(

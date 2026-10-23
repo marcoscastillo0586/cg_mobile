@@ -27,7 +27,8 @@ Future<void> afterLocalWrite(BuildContext context, WidgetRef ref, String what, {
   }
   unawaited(ref.read(dashboardNotifierProvider.notifier).cargarDashboard());
   unawaited(ref.read(novedadesNotifierProvider.notifier).calcularNovedades());
-  unawaited(ref.read(syncControllerProvider.notifier).refreshCounts());
+  // Si hay red se envía ya; si no, queda en la cola (el resultado se ve en Ajustes).
+  unawaited(ref.read(syncControllerProvider.notifier).sync());
   if (!context.mounted) return;
   final suffix = pending == null ? '' : (isEn ? ' Pending: $pending.' : ' Pendientes: $pending.');
   AppFeedback.showSuccess(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../routes/app_routes.dart';
 import '../constants/app_colors.dart';
 import '../errors/error_messages.dart';
 import '../utils/date_utils.dart';
@@ -29,6 +31,7 @@ class _SyncStatusCardState extends ConsumerState<SyncStatusCard> {
       SyncStatus.idle => (isEn ? 'Not synced in this session' : 'Sin sincronizar en esta sesión', AppColors.lightTextSecondary),
       SyncStatus.syncing => (isEn ? 'Syncing…' : 'Sincronizando…', AppColors.primary),
       SyncStatus.complete => (isEn ? 'Complete: matches the server' : 'Completa: coincide con el servidor', AppColors.emerald),
+      SyncStatus.attention => (isEn ? 'Not everything was applied: see details' : 'No se aplicó todo: ver el detalle', AppColors.rose),
       SyncStatus.mismatch => (isEn ? 'Does not match the server' : 'No coincide con el servidor', AppColors.rose),
       SyncStatus.error => (isEn ? 'Sync failed' : 'Falló la sincronización', AppColors.rose),
     };
@@ -46,7 +49,9 @@ class _SyncStatusCardState extends ConsumerState<SyncStatusCard> {
               '${isEn ? 'Last complete sync' : 'Última sincronización completa'}: $last\n'
               '${isEn ? 'On this phone' : 'En este celular'}: ${s.localMovements} ${isEn ? 'movements' : 'comprobantes'}, '
               '${s.localDetails} ${isEn ? 'lines' : 'renglones'}\n'
-              '${isEn ? 'Pending to send' : 'Pendientes de enviar'}: ${s.pendingOps}',
+              '${isEn ? 'Pending to send' : 'Pendientes de enviar'}: ${s.pendingOps} · '
+              '${isEn ? 'Rejected' : 'Rechazadas'}: ${s.rejectedOps} · '
+              '${isEn ? 'In conflict' : 'En conflicto'}: ${s.conflictOps}',
               key: const ValueKey('sync-totales'),
               style: const TextStyle(fontSize: 12),
             ),
@@ -62,7 +67,21 @@ class _SyncStatusCardState extends ConsumerState<SyncStatusCard> {
               const SizedBox(height: 6),
               ...s.lastResult!.mismatches.map((m) => Text('• $m', style: const TextStyle(fontSize: 11, color: AppColors.rose))),
             ],
+            if (s.status == SyncStatus.attention && s.lastPush != null) ...[
+              const SizedBox(height: 6),
+              ...s.lastPush!.issues.take(5).map((i) => Text(
+                    '• #${i.seq} ${i.status}: ${ErrorMessages.forCode(i.code, i.message ?? '', isEn: isEn)}',
+                    style: const TextStyle(fontSize: 11, color: AppColors.rose),
+                  )),
+            ],
             const SizedBox(height: 10),
+            if (s.pendingOps + s.needsAttention > 0)
+              TextButton.icon(
+                key: const ValueKey('ver-pendientes'),
+                onPressed: () => context.push(AppRoutes.syncPending),
+                icon: const Icon(Icons.list_alt_rounded, size: 18),
+                label: Text(isEn ? 'Pending and rejected' : 'Pendientes y rechazados'),
+              ),
             OutlinedButton.icon(
               onPressed: s.status == SyncStatus.syncing ? null : () => ref.read(syncControllerProvider.notifier).sync(),
               icon: const Icon(Icons.sync_rounded, size: 18),
