@@ -64,14 +64,15 @@ void main() {
     expect(await s.count('movement_details', "concept = 'Compras' AND amount_cents = -4500"), 1);
   });
 
-  test('sin fondos no se guarda nada y el error queda para mostrar', () async {
+  test('sin fondos: avisa (fondosInsuficientes) pero se guarda y la cuenta queda en negativo', () async {
     notifier.setCuenta(s.accounts['Efectivo']!);
     notifier.setConceptoGeneral('x');
     notifier.actualizarMonto(first(), 5001);
-    expect(await notifier.guardarEgreso(), isFalse);
-    expect((notifier.state.error! as Failure).code, 'INSUFFICIENT_FUNDS');
-    expect(notifier.state.status, ExpenseFormStatus.ready);
-    expect(await s.count('outbox'), 0);
+    expect(notifier.state.fondosInsuficientes, isTrue);
+    expect(notifier.state.isFormComplete, isTrue); // no bloquea
+    expect(await notifier.guardarEgreso(), isTrue);
+    expect(await s.balance('Efectivo'), -1);
+    expect(await s.count('outbox', "status = 'pending'"), 1);
   });
 
   test('sin cuenta: error de validación, no se escribe', () async {

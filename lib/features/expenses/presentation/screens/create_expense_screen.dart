@@ -74,6 +74,27 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
 
   void _guardarGasto() async {
     final isEn = ref.read(settingsProvider).language == 'en';
+    final st = ref.read(expenseFormNotifierProvider);
+    final cuenta = st.cuentaSeleccionada;
+    // Sin fondos se puede guardar igual (el dinero puede no estar cargado), pero se avisa y se confirma.
+    if (cuenta != null && st.fondosInsuficientes) {
+      final seguir = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(isEn ? 'Balance will be negative' : 'La cuenta queda en negativo'),
+          content: Text(negativeBalanceText(cuenta, st.totalCents, isEn: isEn)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
+            TextButton(
+              key: const ValueKey('guardar-igual'),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(isEn ? 'Save anyway' : 'Guardar igual'),
+            ),
+          ],
+        ),
+      );
+      if (seguir != true || !mounted) return;
+    }
     final ok = await ref.read(expenseFormNotifierProvider.notifier).guardarEgreso();
     if (!mounted) return;
     if (ok) {
@@ -426,7 +447,7 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                   // 5. Botón Final
                   ElevatedButton(
                     key: const ValueKey('guardar-egreso'),
-                    onPressed: state.isSubmitting || state.fondosInsuficientes ? null : _guardarGasto,
+                    onPressed: state.isSubmitting ? null : _guardarGasto,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: state.isFormComplete ? AppColors.primary : AppColors.rose,
                       minimumSize: const Size.fromHeight(52),

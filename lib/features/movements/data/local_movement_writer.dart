@@ -84,8 +84,8 @@ class LocalMovementWriter {
           if (!cat.active) throw ValidationFailure('La categoría ${cat.name} está inactiva', null, 'CATEGORY_INACTIVE');
           items.add((line, cat, concept));
         }
-        final total = d.lines.fold<int>(0, (s, l) => s + l.amountCents);
-        _assertFunds(account, total);
+        // Sin control de fondos: un egreso puede dejar la cuenta en negativo (el formulario avisa
+        // que corresponde registrar un ingreso). Igual que el servidor.
 
         await _dropReplaced(txn, replacingSeq);
         final clientId = LocalDatabase.newId();
@@ -224,13 +224,14 @@ class LocalMovementWriter {
     return account;
   }
 
-  /// Regla del servidor: `saldo >= monto` (el saldo local ya descuenta lo pendiente de enviar).
+  /// Solo transferencias (regla del servidor): el origen debe tener `saldo >= monto`
+  /// (el saldo local ya descuenta lo pendiente de enviar).
   static void _assertFunds(LocalAccount account, int amountCents) {
     if (account.balanceCents < amountCents) {
       throw ValidationFailure(
-        'Fondos insuficientes en ${account.name.toUpperCase()}: disponible '
-        '${Money.format(account.balanceCents, currency: account.currency)}, '
-        'necesitás ${Money.format(amountCents, currency: account.currency)}.',
+        'No dispone del saldo solicitado a transferir (${Money.format(amountCents, currency: account.currency)}) '
+        'en ${account.name.toUpperCase()}: disponible ${Money.format(account.balanceCents, currency: account.currency)}. '
+        'Realizá un ingreso en la cuenta de origen.',
         null,
         'INSUFFICIENT_FUNDS',
       );

@@ -96,7 +96,7 @@ class ExpenseFormState extends Equatable {
     return null;
   }
 
-  /// Aviso previo: el total supera el saldo local de la cuenta (que ya descuenta lo pendiente).
+  /// Aviso (no bloquea): el total supera el saldo local de la cuenta, que quedaría en negativo.
   bool get fondosInsuficientes {
     final c = cuentaSeleccionada;
     return c != null && totalCents > c.balanceCents;
@@ -111,7 +111,7 @@ class ExpenseFormState extends Equatable {
       if (r.montoCents <= 0) return false;
       if (r.categoriaId == null) return false;
     }
-    return !fondosInsuficientes;
+    return true;
   }
 
   @override

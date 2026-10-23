@@ -37,9 +37,9 @@ void main() {
 
   test('lista lo no aplicado con descripción y motivo', () async {
     final m = await gasto(1500);
-    await reject(m.opId, 'INSUFFICIENT_FUNDS');
+    await reject(m.opId, 'ACCOUNT_INACTIVE');
     final e = (await repo.unresolved()).single;
-    expect((e.status, e.errorCode, e.canCorrect, e.canDiscard), ('rejected', 'INSUFFICIENT_FUNDS', true, true));
+    expect((e.status, e.errorCode, e.canCorrect, e.canDiscard), ('rejected', 'ACCOUNT_INACTIVE', true, true));
     expect(e.description, contains('Egreso "kiosco"'));
     expect(e.description, contains(r'$ 15,00'));
     expect(e.description, contains('EFECTIVO'));
@@ -47,7 +47,7 @@ void main() {
 
   test('descartar un rechazado borra el comprobante local; el saldo queda como el del servidor', () async {
     final m = await gasto(1500);
-    await reject(m.opId, 'INSUFFICIENT_FUNDS');
+    await reject(m.opId, 'ACCOUNT_INACTIVE');
     expect(await s.balance('Efectivo'), 5000); // revertido por el rechazo
     await repo.discard(await seqOf(m.opId));
     expect(await s.count('outbox'), 0);
@@ -69,7 +69,7 @@ void main() {
 
   test('corregir: los datos vuelven al formulario y guardar reemplaza el rechazado en una transacción', () async {
     final m = await gasto(1500);
-    await reject(m.opId, 'INSUFFICIENT_FUNDS');
+    await reject(m.opId, 'ACCOUNT_INACTIVE');
     final seq = await seqOf(m.opId);
     final c = await repo.correction(seq);
     expect((c.type, c.concept, c.accountLocalId), (2, 'kiosco', s.accounts['Efectivo']));
@@ -89,12 +89,12 @@ void main() {
 
   test('si la corrección no pasa las reglas, el rechazado original queda intacto', () async {
     final m = await gasto(1500);
-    await reject(m.opId, 'INSUFFICIENT_FUNDS');
+    await reject(m.opId, 'ACCOUNT_INACTIVE');
     final seq = await seqOf(m.opId);
     await expectLater(
       (await s.writer).createExpense(
           ExpenseDraft(accountLocalId: s.accounts['Efectivo']!, date: DateTime(2026, 10, 21), generalConcept: 'x',
-              lines: [ExpenseLine(concept: 'pan', categoryLocalId: s.categories['Comida']!, amountCents: 999999)]),
+              lines: [ExpenseLine(concept: 'pan', categoryLocalId: s.categories['Transferencia']!, amountCents: 100)]),
           replacingSeq: seq),
       throwsA(isA<ValidationFailure>()),
     );

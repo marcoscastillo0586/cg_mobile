@@ -24,7 +24,10 @@ class ErrorMessages {
     ),
     'DUPLICATE': ('Ya existe un registro con esos datos.', 'A record with that data already exists.'),
     'EMAIL_TAKEN': ('Ya existe una cuenta con ese email.', 'An account with that email already exists.'),
-    'INSUFFICIENT_FUNDS': ('No hay fondos suficientes en la cuenta.', 'Not enough funds in the account.'),
+    'INSUFFICIENT_FUNDS': (
+      'No dispone del saldo a transferir. Realizá un ingreso en la cuenta de origen.',
+      'Not enough balance to transfer. Record an income in the source account first.'
+    ),
     'RESERVED_CATEGORY': ('Esa categoría está reservada por el sistema.', 'That category is reserved by the system.'),
     'SAME_ACCOUNT': ('La cuenta de origen y la de destino no pueden ser iguales.', 'Source and destination accounts must differ.'),
     'CURRENCY_MISMATCH': (

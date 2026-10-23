@@ -121,16 +121,16 @@ void main() {
     expect(server.requests.map((b) => b.single['opId']).toSet(), {m.opId});
   });
 
-  test('rejected INSUFFICIENT_FUNDS: el saldo local se revierte, queda visible y no se reenvía', () async {
+  test('rejected ACCOUNT_INACTIVE: el saldo local se revierte, queda visible y no se reenvía', () async {
     final m = await gasto(4000, account: 'Efectivo');
     expect(await s.balance('Efectivo'), 1000);
-    server.decide = (o) => rejected(o, 'INSUFFICIENT_FUNDS');
+    server.decide = (o) => rejected(o, 'ACCOUNT_INACTIVE');
     final r = await push().push();
-    expect((r.complete, r.issues.single.code), (false, 'INSUFFICIENT_FUNDS'));
+    expect((r.complete, r.issues.single.code), (false, 'ACCOUNT_INACTIVE'));
     expect(await s.balance('Efectivo'), 5000); // revertido
     final o = await op(m.opId);
     expect(o['status'], 'rejected');
-    expect((jsonDecode(o['server_result']! as String) as Map)['error'], {'code': 'INSUFFICIENT_FUNDS', 'message': 'motivo INSUFFICIENT_FUNDS'});
+    expect((jsonDecode(o['server_result']! as String) as Map)['error'], {'code': 'ACCOUNT_INACTIVE', 'message': 'motivo ACCOUNT_INACTIVE'});
     expect((await header(m.headerLocalId))['deleted'], 1);
     final again = await push().push();
     expect(again.sent, 0);

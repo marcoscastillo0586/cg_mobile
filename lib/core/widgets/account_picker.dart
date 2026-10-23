@@ -109,39 +109,49 @@ class AccountPicker extends StatelessWidget {
   }
 }
 
-/// Aviso de fondos ANTES de guardar: el importe supera el saldo local de la cuenta.
+/// Texto del aviso de saldo negativo (egresos): la cuenta queda en negativo y conviene registrar un ingreso.
+String negativeBalanceText(LocalAccount cuenta, int amountCents, {required bool isEn}) {
+  final queda = Money.format(cuenta.balanceCents - amountCents, currency: cuenta.currency);
+  return isEn
+      ? '${cuenta.name.toUpperCase()} will be at $queda. Record an income in that account.'
+      : 'La cuenta ${cuenta.name.toUpperCase()} queda en $queda. Registrá un ingreso en esa cuenta.';
+}
+
+/// Aviso de fondos ANTES de guardar.
+/// - [blocking] (transferencias): no se puede guardar; hay que registrar un ingreso en el origen.
+/// - sin bloquear (egresos): la cuenta quedaría en negativo; se puede guardar igual tras confirmar.
 class FundsWarning extends StatelessWidget {
   final LocalAccount cuenta;
   final int amountCents;
   final bool isEn;
-  const FundsWarning({super.key, required this.cuenta, required this.amountCents, this.isEn = false});
+  final bool blocking;
+  const FundsWarning({super.key, required this.cuenta, required this.amountCents, this.isEn = false, this.blocking = false});
 
   @override
   Widget build(BuildContext context) {
     final disponible = Money.format(cuenta.balanceCents, currency: cuenta.currency);
     final total = Money.format(amountCents, currency: cuenta.currency);
+    final color = blocking ? AppColors.rose : AppColors.amberDark;
+    final text = blocking
+        ? (isEn
+            ? 'Not enough balance to transfer $total from ${cuenta.name.toUpperCase()} (available $disponible). Record an income in the source account first.'
+            : 'No dispone del saldo solicitado a transferir ($total) en ${cuenta.name.toUpperCase()} (disponible $disponible). Realizá un ingreso en la cuenta de origen.')
+        : negativeBalanceText(cuenta, amountCents, isEn: isEn);
     return Container(
       key: const ValueKey('aviso-fondos'),
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.rose.withValues(alpha: 0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.rose.withValues(alpha: 0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded, color: AppColors.rose),
+          Icon(Icons.warning_amber_rounded, color: color),
           const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              isEn
-                  ? 'Not enough funds in ${cuenta.name.toUpperCase()}: available $disponible, total $total.'
-                  : 'Fondos insuficientes en ${cuenta.name.toUpperCase()}: disponible $disponible, total $total.',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.rose),
-            ),
-          ),
+          Expanded(child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color))),
         ],
       ),
     );

@@ -105,23 +105,19 @@ void main() {
       });
     });
 
-    test('fondos: saldo exacto alcanza; un centavo más se rechaza', () async {
+    test('sin fondos se guarda igual y la cuenta queda en negativo (el dinero puede no estar cargado)', () async {
       await writer.createExpense(ExpenseDraft(accountLocalId: efectivo, date: date, generalConcept: 'x',
-          lines: [ExpenseLine(concept: 'a', categoryLocalId: comida, amountCents: 5000)]));
-      expect(await balance(efectivo), 0);
-      await expectRule(
-        () => writer.createExpense(ExpenseDraft(accountLocalId: efectivo, date: date, generalConcept: 'x',
-            lines: [ExpenseLine(concept: 'a', categoryLocalId: comida, amountCents: 1)])),
-        'INSUFFICIENT_FUNDS',
-      );
+          lines: [ExpenseLine(concept: 'a', categoryLocalId: comida, amountCents: 5001)]));
+      expect(await balance(efectivo), -1);
+      final op = await lastOp();
+      expect(op['status'], 'pending');
     });
 
-    test('lo pendiente de enviar cuenta para los fondos del siguiente egreso', () async {
+    test('lo pendiente de enviar cuenta para los fondos de una transferencia posterior', () async {
       await writer.createExpense(ExpenseDraft(accountLocalId: banco, date: date, generalConcept: 'x',
           lines: [ExpenseLine(concept: 'a', categoryLocalId: comida, amountCents: 60000)]));
       await expectRule(
-        () => writer.createExpense(ExpenseDraft(accountLocalId: banco, date: date, generalConcept: 'x',
-            lines: [ExpenseLine(concept: 'b', categoryLocalId: comida, amountCents: 40001)])),
+        () => writer.createTransfer(TransferDraft(fromLocalId: banco, toLocalId: efectivo, amountCents: 40001, date: date)),
         'INSUFFICIENT_FUNDS',
       );
     });

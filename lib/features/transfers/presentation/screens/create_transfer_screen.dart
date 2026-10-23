@@ -311,7 +311,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
 
             // Aviso de fondos antes de guardar (saldo local del origen).
             if (origen != null && state.fondosInsuficientes)
-              FundsWarning(cuenta: origen, amountCents: state.montoCents, isEn: isEn),
+              FundsWarning(cuenta: origen, amountCents: state.montoCents, isEn: isEn, blocking: true),
 
             // 5. Botón Confirmar
             ElevatedButton(
