@@ -45,6 +45,9 @@ class OutboxEntry {
   final String description;
   final String createdAt;
 
+  /// Edición solo de concepto y/o fecha del encabezado (lo único que se reintenta con "mis cambios").
+  final bool headerFieldsOnly;
+
   const OutboxEntry({
     required this.seq,
     required this.opId,
@@ -56,6 +59,7 @@ class OutboxEntry {
     required this.errorMessage,
     required this.description,
     required this.createdAt,
+    this.headerFieldsOnly = false,
   });
 
   bool get isMovementCreate => entity == 'movement' && action == 'create';
@@ -65,7 +69,7 @@ class OutboxEntry {
   /// nunca se intentó enviar (lo ya enviado podría estar aplicado y la respuesta perdida).
   bool get canDiscard => status == 'rejected' || status == 'conflict' || (status == 'pending' && attempts == 0);
   bool get canCorrect => status == 'rejected' && isMovementCreate;
-  bool get canRetryMine => status == 'conflict' && isMovementUpdate;
+  bool get canRetryMine => status == 'conflict' && isMovementUpdate && headerFieldsOnly;
 }
 
 final outboxRepositoryProvider = Provider<Future<OutboxRepository>>((ref) async => OutboxRepository(await ref.watch(localDatabaseProvider)));
@@ -82,7 +86,9 @@ class OutboxRepository {
   Future<OutboxEntry> _entry(DatabaseExecutor db, Map<String, Object?> r) async {
     final result = r['server_result'] == null ? null : jsonDecode(r['server_result']! as String) as Map<String, dynamic>;
     final error = result?['error'] as Map<String, dynamic>?;
+    final data = jsonDecode(r['data']! as String) as Map<String, dynamic>;
     return OutboxEntry(
+      headerFieldsOnly: data.isNotEmpty && data.keys.every((k) => k == 'generalConcept' || k == 'date'),
       seq: r['seq']! as int,
       opId: r['op_id']! as String,
       entity: r['entity']! as String,
@@ -109,13 +115,29 @@ class OutboxRepository {
         _ => 'Transferencia ${Money.format(cents)} de ${await _accountName(db, d['fromRef'])} a ${await _accountName(db, d['toRef'])} · ${d['date']}',
       };
     }
+    final ref = r['ref'] == null ? null : jsonDecode(r['ref']! as String);
+    final target = ref is Map && ref['serverId'] != null ? ' #${ref['serverId']}' : '';
     if (r['entity'] == 'movement' && r['action'] == 'update') {
+      final t = d['transfer'] as Map<String, dynamic>?;
       final parts = [
         if (d['generalConcept'] != null) 'concepto "${d['generalConcept']}"',
         if (d['date'] != null) 'fecha ${d['date']}',
+        if (d['accountRef'] != null) 'cuenta ${await _accountName(db, d['accountRef'])}',
+        if (t != null)
+          'transferencia ${Money.format(Money.parseInput(t['amount'] as String) ?? 0)} de ${await _accountName(db, t['fromRef'])} a ${await _accountName(db, t['toRef'])}',
       ];
-      return 'Edición de comprobante: ${parts.join(', ')}';
+      return 'Edición de comprobante$target: ${parts.join(', ')}';
     }
+    if (r['entity'] == 'movement' && r['action'] == 'delete') return 'Eliminación de comprobante$target';
+    if (r['entity'] == 'movement_detail' && r['action'] == 'update') {
+      final parts = [
+        if (d['concept'] != null) 'concepto "${d['concept']}"',
+        if (d['amount'] != null) 'monto ${Money.format(Money.parseInput(d['amount'] as String) ?? 0)}',
+        if (d['categoryRef'] != null) 'categoría',
+      ];
+      return 'Edición de renglón$target: ${parts.join(', ')}';
+    }
+    if (r['entity'] == 'movement_detail' && r['action'] == 'delete') return 'Eliminación de renglón$target';
     return '${r['entity']} / ${r['action']}';
   }
 

@@ -10,6 +10,7 @@ import '../features/expenses/presentation/screens/create_expense_screen.dart';
 import '../features/expenses/presentation/screens/ticket_capture_screen.dart';
 import '../features/incomes/presentation/screens/create_income_screen.dart';
 import '../features/transfers/presentation/screens/create_transfer_screen.dart';
+import '../features/movements/presentation/screens/movement_edit_screen.dart';
 import '../features/movements/presentation/screens/movements_screen.dart';
 import '../features/accounts_admin/presentation/screens/accounts_admin_screen.dart';
 import '../features/categories_admin/presentation/screens/categories_admin_screen.dart';
@@ -84,6 +85,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             initialLugarNombre: nombreLugar,
           );
         },
+      ),
+      GoRoute(
+        path: '/movements/edit/:id',
+        builder: (context, state) => MovementEditScreen(
+          serverId: int.parse(state.pathParameters['id']!),
+          askDelete: state.uri.queryParameters['eliminar'] == '1',
+        ),
       ),
       GoRoute(
         path: AppRoutes.accountsAdmin,

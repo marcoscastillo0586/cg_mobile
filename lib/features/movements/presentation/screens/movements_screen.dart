@@ -1,17 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/money/money.dart';
-import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../../../../core/widgets/movements_skeleton.dart';
+import '../../../../routes/app_routes.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/movement_list_notifier.dart';
 import '../providers/movement_list_state.dart';
-import '../widgets/edit_header_dialog.dart';
 import '../widgets/movement_card.dart';
 
 class MovementsScreen extends ConsumerStatefulWidget {
@@ -179,13 +179,15 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
           return MovementCard(
             item: item,
             isEn: isEn,
-            // Edición mínima (concepto y fecha) por la cola; el resto de la edición y el borrado, etapa 7.
+            // Edición y borrado por la outbox (funcionan sin conexión; el envío lo hace el sincronizador).
             onEditar: () async {
-              if (await editMovementHeader(context, ref, item, isEn: isEn)) {
-                await ref.read(movementListNotifierProvider.notifier).cargarMovimientos();
-              }
+              await context.push(AppRoutes.movementEdit(item.id));
+              if (context.mounted) await ref.read(movementListNotifierProvider.notifier).cargarMovimientos();
             },
-            onEliminar: () => showNotAvailable(context, isEn: isEn),
+            onEliminar: () async {
+              await context.push(AppRoutes.movementEdit(item.id, askDelete: true));
+              if (context.mounted) await ref.read(movementListNotifierProvider.notifier).cargarMovimientos();
+            },
           );
         },
       ),

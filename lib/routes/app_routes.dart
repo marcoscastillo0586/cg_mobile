@@ -9,6 +9,7 @@ class AppRoutes {
   static const String incomesCreate = '/incomes/create';
   static const String transfersCreate = '/transfers/create';
   static const String movements = '/movements';
+  static String movementEdit(int serverId, {bool askDelete = false}) => '/movements/edit/$serverId${askDelete ? '?eliminar=1' : ''}';
   static const String accountsAdmin = '/admin/accounts';
   static const String categoriesAdmin = '/admin/categories';
   static const String limitsAdmin = '/admin/limits';
