@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,9 @@ import 'routes/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // En release no se escribe nada en logcat (errores del servidor, filas de tickets, montos):
+  // los diagnósticos con debugPrint, propios o de paquetes, son solo para debug.
+  if (kReleaseMode) debugPrint = (String? message, {int? wrapWidth}) {};
   runApp(
     const ProviderScope(
       child: GastosMobileApp(),
