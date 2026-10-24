@@ -234,6 +234,35 @@ void main() {
     expect((await balances())[1], 49950 - 1000);
   });
 
+  test('cuenta y categoría borradas en el servidor que estaban en un límite: se quitan los vínculos sin romper la clave foránea', () async {
+    final pages = fullWindow();
+    final p0 = pages[0] as Map<String, dynamic>;
+    p0['accounts'] = [...(p0['accounts'] as List), acc(3, 'Vacia', 0, 0)];
+    p0['categories'] = [...(p0['categories'] as List), cat(9, 'Sin uso')];
+    p0['budgets'] = [
+      {
+        'id': 40, 'startDate': '2026-10-01', 'endDate': '2026-10-31', 'limitCents': 100000, 'clientId': null, 'version': 1,
+        'updatedAt': '2026-10-21T10:00:00Z',
+        'categories': [{'id': 7, 'name': 'Comida'}, {'id': 9, 'name': 'Sin uso'}],
+        'accounts': [{'id': 1, 'name': 'Banco'}, {'id': 3, 'name': 'Vacia'}],
+      },
+    ];
+    await service(_Server(pages)).pull();
+    expect(firstInt(await db.rawQuery('SELECT COUNT(*) FROM budget_accounts')), 2);
+    final r = await service(_Server([
+      page(
+        full: false,
+        accounts: [acc(1, 'Banco', -150050 + 200000, 2), acc(2, 'Efectivo', -3000, 1)],
+        deleted: [{'entity': 'account', 'id': 3, 'deletedAt': 'x'}, {'entity': 'category', 'id': 9, 'deletedAt': 'x'}],
+        cursor: 'c-del',
+      ),
+    ])).pull();
+    expect(r.complete, isTrue, reason: r.mismatches.join('\n'));
+    expect(firstInt(await db.rawQuery('SELECT COUNT(*) FROM accounts WHERE server_id = 3')), 0);
+    expect(firstInt(await db.rawQuery('SELECT COUNT(*) FROM budget_accounts')), 1);
+    expect(firstInt(await db.rawQuery('SELECT COUNT(*) FROM budget_categories')), 1);
+  });
+
   test('dos pulls simultáneos comparten uno solo', () async {
     final s = _Server(fullWindow());
     final svc = service(s);

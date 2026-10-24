@@ -231,19 +231,32 @@ class PullService {
     'movement_detail': 'movement_details',
   };
 
-  Future<int> _applyDeleted(Transaction txn, String entity, int serverId) {
+  Future<int> _applyDeleted(Transaction txn, String entity, int serverId) async {
     final table = _tables[entity];
     if (table == null) throw _bad('entidad eliminada desconocida: $entity');
+    // El servidor borra los vínculos con límites junto con la cuenta/categoría, sin tombstone propio.
+    await _unlinkFromBudgets(txn, table, 'server_id = ?', [serverId]);
     // Borrado físico: el servidor ya lo eliminó (los renglones de un encabezado caen en cascada).
     return txn.delete(table, where: 'server_id = ?', whereArgs: [serverId]);
   }
 
+  static Future<void> _unlinkFromBudgets(Transaction txn, String table, String where, List<Object?> args) async {
+    final link = switch (table) {
+      'accounts' => ('budget_accounts', 'account_local_id'),
+      'categories' => ('budget_categories', 'category_local_id'),
+      _ => null,
+    };
+    if (link == null) return;
+    await txn.delete(link.$1, where: '${link.$2} IN (SELECT local_id FROM $table WHERE $where)', whereArgs: args);
+  }
+
   /// Descarga completa: lo que vino del servidor y ya no está, se borró allá.
   Future<int> _removeNotSeen(_Seen seen) => _db.transaction((txn) async {
-        Future<int> prune(String table, Set<int> ids) => txn.delete(
-              table,
-              where: 'server_id IS NOT NULL${ids.isEmpty ? '' : ' AND server_id NOT IN (${ids.join(',')})'}',
-            );
+        Future<int> prune(String table, Set<int> ids) async {
+          final where = 'server_id IS NOT NULL${ids.isEmpty ? '' : ' AND server_id NOT IN (${ids.join(',')})'}';
+          await _unlinkFromBudgets(txn, table, where, const []);
+          return txn.delete(table, where: where);
+        }
         var n = await prune('movement_headers', seen.headers);
         n += await prune('budgets', seen.budgets);
         n += await prune('categories', seen.categories);
