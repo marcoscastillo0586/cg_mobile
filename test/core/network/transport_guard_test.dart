@@ -1,5 +1,4 @@
-// HTTP solo hacia hosts permitidos (en debug). El caso release (todo HTTP rechazado) se verifica
-// con un APK release en el celular: kDebugMode es constante y acá siempre es true.
+// HTTP solo hacia hosts permitidos (igual en debug y release); el resto exige HTTPS.
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';

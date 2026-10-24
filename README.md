@@ -31,9 +31,10 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://192.168.0.50:3000/ap
 
 Sin `API_BASE_URL`, el login muestra "La app no tiene configurada la dirección del servidor".
 
-- **HTTP**: solo en debug y solo hacia `192.168.0.50`. Lo controla `TransportGuard` (`lib/core/network/transport_guard.dart`)
-  en todas las peticiones: el cliente HTTP de Dart **no** aplica `network_security_config` (verificado con un APK release).
-  Release y profile rechazan `http://` con `INSECURE_TRANSPORT`.
+- **HTTP**: solo hacia `192.168.0.50` (la PC de casa, IP fija), en debug y en release; cualquier otro host exige HTTPS
+  (`INSECURE_TRANSPORT`). Lo controla `TransportGuard` (`lib/core/network/transport_guard.dart`) en todas las peticiones:
+  el cliente HTTP de Dart **no** aplica `network_security_config` (verificado con un APK release). Sin HTTPS, la contraseña
+  y los datos viajan sin cifrar por el wifi de casa, y la app solo funciona conectada a esa red.
 - **Release**: R8 (minify y shrink, `android/app/proguard-rules.pro`) y sin logs (`debugPrint` vacío en release, `main.dart`).
 - **Permisos** del APK final: INTERNET, CAMERA (QR) y ACCESS_NETWORK_STATE (lo agrega `com.google.android.datatransport`, de ML Kit).
   La galería usa el selector del sistema y no pide permisos de medios.
@@ -44,10 +45,10 @@ Sin `API_BASE_URL`, el login muestra "La app no tiene configurada la dirección 
 
 ### APK para instalar (release)
 
-Requiere la API publicada con **HTTPS** (release rechaza `http://`) y `android/key.properties`.
+Requiere `android/key.properties`. Para la API real en la PC de casa (HTTP, ver arriba):
 
 ```sh
-flutter build apk --release --split-per-abi --dart-define=API_BASE_URL=https://<servidor>/api/v1
+flutter build apk --release --split-per-abi --dart-define=API_BASE_URL=http://192.168.0.50:3000/api/v1
 # Celulares actuales: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk (~41 MB; el APK universal pesa ~110 MB)
 ```
 

@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Release y profile: solo HTTPS. La variante debug redefine este archivo. -->
+<!-- HTTP permitido únicamente hacia la PC de la red de casa (la API real corre ahí sin HTTPS).
+     Dart no aplica este archivo: el control real es TransportGuard (lib/core/network). -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.0.50</domain>
+    </domain-config>
 </network-security-config>
