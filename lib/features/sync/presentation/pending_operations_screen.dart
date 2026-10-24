@@ -112,7 +112,9 @@ class PendingOperationsScreen extends ConsumerWidget {
                           if (motivo != null) ...[
                             const SizedBox(height: 4),
                             Text(
-                              '${isEn ? 'Reason' : 'Motivo'}: $motivo${e.errorCode == 'VALIDATION_ERROR' ? '' : ' (${e.errorCode})'}',
+                              // forCode ya agrega el código cuando no tiene traducción: no repetirlo.
+                              '${isEn ? 'Reason' : 'Motivo'}: $motivo'
+                              '${e.errorCode == 'VALIDATION_ERROR' || motivo.contains('(${e.errorCode})') ? '' : ' (${e.errorCode})'}',
                               style: TextStyle(fontSize: 12, color: color),
                             ),
                           ],
