@@ -106,15 +106,41 @@ for (const a of balances.accounts) {
   check('account_balances', `vista ${a.name}${pend ? ` (pendiente ${pend})` : ''}`, a.balanceCents + pend, view.get(a.id) ?? 'falta');
 }
 
+// Límites: consumo calculado en la base del CELULAR con la regla del servidor (budgets.service.ts,
+// misma consulta que LocalBudgetsRepository) contra GET /budgets.
+const today = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10); // Buenos Aires (UTC−3)
+for (const sb of budgets) {
+  const lb = one('SELECT local_id, start_date, end_date, limit_cents FROM budgets WHERE server_id = ? AND deleted = 0', sb.id);
+  const name = `límite #${sb.id} ${sb.categories.map((c) => c.name).join(', ')}`;
+  if (!lb) {
+    check('budgets', name, 'existe', 'falta');
+    continue;
+  }
+  const accIds = all('SELECT account_local_id id FROM budget_accounts WHERE budget_local_id = ?', lb.local_id).map((r) => r.id);
+  const catIds = all('SELECT category_local_id id FROM budget_categories WHERE budget_local_id = ?', lb.local_id).map((r) => r.id);
+  const consumed = accIds.length && catIds.length
+    ? one(`SELECT COALESCE(SUM(-d.amount_cents), 0) t FROM movement_details d JOIN movement_headers h ON h.local_id = d.header_local_id
+           WHERE h.type = 2 AND h.deleted = 0 AND d.deleted = 0 AND h.occurred_at >= ? AND h.occurred_at <= ?
+             AND d.account_local_id IN (${accIds.join(',')}) AND d.category_local_id IN (${catIds.join(',')})`,
+        `${lb.start_date} 00:00:00`, `${lb.end_date} 23:59:59`).t
+    : 0;
+  const percent = lb.limit_cents === 0 ? null : Math.trunc((consumed * 10000) / lb.limit_cents) / 100;
+  check('budgets', `${name}: consumo`, sb.consumedCents, consumed);
+  check('budgets', `${name}: %`, sb.percent, percent);
+  check('budgets', `${name}: vencido`, sb.dueForRenewal, today >= lb.end_date);
+  check('budgets', `${name}: límite y período`, `${sb.limitCents} ${sb.startDate}..${sb.endDate}`, `${lb.limit_cents} ${lb.start_date}..${lb.end_date}`);
+  check('budgets', `${name}: cuentas/categorías`, `${sb.accounts.length}/${sb.categories.length}`, `${accIds.length}/${catIds.length}`);
+}
+
 db.close();
 if (tmp) rmSync(tmp, { recursive: true, force: true });
 
 // ---------- resultado ----------
 const pad = (t, n) => { t = String(t); return t.length > n ? t.slice(0, n - 1) + '…' : t.padEnd(n); };
-console.log(`${pad('Tabla', 17)} ${pad('Dato', 32)} ${pad('Servidor', 14)} ${pad('Local', 14)} Resultado`);
+console.log(`${pad('Tabla', 17)} ${pad('Dato', 52)} ${pad('Servidor', 26)} ${pad('Local', 26)} Resultado`);
 for (const r of rows) {
   const diff = r.ok ? 'OK' : `FALLA (diferencia: ${typeof r.servidor === 'number' && typeof r.local === 'number' ? r.local - r.servidor : 'falta'})`;
-  console.log(`${pad(r.tabla, 17)} ${pad(r.dato, 32)} ${pad(r.servidor, 14)} ${pad(r.local, 14)} ${diff}`);
+  console.log(`${pad(r.tabla, 17)} ${pad(r.dato, 52)} ${pad(r.servidor, 26)} ${pad(r.local, 26)} ${diff}`);
 }
 const bad = rows.filter((r) => !r.ok).length;
 console.log(`\nPendiente de enviar en el celular: ${pendingHeaders} comprobantes, ${pendingOps} operaciones en la outbox (outbox: ${outboxByStatus})`);
