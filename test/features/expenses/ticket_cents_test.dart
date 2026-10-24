@@ -43,6 +43,42 @@ void main() {
     expect(r.items.map((i) => i.montoNeto), [123456789, 10]);
   });
 
+  test('OCR: letra O en los decimales se lee como cero (texto real de ML Kit, fotos 1 y 2)', () {
+    final r = ReceiptSpatialParser.parseRows([
+      _row(1, 'CHORIZO DE CERO0 CLUDADDEL LAGO X KG'),
+      _row(2, '0000036502 02536502004300 4644, O0', '4644, O0'),
+      _row(3, 'MORIXE'),
+      _row(4, '0000616985 07790199605041 1639, O0', '1639, O0'),
+      _row(5, '2 *40% CLASES -655,60', '-655,60'),
+      _row(6, '2,000 x 2115,00'),
+      _row(7, 'TAPA P/PASCUALI NA CIUDAD DELLAGO BOL 2 UNI'),
+      _row(8, '0000024897 02800000248970 4230,, 00', '4230,, 00'),
+    ]);
+    expect(r.items.map((i) => (i.montoBruto, i.descuento, i.montoNeto)), [(464400, 0, 464400), (163900, 65560, 98340), (423000, 0, 423000)]);
+  });
+
+  test('el subtotal del ticket no se toma como descuento del último renglón (texto real de la foto 3)', () {
+    final r = ReceiptSpatialParser.parseRows([
+      _row(1, '12,000 x 2199,00'),
+      _row(2, 'LECHE ENTERA CTUDAD DEL LAGOL/V VITLA/D TTB 1 LI'),
+      _row(3, '0000079850 02800000798505 26388,00', '26388,00'),
+      _row(4, 'SUBTOT. SIN DESCUENTOS 169597,97', '169597,97'),
+      _row(5, 'DESCUENTOS POR PROMOCIDNES -24754,57', '-24754,57'),
+      _row(6, 'TOTAL 144843, 40', '144843, 40'),
+    ]);
+    expect(r.items.map((i) => (i.descripcion, i.montoNeto)), [('LECHE ENTERA CTUDAD DEL LAGOL/V VITLA/D TTB 1 LI', 2638800)]);
+    expect(r.totalDetectadoCents, 14484340);
+  });
+
+  test('un descuento mayor al precio no se aplica', () {
+    final r = ReceiptSpatialParser.parseRows([
+      _row(1, 'PAN'),
+      _row(2, '0000099998 07790000000002 100,00', '100,00'),
+      _row(3, '1 *25% ALMACEN -250,00', '-250,00'),
+    ]);
+    expect(r.items.single.montoNeto, 10000);
+  });
+
   test('QR: ParsedTicketDto a centavos y payload de /tickets/confirm con ids del servidor', () {
     final t = TicketsRepository.parse({
       'reader': 'coto-estructurado', 'sourceUrl': 'https://apps01.coto.com.ar/x', 'merchant': 'COTO', 'branch': 'SUC131',

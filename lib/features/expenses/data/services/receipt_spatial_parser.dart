@@ -422,7 +422,8 @@ class ReceiptSpatialParser {
                 detalleAdicional = _extraerDetallePuro(sigFila.fullText);
               }
               final montoDesc = _extraerMontoDeTexto(sigFila.fullText);
-              if (montoDesc != null && montoDesc > 0) {
+              // Un descuento mayor o igual al precio es una lectura equivocada: no se aplica.
+              if (montoDesc != null && montoDesc > 0 && montoDesc < precioBruto) {
                 descuento = montoDesc;
                 i++; // Consumir fila de descuento
               }
@@ -497,6 +498,7 @@ class ReceiptSpatialParser {
 
   static bool _esFilaIgnorable(String lower) {
     return lower.contains('cuit') ||
+        lower.contains('subtot') ||
         lower.contains('cae') ||
         lower.contains('factura') ||
         lower.contains('ticket') ||
@@ -527,6 +529,8 @@ class ReceiptSpatialParser {
 
   static bool _esFilaDescuento(SpatialRow fila) {
     final lower = fila.fullText.toLowerCase();
+    // "SUBTOT. SIN DESCUENTOS" y "DESCUENTOS POR PROMOCIONES" son totales del ticket, no de un renglón.
+    if (lower.contains('subtot')) return false;
     return _esLineaDescuento(lower) || lower.contains('-') || lower.contains('aj');
   }
 
@@ -557,7 +561,7 @@ class ReceiptSpatialParser {
   }
 
   static int? _extraerPrecioDecimalFinal(String texto) {
-    final cleanSpaces = texto.replaceAll(' ,', ',').replaceAll(', ', ',');
+    final cleanSpaces = _normalizarDecimalesOcr(texto);
     final regExp = RegExp(r'\$?\s*(\b\d{1,3}(?:[.,]\d{3})*,\d{2}\b|\b\d+,\d{2}\b|\b\d+\.\d{2}\b)\s*$');
     final match = regExp.firstMatch(cleanSpaces);
     if (match != null && match.group(1) != null) {
@@ -588,7 +592,7 @@ class ReceiptSpatialParser {
   }
 
   static int? _extraerMontoDeTexto(String texto) {
-    final cleanSpaces = texto.replaceAll(' ,', ',').replaceAll(', ', ',');
+    final cleanSpaces = _normalizarDecimalesOcr(texto);
     final regExpDecimal = RegExp(r'\$?\s*(\b\d{1,3}(?:[.,]\d{3})*,\d{2}\b|\b\d+,\d{2}\b|\b\d+\.\d{2}\b)');
     final matchesDecimal = regExpDecimal.allMatches(cleanSpaces);
 
@@ -600,6 +604,14 @@ class ReceiptSpatialParser {
     }
     return null;
   }
+
+  /// Junta la coma decimal con sus dígitos, colapsa comas repetidas ("4230,, 00") y corrige la
+  /// letra O leída en lugar de un cero solo en los dos decimales ("4644, O0" → "4644,00").
+  static String _normalizarDecimalesOcr(String texto) => texto
+      .replaceAll(RegExp(',{2,}'), ',')
+      .replaceAll(' ,', ',')
+      .replaceAll(', ', ',')
+      .replaceAllMapped(RegExp(r'(\d,)([0-9Oo]{2})\b'), (m) => '${m[1]}${m[2]!.replaceAll(RegExp('[Oo]'), '0')}');
 
   /// Tope de un importe razonable en un ticket: $ 10.000.000,00.
   static const _maxCents = 1000000000;
