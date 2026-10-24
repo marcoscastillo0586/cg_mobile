@@ -3,11 +3,9 @@
 App Android (Flutter) para el control de gastos de CG (paquete `io.github.marcoscastillo0586.cg`, nombre visible `control_gastos`): cuentas, egresos, ingresos, transferencias, presupuestos, historial y lectura de tickets.
 
 > **Estado: adaptación en curso a la API nueva de CG (`/api/v1`).**
-> Etapas 1 y 2: autenticación y **lectura** contra `/api/v1` (dashboard, cuentas, categorías,
-> presupuestos, campana, historial, buscador y reportes), con importes en centavos.
-> Todavía no se escribe: alta y edición de movimientos, ABM y tickets muestran
-> "Función no disponible por ahora" hasta sus etapas (5 a 9). Sin conexión, las pantallas
-> muestran el error; la base local y la sincronización llegan en las etapas 3 y 4.
+> Etapas 1 a 9: sesión, base local (SQLite) con outbox y sincronización, altas, ediciones, ABM,
+> límites, cotización sin conexión y tickets (QR por el servidor; fotos con ML Kit en el celular).
+> Falta la etapa 10 (endurecer e i18n).
 > El plan por etapas y el diagnóstico de partida están en [docs/auditoria_mobile.md](docs/auditoria_mobile.md).
 
 ## Requisitos
@@ -128,7 +126,10 @@ CG_LIVE_API=http://192.168.0.50:3000/api/v1 CG_LIVE_TTL=20 CG_LIVE_EMAIL=... CG_
   inactivas, cuenta inactiva, misma moneda en transferencias. Los formularios avisan la falta de fondos antes de
   guardar. Cuentas, categorías y sugerencias salen de SQLite.
 - Dashboard: saldos calculados de la base local con la regla de `GET /accounts/balances`; solo la cotización
-  viene del servidor (sin conexión: 1,00, indicado en pantalla).
+  viene del servidor. Cada cotización recibida se guarda en `sync_state` (nombre, venta en centavos y fecha);
+  sin conexión se usa la última con su fecha ("Última cotización (dd/mm/aaaa hh:mm) …"). Si nunca se recibió
+  una, las cuentas en USD no se convierten ni suman al total y se muestra "Cotización: sin conexión".
+  La contingencia del servidor (`available: false`) nunca se guarda.
 - Edición y borrado (`lib/features/movements/data/local_movement_editor.dart`, pantalla "Editar comprobante"):
   encabezado (concepto, fecha, cuenta), cada renglón (concepto, categoría, monto; por `serverId`, sin `baseVersion`),
   transferencia como par, borrar renglón (solo si hay más de uno y no es transferencia: `LAST_DETAIL`/`TRANSFER_EDIT`)
@@ -149,7 +150,7 @@ CG_LIVE_API=http://192.168.0.50:3000/api/v1 CG_LIVE_TTL=20 CG_LIVE_EMAIL=... CG_
   cambios propios (`baseVersion` nuevo).
 - Un solo sincronizador (`SyncController`): primero envía y después descarga; si quedó algo pendiente por error
   temporal no descarga. Informa "completa" solo si todo se aplicó y coincide con el servidor.
-- - Descarga (`lib/core/sync/pull_service.dart`): `GET /sync/pull` de a 500 mientras `hasMore`, cada página en
+- Descarga (`lib/core/sync/pull_service.dart`): `GET /sync/pull` de a 500 mientras `hasMore`, cada página en
   su transacción, upsert por `server_id`, aplica `deleted[]` y, en la descarga completa, borra lo que el servidor
   ya no tiene. Al final compara saldo y cantidad de renglones por cuenta con el servidor: el cursor se guarda
   y la sincronización se marca "completa" solo si todo coincide; si no, se descarta el cursor y se muestran las diferencias.
@@ -172,8 +173,12 @@ Estado: Riverpod 2 (`StateNotifier`). Navegación: go_router.
 
 ## Lectura de tickets
 
-- **QR**: se lee el código y se envía la URL al servidor.
-- **Fotos** (escáner de documentos o galería): lectura **en el dispositivo** con ML Kit y el parser espacial (`receipt_spatial_parser.dart`). No se envía nada a terceros.
+- **QR** (solo con conexión): `POST /tickets/parse-url` lee el ticket en el servidor; el formulario se precarga
+  con fecha, concepto, renglones y la categoría sugerida. Guardar llama a `POST /tickets/confirm` con un
+  `clientSyncId` estable (un reintento no duplica el egreso); el comprobante llega con el próximo pull.
+- **Fotos** (escáner de documentos o galería): lectura **en el dispositivo** con ML Kit y el parser espacial
+  (`receipt_spatial_parser.dart`, importes en centavos enteros) para cargar renglones a revisar. Se guarda como
+  un egreso común (outbox). Si la suma no coincide con el total leído, se avisa la diferencia. No se envía nada a terceros.
 - **Lectura con IA**: deshabilitada ("Función no disponible por ahora"). No hay claves de servicios externos en la app.
 
 ## Seguridad
@@ -184,7 +189,7 @@ Estado: Riverpod 2 (`StateNotifier`). Navegación: go_router.
 
 ## Tests
 
-`flutter test` → 52 pasan y 4 salteados: 2 de alta de egreso, que se reescriben en la etapa 5, y 2 en vivo, que necesitan servidor.
+`flutter test` → 159 pasan y 2 salteados (en vivo, necesitan servidor).
 
 Los tests con datos simulados no prueban red ni persistencia real. Los siguientes **no aportan verificación útil** y se reemplazarán al rehacer cada función:
 
