@@ -54,13 +54,13 @@ class DashboardState extends Equatable {
     return cuentasSeleccionadasIds ?? b.accounts.map((c) => c.id).toSet();
   }
 
-  /// Consolidado en ARS de las cuentas seleccionadas (F1.11), con los saldos ya
-  /// convertidos por el servidor. Con todas seleccionadas coincide con totalArsCents.
+  /// Consolidado en ARS de las cuentas seleccionadas (F1.11). Sin cotización conocida las
+  /// cuentas USD no suman (no se inventa una conversión). Con todas coincide con totalArsCents.
   int get totalSeleccionadoArsCents {
     final b = balances;
     if (b == null) return 0;
     final ids = idsSeleccionados;
-    return b.accounts.where((c) => ids.contains(c.id)).fold(0, (sum, c) => sum + c.balanceArsCents);
+    return b.accounts.where((c) => ids.contains(c.id)).fold(0, (sum, c) => sum + (c.balanceArsCents ?? 0));
   }
 
   @override

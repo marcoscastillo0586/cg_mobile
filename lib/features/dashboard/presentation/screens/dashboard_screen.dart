@@ -10,6 +10,7 @@ import '../../../../core/errors/error_messages.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/date_utils.dart';
 import '../../../../core/widgets/dashboard_skeleton.dart';
 import 'package:gastos_mobile/routes/app_routes.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
@@ -208,12 +209,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             }
             final rate = balances.exchangeRate;
             final rateError = balances.rateError;
-            final cotizacion = rate.available
-                ? '${rate.name}: ${Money.format(rate.sellCents)}'
-                : rateError == null || rateError is NetworkException
-                    ? (isEn ? 'Exchange rate: offline (1.00)' : 'Cotización: sin conexión (1,00)')
-                    : '${isEn ? 'Exchange rate unavailable (1.00)' : 'Cotización no disponible (1,00)'}: '
-                        '${ErrorMessages.describe(rateError, isEn: isEn)}';
+            final String cotizacion;
+            if (rate.available && !rate.isStale) {
+              cotizacion = '${rate.name}: ${Money.format(rate.sellCents)}';
+            } else if (rate.available) {
+              // Última cotización recibida, con su fecha (no hay cotización fija).
+              final cuando = AppDateUtils.formatDateTimeString(DateTime.parse(rate.receivedAt!).toLocal().toIso8601String());
+              cotizacion = '${isEn ? 'Last rate' : 'Última cotización'} ($cuando) ${rate.name}: ${Money.format(rate.sellCents)}';
+            } else {
+              cotizacion = rateError == null || rateError is NetworkException
+                  ? (isEn ? 'Exchange rate: offline · USD not converted' : 'Cotización: sin conexión · USD sin convertir')
+                  : '${isEn ? 'Exchange rate unavailable · USD not converted' : 'Cotización no disponible · USD sin convertir'}: '
+                      '${ErrorMessages.describe(rateError, isEn: isEn)}';
+            }
 
             return ListView(
               padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),

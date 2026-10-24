@@ -158,6 +158,13 @@ CREATE TABLE sync_state (
     'ALTER TABLE sync_state ADD COLUMN device_id TEXT',
     'UPDATE sync_state SET device_id = lower(hex(randomblob(16))) WHERE id = 1',
   ]),
+  Migration(4, 'Última cotización recibida', [
+    // Para mostrar saldos en ARS sin conexión con la última cotización real (y su fecha),
+    // en lugar de una cotización fija.
+    'ALTER TABLE sync_state ADD COLUMN rate_name TEXT',
+    "ALTER TABLE sync_state ADD COLUMN rate_sell_cents INTEGER CHECK (rate_sell_cents IS NULL OR (typeof(rate_sell_cents) = 'integer' AND rate_sell_cents > 0))",
+    'ALTER TABLE sync_state ADD COLUMN rate_received_at TEXT',
+  ]),
 ];
 
 /// Versión de esquema que espera esta compilación de la app.

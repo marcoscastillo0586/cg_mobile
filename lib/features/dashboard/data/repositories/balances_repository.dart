@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../../../core/database/local_database.dart';
+import '../../../../core/errors/exceptions.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../domain/entities/balances.dart';
@@ -15,8 +16,10 @@ final balancesRepositoryProvider = Provider<BalancesRepository>((ref) {
 /// cargado en el celular y pendiente de enviar), con la misma regla que GET /accounts/balances
 /// (accounts.service.ts): cuentas activas con saldo ≠ 0, corte opcional que incluye todo ese
 /// día, y USD convertido con el redondeo de ExchangeRateService.toArsCents.
-/// Solo la cotización viene del servidor; si no se puede obtener se usa la contingencia 1,00
-/// (como el servidor cuando dolarapi falla) y el motivo queda en [Balances.rateError].
+/// Solo la cotización viene del servidor. Cada cotización real recibida se guarda con su fecha
+/// (sync_state); si ahora no se puede obtener (sin red, o el servidor no tiene dolarapi) se usa
+/// esa última, indicando de cuándo es. Si nunca se recibió ninguna, los USD no se convierten:
+/// no hay cotización fija. El motivo queda en [Balances.rateError].
 class BalancesRepository {
   final Future<Database> _db;
   final DioClient _client;
@@ -43,11 +46,21 @@ class BalancesRepository {
     Object? rateError;
     if (needsRate) {
       try {
-        rate = BalancesDto.fromJson(await _client.get('/accounts/balances')).exchangeRate;
+        final fresh = BalancesDto.fromJson(await _client.get('/accounts/balances')).exchangeRate;
+        if (fresh.available) {
+          rate = fresh;
+          await db.update('sync_state',
+              {'rate_name': fresh.name, 'rate_sell_cents': fresh.sellCents, 'rate_received_at': DateTime.now().toUtc().toIso8601String()},
+              where: 'id = 1');
+        } else {
+          // El servidor respondió con su contingencia (dolarapi caído): no es una cotización real.
+          rateError = const ServerException('El servidor no tiene cotización disponible', null, 'RATE_UNAVAILABLE');
+          rate = await lastKnownRate(db);
+        }
       } catch (e) {
         debugPrint('[DASHBOARD] Sin cotización del servidor: $e');
         rateError = e;
-        rate = const ExchangeRate(name: 'sin conexión', sellCents: 100, available: false);
+        rate = await lastKnownRate(db);
       }
     }
 
@@ -57,8 +70,8 @@ class BalancesRepository {
         () {
           final currency = Currency.parse(r['currency']);
           final cents = r['balance']! as int;
-          final ars = currency == Currency.usd ? toArsCents(cents, rate.sellCents) : cents;
-          total += ars;
+          final int? ars = currency != Currency.usd ? cents : (rate.available ? toArsCents(cents, rate.sellCents) : null);
+          total += ars ?? 0;
           return BalanceAccount(
             id: r['local_id']! as int,
             name: r['name']! as String,
@@ -71,6 +84,14 @@ class BalancesRepository {
         }(),
     ];
     return Balances(until: cutoff == null ? null : until, exchangeRate: rate, totalArsCents: total, accounts: accounts, rateError: rateError);
+  }
+
+  /// Última cotización real guardada (con su fecha), o [ExchangeRate.none] si no hay.
+  static Future<ExchangeRate> lastKnownRate(DatabaseExecutor db) async {
+    final r = (await db.query('sync_state', columns: ['rate_name', 'rate_sell_cents', 'rate_received_at'])).single;
+    final cents = r['rate_sell_cents'] as int?;
+    if (cents == null) return ExchangeRate.none;
+    return ExchangeRate(name: r['rate_name'] as String? ?? '', sellCents: cents, available: true, receivedAt: r['rate_received_at'] as String?);
   }
 
   /// Igual que ExchangeRateService.toArsCents: producto entero y redondeo "mitad lejos de cero".

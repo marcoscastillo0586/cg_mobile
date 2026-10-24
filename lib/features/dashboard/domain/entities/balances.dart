@@ -3,17 +3,27 @@ import '../../../../core/money/money.dart';
 
 /// Cotización usada por el servidor para convertir USD a ARS.
 class ExchangeRate extends Equatable {
-  /// Nombre devuelto por dolarapi o "sin conexión" (contingencia 1.0).
+  /// Nombre devuelto por dolarapi.
   final String name;
 
   /// Centavos de ARS por 1 USD.
   final int sellCents;
+
+  /// true si es una cotización real (recién recibida o la última guardada).
   final bool available;
 
-  const ExchangeRate({required this.name, required this.sellCents, required this.available});
+  /// Cuándo se recibió (UTC, ISO) si es la última guardada y no la de ahora; null si es actual.
+  final String? receivedAt;
+
+  const ExchangeRate({required this.name, required this.sellCents, required this.available, this.receivedAt});
+
+  /// Sin ninguna cotización conocida: los USD no se convierten (no hay cotización fija).
+  static const none = ExchangeRate(name: 'sin conexión', sellCents: 0, available: false);
+
+  bool get isStale => receivedAt != null;
 
   @override
-  List<Object?> get props => [name, sellCents, available];
+  List<Object?> get props => [name, sellCents, available, receivedAt];
 }
 
 /// Cuenta con saldo: solo cuentas activas con saldo ≠ 0 (misma regla que GET /accounts/balances).
@@ -28,8 +38,8 @@ class BalanceAccount extends Equatable {
   /// Saldo en la moneda de la cuenta.
   final int balanceCents;
 
-  /// Saldo convertido a ARS por el servidor.
-  final int balanceArsCents;
+  /// Saldo convertido a ARS; null si es USD y no hay ninguna cotización conocida.
+  final int? balanceArsCents;
 
   const BalanceAccount({
     required this.id,
@@ -49,6 +59,8 @@ class Balances extends Equatable {
   /// Fecha de corte (`yyyy-MM-dd`) o null si es al día de hoy.
   final String? until;
   final ExchangeRate exchangeRate;
+
+  /// Consolidado en ARS (sin las cuentas USD si no hay cotización).
   final int totalArsCents;
   final List<BalanceAccount> accounts;
 

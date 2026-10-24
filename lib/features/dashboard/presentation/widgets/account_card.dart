@@ -92,7 +92,9 @@ class AccountCard extends StatelessWidget {
                       ),
                     if (isUsd && !ocultarMontos)
                       Text(
-                        Money.format(account.balanceArsCents),
+                        account.balanceArsCents == null
+                            ? (isEn ? 'no exchange rate' : 'sin cotización')
+                            : Money.format(account.balanceArsCents!),
                         style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
                       ),
                   ],

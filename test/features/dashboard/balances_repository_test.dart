@@ -12,8 +12,9 @@ import '../../helpers/local_seed.dart';
 
 class _Rate implements HttpClientAdapter {
   final bool online;
+  final bool available;
   int calls = 0;
-  _Rate({this.online = true});
+  _Rate({this.online = true, this.available = true});
 
   @override
   Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? s, Future<void>? c) async {
@@ -22,7 +23,9 @@ class _Rate implements HttpClientAdapter {
     return ResponseBody.fromString(
       jsonEncode({
         'until': null,
-        'exchangeRate': {'name': 'Dólar Blue', 'sellCents': 142550, 'available': true},
+        'exchangeRate': available
+            ? {'name': 'Dólar Blue', 'sellCents': 142550, 'available': true}
+            : {'name': 'sin conexión', 'sellCents': 100, 'available': false},
         'totalArsCents': 0,
         'accounts': <Object>[],
       }),
@@ -62,12 +65,30 @@ void main() {
     expect((await repo(_Rate()).getBalances(until: '2026-10-21')).accounts.first.balanceCents, 100001);
   });
 
-  test('sin red: contingencia 1,00 y el motivo queda informado (no se inventa una cotización)', () async {
+  test('sin red y sin cotización previa: USD sin convertir (no hay cotización fija) y el motivo queda informado', () async {
     final b = await repo(_Rate(online: false)).getBalances();
     expect(b.exchangeRate.available, isFalse);
-    expect(b.exchangeRate.sellCents, 100);
     expect(b.rateError, isA<NetworkException>());
-    expect(b.accounts.firstWhere((a) => a.name == 'Dolares').balanceArsCents, 10000);
+    final usd = b.accounts.firstWhere((a) => a.name == 'Dolares');
+    expect(usd.balanceArsCents, isNull);
+    expect(b.totalArsCents, 100000 + 5000); // solo ARS
+  });
+
+  test('se guarda la cotización recibida y sin red se usa esa, con su fecha', () async {
+    await repo(_Rate()).getBalances(); // online: guarda 1.425,50
+    final b = await repo(_Rate(online: false)).getBalances();
+    expect((b.exchangeRate.available, b.exchangeRate.sellCents, b.exchangeRate.name), (true, 142550, 'Dólar Blue'));
+    expect(b.exchangeRate.receivedAt, isNotNull);
+    expect(b.exchangeRate.isStale, isTrue);
+    expect(b.accounts.firstWhere((a) => a.name == 'Dolares').balanceArsCents, 14255000);
+    expect(b.rateError, isA<NetworkException>());
+  });
+
+  test('si el servidor responde su contingencia (dolarapi caído) no se guarda como cotización real', () async {
+    final b = await repo(_Rate(available: false)).getBalances();
+    expect(b.exchangeRate.available, isFalse);
+    expect((await s.db.query('sync_state')).single['rate_sell_cents'], isNull);
+    expect(b.accounts.firstWhere((a) => a.name == 'Dolares').balanceArsCents, isNull);
   });
 
   test('sin cuentas en USD no se consulta la cotización', () async {

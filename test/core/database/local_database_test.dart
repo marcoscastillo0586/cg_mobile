@@ -41,7 +41,7 @@ void main() {
   test('creación desde cero: versión, tablas, vista y fila única de sync_state', () async {
     final db = await _fresh();
     expect(await db.getVersion(), latestSchemaVersion);
-    expect(latestSchemaVersion, 3);
+    expect(latestSchemaVersion, 4);
     final names = (await db.rawQuery("SELECT name FROM sqlite_master WHERE type IN ('table','view')"))
         .map((r) => r['name'])
         .toSet();
@@ -50,7 +50,9 @@ void main() {
       'movement_headers', 'movement_details', 'outbox', 'sync_state', 'account_balances',
     ]));
     final state = Map.of((await db.query('sync_state')).single);
-    expect(state..remove('device_id'), {'id': 1, 'cursor': null, 'last_pull_at': null, 'last_push_at': null});
+    expect(state..remove('device_id'), {
+      'id': 1, 'cursor': null, 'last_pull_at': null, 'last_push_at': null, 'rate_name': null, 'rate_sell_cents': null, 'rate_received_at': null,
+    });
     expect((await db.query('sync_state')).single['device_id'], matches(RegExp(r'^[0-9a-f]{32}$')));
     expect((await db.rawQuery('PRAGMA foreign_keys')).first.values.first, 1);
     await db.close();
