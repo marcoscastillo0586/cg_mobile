@@ -26,9 +26,9 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
       final balances = await _repository.getBalances(until: hasta);
       if (!mounted) return;
       final ids = balances.accounts.map((c) => c.id).toSet();
-      // Se conserva la selección del usuario, limitada a las cuentas que siguen apareciendo.
-      final seleccion = state.cuentasSeleccionadasIds?.intersection(ids) ?? ids;
-      state = state.copyWith(status: DashboardStatus.loaded, balances: balances, cuentasSeleccionadasIds: seleccion);
+      // Se conservan las cuentas que el usuario desmarcó; las nuevas entran marcadas.
+      state = state.copyWith(
+          status: DashboardStatus.loaded, balances: balances, cuentasExcluidasIds: state.cuentasExcluidasIds.intersection(ids));
     } catch (e) {
       debugPrint('[DASHBOARD] No se pudieron cargar los saldos: $e');
       if (!mounted) return;
@@ -39,8 +39,8 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
   void toggleVisibilidadMontos() => state = state.copyWith(ocultarMontos: !state.ocultarMontos);
 
   void toggleCuentaSeleccionada(int id) {
-    final actuales = Set<int>.from(state.idsSeleccionados);
-    if (!actuales.remove(id)) actuales.add(id);
-    state = state.copyWith(cuentasSeleccionadasIds: actuales);
+    final excluidas = Set<int>.from(state.cuentasExcluidasIds);
+    if (!excluidas.remove(id)) excluidas.add(id);
+    state = state.copyWith(cuentasExcluidasIds: excluidas);
   }
 }

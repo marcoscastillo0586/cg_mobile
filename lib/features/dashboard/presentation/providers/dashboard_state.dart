@@ -12,8 +12,9 @@ class DashboardState extends Equatable {
   final String? fechaFiltro;
   final bool ocultarMontos;
 
-  /// null = todas seleccionadas (por defecto).
-  final Set<int>? cuentasSeleccionadasIds;
+  /// Cuentas que el usuario desmarcó. Las demás (incluidas las que aparecen después, p. ej. al
+  /// terminar la primera descarga) suman en el consolidado.
+  final Set<int> cuentasExcluidasIds;
 
   const DashboardState({
     required this.status,
@@ -21,7 +22,7 @@ class DashboardState extends Equatable {
     this.error,
     this.fechaFiltro,
     this.ocultarMontos = false,
-    this.cuentasSeleccionadasIds,
+    this.cuentasExcluidasIds = const {},
   });
 
   factory DashboardState.initial() => const DashboardState(status: DashboardStatus.initial);
@@ -34,7 +35,7 @@ class DashboardState extends Equatable {
     String? fechaFiltro,
     bool clearFecha = false,
     bool? ocultarMontos,
-    Set<int>? cuentasSeleccionadasIds,
+    Set<int>? cuentasExcluidasIds,
   }) {
     return DashboardState(
       status: status ?? this.status,
@@ -42,7 +43,7 @@ class DashboardState extends Equatable {
       error: clearError ? null : (error ?? this.error),
       fechaFiltro: clearFecha ? null : (fechaFiltro ?? this.fechaFiltro),
       ocultarMontos: ocultarMontos ?? this.ocultarMontos,
-      cuentasSeleccionadasIds: cuentasSeleccionadasIds ?? this.cuentasSeleccionadasIds,
+      cuentasExcluidasIds: cuentasExcluidasIds ?? this.cuentasExcluidasIds,
     );
   }
 
@@ -51,7 +52,7 @@ class DashboardState extends Equatable {
   Set<int> get idsSeleccionados {
     final b = balances;
     if (b == null) return {};
-    return cuentasSeleccionadasIds ?? b.accounts.map((c) => c.id).toSet();
+    return b.accounts.map((c) => c.id).where((id) => !cuentasExcluidasIds.contains(id)).toSet();
   }
 
   /// Consolidado en ARS de las cuentas seleccionadas (F1.11). Sin cotización conocida las
@@ -64,5 +65,5 @@ class DashboardState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [status, balances, error, fechaFiltro, ocultarMontos, cuentasSeleccionadasIds];
+  List<Object?> get props => [status, balances, error, fechaFiltro, ocultarMontos, cuentasExcluidasIds];
 }
