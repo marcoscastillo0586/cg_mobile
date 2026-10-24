@@ -3,9 +3,9 @@
 App Android (Flutter) para el control de gastos de CG (paquete `io.github.marcoscastillo0586.cg`, nombre visible `control_gastos`): cuentas, egresos, ingresos, transferencias, presupuestos, historial y lectura de tickets.
 
 > **Estado: adaptación en curso a la API nueva de CG (`/api/v1`).**
-> Etapas 1 a 9: sesión, base local (SQLite) con outbox y sincronización, altas, ediciones, ABM,
-> límites, cotización sin conexión y tickets (QR por el servidor; fotos con ML Kit en el celular).
-> Falta la etapa 10 (endurecer e i18n).
+> Etapas 1 a 10: sesión, base local (SQLite) con outbox y sincronización, altas, ediciones, ABM,
+> límites, cotización sin conexión, tickets (QR por el servidor; fotos con ML Kit en el celular),
+> endurecimiento de release e idiomas español/inglés.
 > El plan por etapas y el diagnóstico de partida están en [docs/auditoria_mobile.md](docs/auditoria_mobile.md).
 
 ## Requisitos
@@ -31,7 +31,14 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://192.168.0.50:3000/ap
 
 Sin `API_BASE_URL`, el login muestra "La app no tiene configurada la dirección del servidor".
 
-- **HTTP**: solo en debug y solo hacia `192.168.0.50` (`android/app/src/debug/res/xml/network_security_config.xml`). Release y profile exigen HTTPS.
+- **HTTP**: solo en debug y solo hacia `192.168.0.50`. Lo controla `TransportGuard` (`lib/core/network/transport_guard.dart`)
+  en todas las peticiones: el cliente HTTP de Dart **no** aplica `network_security_config` (verificado con un APK release).
+  Release y profile rechazan `http://` con `INSECURE_TRANSPORT`.
+- **Release**: R8 (minify y shrink, `android/app/proguard-rules.pro`) y sin logs (`debugPrint` vacío en release, `main.dart`).
+- **Permisos** del APK final: INTERNET, CAMERA (QR) y ACCESS_NETWORK_STATE (lo agrega `com.google.android.datatransport`, de ML Kit).
+  La galería usa el selector del sistema y no pide permisos de medios.
+- **Idiomas**: español (plantilla) e inglés en `lib/l10n/app_*.arb` (`flutter gen-l10n`; se usa `context.l10n`). Las validaciones
+  hechas en el celular usan `ValidationFailure.t((l) => l.clave)`; los errores de la API se traducen por código en `ErrorMessages`.
 - La firma de release lee `android/key.properties` (no versionado). Si no existe, release se firma con la clave debug: no distribuir ese APK.
 
 ### Servidor de pruebas (PC)
@@ -151,7 +158,7 @@ CG_LIVE_API=http://192.168.0.50:3000/api/v1 CG_LIVE_TTL=20 CG_LIVE_EMAIL=... CG_
 - Un solo sincronizador (`SyncController`): primero envía y después descarga; si quedó algo pendiente por error
   temporal no descarga. Informa "completa" solo si todo se aplicó y coincide con el servidor.
 - Descarga (`lib/core/sync/pull_service.dart`): `GET /sync/pull` de a 500 mientras `hasMore`, cada página en
-  su transacción, upsert por `server_id`, aplica `deleted[]` y, en la descarga completa, borra lo que el servidor
+  su transacción con lecturas en bloque y `batch` (4954 comprobantes: 10,6 s en el celular; antes 115 s), upsert por `server_id`, aplica `deleted[]` y, en la descarga completa, borra lo que el servidor
   ya no tiene. Al final compara saldo y cantidad de renglones por cuenta con el servidor: el cursor se guarda
   y la sincronización se marca "completa" solo si todo coincide; si no, se descarta el cursor y se muestran las diferencias.
 - Prueba en el dispositivo (SQLite de Android): `flutter test integration_test/local_database_device_test.dart -d <id>`.
@@ -185,11 +192,12 @@ Estado: Riverpod 2 (`StateNotifier`). Navegación: go_router.
 
 - No se versionan secretos, bases de datos ni keystores. El hook `tools/git-hooks/pre-commit` lo bloquea y muestra solo archivo y línea, nunca el valor.
 - Tokens en `flutter_secure_storage`.
-- Pendiente por etapas (ver auditoría): HTTP solo en debug y solo hacia la LAN, borrado de la base local al cerrar sesión, logs sin datos en release.
+- Cerrar sesión borra la base local y además descarta todo el estado en memoria (`SessionScope`): otro usuario en el mismo
+  celular, sin cerrar la app, no ve datos del anterior.
 
 ## Tests
 
-`flutter test` → 159 pasan y 2 salteados (en vivo, necesitan servidor).
+`flutter test` → 168 pasan y 2 salteados (en vivo, necesitan servidor).
 
 Los tests con datos simulados no prueban red ni persistencia real. Los siguientes **no aportan verificación útil** y se reemplazarán al rehacer cada función:
 
