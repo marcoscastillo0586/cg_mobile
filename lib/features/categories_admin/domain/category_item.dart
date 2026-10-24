@@ -18,9 +18,10 @@ enum CategoryRole {
   }
 }
 
-/// Categoría (CategoryDto).
+/// Categoría de la base local. `id` es el id LOCAL; `serverId` es null hasta sincronizar.
 class CategoryItem extends Equatable {
   final int id;
+  final int? serverId;
   final String name;
   final bool active;
 
@@ -32,6 +33,7 @@ class CategoryItem extends Equatable {
 
   const CategoryItem({
     required this.id,
+    this.serverId,
     required this.name,
     required this.active,
     required this.role,
@@ -42,5 +44,5 @@ class CategoryItem extends Equatable {
   bool get isReserved => role != null;
 
   @override
-  List<Object?> get props => [id, name, active, role, movementsCount, version];
+  List<Object?> get props => [id, serverId, name, active, role, movementsCount, version];
 }

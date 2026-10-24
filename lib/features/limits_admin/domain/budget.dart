@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 class BudgetRef extends Equatable {
+  /// Id LOCAL de la categoría o cuenta.
   final int id;
   final String name;
   const BudgetRef(this.id, this.name);
@@ -9,10 +10,13 @@ class BudgetRef extends Equatable {
   List<Object?> get props => [id, name];
 }
 
-/// Presupuesto (BudgetDto). Consumo, resto, porcentaje y vencimiento los calcula el
-/// servidor con la regla de F6.2/F6.3; la app no los recalcula.
+/// Presupuesto (límite de gasto) calculado desde la base local con la regla del servidor
+/// (budgets.service.ts): consumo = Σ(−monto) de egresos en el período ("hasta" incluido
+/// completo) y en las cuentas/categorías del límite; porcentaje truncado a 2 decimales;
+/// vencido si hoy (Buenos Aires) >= "hasta". `id` es el id LOCAL.
 class Budget extends Equatable {
   final int id;
+  final int? serverId;
 
   /// `yyyy-MM-dd`.
   final String startDate;
@@ -20,11 +24,8 @@ class Budget extends Equatable {
   final int limitCents;
   final int consumedCents;
 
-  /// límite − consumo (negativo = excedente).
-  final int remainingCents;
-
-  /// consumo × 100 / límite truncado a 2 decimales; null si el límite es 0.
-  final num? percent;
+  /// consumo × 10000 / límite, truncado (centésimos de porcentaje); null si el límite es 0.
+  final int? percentHundredths;
 
   /// hoy >= fecha hasta: habilita "Renovar".
   final bool dueForRenewal;
@@ -34,17 +35,23 @@ class Budget extends Equatable {
 
   const Budget({
     required this.id,
+    this.serverId,
     required this.startDate,
     required this.endDate,
     required this.limitCents,
     required this.consumedCents,
-    required this.remainingCents,
-    required this.percent,
+    required this.percentHundredths,
     required this.dueForRenewal,
     required this.categories,
     required this.accounts,
     this.version,
   });
+
+  /// límite − consumo (negativo = excedente).
+  int get remainingCents => limitCents - consumedCents;
+
+  /// Para mostrar (Money.percent): 7550 → 75.5.
+  num? get percent => percentHundredths == null ? null : percentHundredths! / 100;
 
   bool get exceeded => remainingCents < 0;
 
@@ -53,5 +60,5 @@ class Budget extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, startDate, endDate, limitCents, consumedCents, remainingCents, percent, dueForRenewal, categories, accounts, version];
+      [id, serverId, startDate, endDate, limitCents, consumedCents, percentHundredths, dueForRenewal, categories, accounts, version];
 }

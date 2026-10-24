@@ -1,9 +1,11 @@
 import 'package:equatable/equatable.dart';
 import '../../../core/money/money.dart';
 
-/// Cuenta (AccountDto): activas e inactivas, con saldo y cantidad de movimientos.
+/// Cuenta de la base local: activas e inactivas, con saldo y cantidad de renglones.
+/// `id` es el id LOCAL; `serverId` es null hasta que el alta se sincroniza.
 class AccountItem extends Equatable {
   final int id;
+  final int? serverId;
   final String name;
   final Currency currency;
   final bool active;
@@ -12,11 +14,9 @@ class AccountItem extends Equatable {
   final int balanceCents;
   final int movementsCount;
 
-  /// Versión del servidor (solo la trae /sync/pull; null en las respuestas REST).
-  final int? version;
-
   const AccountItem({
     required this.id,
+    this.serverId,
     required this.name,
     required this.currency,
     required this.active,
@@ -24,9 +24,8 @@ class AccountItem extends Equatable {
     required this.iconRef,
     required this.balanceCents,
     required this.movementsCount,
-    this.version,
   });
 
   @override
-  List<Object?> get props => [id, name, currency, active, imageUrl, iconRef, balanceCents, movementsCount, version];
+  List<Object?> get props => [id, serverId, name, currency, active, imageUrl, iconRef, balanceCents, movementsCount];
 }
