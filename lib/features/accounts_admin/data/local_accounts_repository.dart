@@ -43,7 +43,7 @@ class LocalAccountsRepository {
   Future<String> create({required String name, required Currency currency, String? iconRef}) => _db.transaction((txn) async {
         final n = _name(name);
         await _assertFreeName(txn, n);
-        if (iconRef != null && !AccountIcons.byKey.containsKey(iconRef)) throw LocalOps.invalid('Ícono desconocido');
+        if (iconRef != null && !AccountIcons.byKey.containsKey(iconRef)) throw LocalOps.invalid((l) => l.unknownIcon);
         final clientId = LocalDatabase.newId();
         await txn.insert('accounts', {
           'client_id': clientId, 'name': n, 'currency': currency.code, 'active': 1, 'icon_ref': iconRef, 'updated_at': LocalOps.stamp(),
@@ -57,7 +57,7 @@ class LocalAccountsRepository {
 
   /// Nombre y/o moneda. La moneda no cambia si la cuenta tiene movimientos (CURRENCY_LOCKED).
   Future<String> update(int localId, {String? name, Currency? currency}) => _db.transaction((txn) async {
-        final row = await LocalOps.require(txn, 'accounts', localId, 'La cuenta');
+        final row = await LocalOps.require(txn, 'accounts', localId, (l) => l.account);
         final data = <String, Object?>{};
         final changes = <String, Object?>{};
         if (name != null) {
@@ -70,27 +70,27 @@ class LocalAccountsRepository {
         }
         if (currency != null && currency.code != row['currency']) {
           if (await _movements(txn, localId) > 0) {
-            throw const ValidationFailure('No se puede cambiar la moneda de una cuenta con movimientos', null, 'CURRENCY_LOCKED');
+            throw ValidationFailure.t((l) => l.currencyAccountMovementsCannotChange, 'CURRENCY_LOCKED');
           }
           changes['currency'] = currency.code;
           data['currency'] = currency.code;
         }
-        if (data.isEmpty) throw LocalOps.invalid('No hay cambios para guardar');
+        if (data.isEmpty) throw LocalOps.invalid((l) => l.noChangesSave);
         return _enqueueUpdate(txn, row, changes, data);
       });
 
   /// Activar o desactivar. Solo se envía `active` (no el nombre): así el servidor no lo toca.
   /// Desactivar exige saldo ≤ 0 (ACCOUNT_HAS_FUNDS).
   Future<String> setActive(int localId, bool active) => _db.transaction((txn) async {
-        final row = await LocalOps.require(txn, 'accounts', localId, 'La cuenta');
-        if ((row['active'] == 1) == active) throw LocalOps.invalid(active ? 'La cuenta ya está activa' : 'La cuenta ya está inactiva');
+        final row = await LocalOps.require(txn, 'accounts', localId, (l) => l.account);
+        if ((row['active'] == 1) == active) throw LocalOps.invalid((l) => active ? l.accountAlreadyActive : l.accountAlreadyInactive);
         if (!active) await _assertNoMoney(txn, localId);
         return _enqueueUpdate(txn, row, {'active': active ? 1 : 0}, {'active': active});
       });
 
   /// Baja: física si no tiene movimientos; si tiene, el servidor la desactiva (con la regla de saldo).
   Future<String?> delete(int localId) => _db.transaction((txn) async {
-        final row = await LocalOps.require(txn, 'accounts', localId, 'La cuenta');
+        final row = await LocalOps.require(txn, 'accounts', localId, (l) => l.account);
         if (await _movements(txn, localId) > 0) {
           await _assertNoMoney(txn, localId);
           await txn.update('accounts', {'active': 0, 'updated_at': LocalOps.stamp()}, where: 'local_id = ?', whereArgs: [localId]);
@@ -121,8 +121,8 @@ class LocalAccountsRepository {
 
   static String _name(String name) {
     final n = name.trim();
-    if (n.length < accountNameMin) throw LocalOps.invalid('El nombre debe tener al menos $accountNameMin caracteres');
-    if (n.length > accountNameMax) throw LocalOps.invalid('El nombre no puede superar $accountNameMax caracteres');
+    if (n.length < accountNameMin) throw LocalOps.invalid((l) => l.nameMustHaveLeastAccountnamemin(accountNameMin));
+    if (n.length > accountNameMax) throw LocalOps.invalid((l) => l.nameCannotExceedAccountnamemaxCharacters(accountNameMax));
     return n;
   }
 
@@ -130,11 +130,7 @@ class LocalAccountsRepository {
     final same = await LocalOps.sameName(txn, 'accounts', name, exceptLocalId: exceptLocalId);
     if (same == null) return;
     // En el servidor, dar de alta un nombre inactivo la reactiva; acá se pide activarla, que es lo mismo y explícito.
-    throw ValidationFailure(
-      same.$2 ? 'Ya existe una cuenta con ese nombre' : 'Ya existe una cuenta inactiva con ese nombre: activala',
-      null,
-      'DUPLICATE_NAME',
-    );
+    throw ValidationFailure.t((l) => same.$2 ? l.accountNameTaken : l.accountNameTakenInactive, 'DUPLICATE_NAME');
   }
 
   static Future<int> _movements(DatabaseExecutor db, int localId) async => (await db.rawQuery('''
@@ -144,7 +140,7 @@ class LocalAccountsRepository {
   static Future<void> _assertNoMoney(DatabaseExecutor db, int localId) async {
     final balance = (await db.rawQuery('SELECT balance_cents FROM account_balances WHERE account_local_id = ?', [localId])).first['balance_cents']! as int;
     if (balance > 0) {
-      throw const ValidationFailure('Esta cuenta tiene dinero, deje la cuenta vacía y vuelva a intentarlo.', null, 'ACCOUNT_HAS_FUNDS');
+      throw ValidationFailure.t((l) => l.errAccountHasFunds, 'ACCOUNT_HAS_FUNDS');
     }
   }
 }

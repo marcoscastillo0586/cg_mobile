@@ -8,7 +8,6 @@ import '../../../../core/sync/outbox_repository.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/account_picker.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/income_form_notifier.dart';
 import '../providers/income_form_state.dart';
 import '../../../movements/data/local_movement_writer.dart' show conceptMax;
@@ -55,7 +54,7 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
       initialDate: estado.fecha,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 30)),
-      helpText: 'Fecha del ingreso',
+      helpText: context.l10n.incomeDate,
     );
 
     if (seleccionada != null) {
@@ -83,7 +82,6 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(incomeFormNotifierProvider);
-    final settings = ref.watch(settingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final formatoFecha = DateFormat('dd/MM/yyyy').format(state.fecha);
 
@@ -93,7 +91,7 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
     final tituloModulo = widget.correction != null
         ? (context.l10n.correctIncome)
         : (context.l10n.newIncome);
-    final labelCuenta = settings.language == 'en' ? 'Destination account.' : 'Cuenta de destino.';
+    final labelCuenta = context.l10n.destinationAccount;
 
     return Scaffold(
       appBar: AppBar(
@@ -118,9 +116,9 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
             const SizedBox(height: 20),
 
             // 2. Monto
-            const Text(
-              'Monto a Ingresar',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            Text(
+              context.l10n.amountAdd,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 6),
             TextField(
@@ -138,26 +136,26 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
             const SizedBox(height: 18),
 
             // 3. Concepto
-            const Text(
-              'Concepto / Motivo',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            Text(
+              context.l10n.conceptReason,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 6),
             TextField(
               controller: _conceptoController,
               maxLength: conceptMax,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 counterText: '',
-                hintText: 'Ej: Sueldo, Cobro freelance, Venta... (vacío: "$conceptoIngresoPorDefecto")',
-                prefixIcon: Icon(Icons.arrow_downward_rounded, size: 20, color: AppColors.emerald),
+                hintText: context.l10n.eGSalaryFreelancePayment(conceptoIngresoPorDefecto),
+                prefixIcon: const Icon(Icons.arrow_downward_rounded, size: 20, color: AppColors.emerald),
               ),
             ),
             const SizedBox(height: 18),
 
             // 4. Selector de Fecha
-            const Text(
-              'Fecha',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            Text(
+              context.l10n.date,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 6),
             InkWell(
@@ -205,7 +203,7 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : const Text('Registrar Ingreso'),
+                  : Text(context.l10n.recordIncome2),
             ),
             const SizedBox(height: 24),
           ],

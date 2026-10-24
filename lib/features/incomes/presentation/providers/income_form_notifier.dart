@@ -57,7 +57,7 @@ class IncomeFormNotifier extends StateNotifier<IncomeFormState> {
   Future<bool> guardarIngreso() async {
     final cuenta = state.selectedCuentaId;
     if (cuenta == null) {
-      state = state.copyWith(error: const ValidationFailure('Selecciona una cuenta de destino', null, 'VALIDATION_ERROR'));
+      state = state.copyWith(error: ValidationFailure.t((l) => l.selectDestinationAccount, 'VALIDATION_ERROR'));
       return false;
     }
     final concepto = state.concepto.trim().isEmpty ? conceptoIngresoPorDefecto : state.concepto;

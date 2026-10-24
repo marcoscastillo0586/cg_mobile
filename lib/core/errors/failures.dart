@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import '../../l10n/l10n.dart';
 
 abstract class Failure extends Equatable {
@@ -32,8 +33,12 @@ class AuthFailure extends Failure {
 class ValidationFailure extends Failure {
   const ValidationFailure(super.message, [super.statusCode, super.code]);
 
-  /// Validación local con texto traducido: `ValidationFailure.t((l) => l.selectAccount, 'Seleccioná una cuenta')`.
-  const ValidationFailure.t(String Function(AppLocalizations l) text, String message) : super(message, null, 'VALIDATION_ERROR', text);
+  /// Validación hecha en el celular con texto traducido: `ValidationFailure.t((l) => l.selectAnAccount)`.
+  /// [message] queda en español (logs y tests).
+  ValidationFailure.t(String Function(AppLocalizations l) text, [String code = 'VALIDATION_ERROR'])
+      : super(text(_es), null, code, text);
+
+  static final _es = lookupAppLocalizations(const Locale('es'));
 }
 
 class CacheFailure extends Failure {

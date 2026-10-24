@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../l10n/l10n.dart';
 
 class QuickActionsBar extends StatelessWidget {
   final VoidCallback onNuevoGasto;
@@ -67,28 +68,28 @@ class QuickActionsBar extends StatelessWidget {
         _buildActionButton(
           context: context,
           icon: Icons.arrow_upward_rounded,
-          label: 'Egreso',
+          label: context.l10n.expense,
           color: AppColors.rose,
           onTap: onNuevoGasto,
         ),
         _buildActionButton(
           context: context,
           icon: Icons.arrow_downward_rounded,
-          label: 'Ingreso',
+          label: context.l10n.income,
           color: AppColors.emerald,
           onTap: onNuevoIngreso,
         ),
         _buildActionButton(
           context: context,
           icon: Icons.swap_horiz_rounded,
-          label: 'Transferir',
+          label: context.l10n.transfer2,
           color: AppColors.primary,
           onTap: onNuevaTransferencia,
         ),
         _buildActionButton(
           context: context,
           icon: Icons.receipt_long_rounded,
-          label: 'Historial',
+          label: context.l10n.history,
           color: AppColors.amber,
           onTap: onVerHistorial,
         ),

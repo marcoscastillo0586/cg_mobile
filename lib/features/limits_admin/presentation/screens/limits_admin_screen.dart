@@ -186,7 +186,7 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
     if (montoTexto == null || !context.mounted) return;
     final cents = Money.parseInput(montoTexto);
     final error = cents == null
-        ? LocalOps.invalid(context.l10n.invalidAmountMax2Decimals)
+        ? LocalOps.invalid((l) => l.invalidAmountMax2Decimals)
         : await ref
             .read(limitsAdminNotifierProvider.notifier)
             .run((r) => r.update(b.id, startDate: desde, endDate: hasta, limitCents: cents));
@@ -272,7 +272,7 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
     if (montoTexto == null || !context.mounted) return;
     final cents = Money.parseInput(montoTexto);
     final error = cents == null
-        ? LocalOps.invalid(context.l10n.invalidAmountMax2Decimals)
+        ? LocalOps.invalid((l) => l.invalidAmountMax2Decimals)
         : await ref.read(limitsAdminNotifierProvider.notifier).run(
             (r) => r.create(startDate: desde, endDate: hasta, limitCents: cents, categoryIds: cats.toList(), accountIds: accs.toList()));
     if (context.mounted) await reportLocalAction(context, ref, error, ok: context.l10n.budgetCreated);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/date_utils.dart';
+import '../../../../l10n/l10n.dart';
 
 class BalanceCard extends StatelessWidget {
   final int totalArsCents;
@@ -63,14 +64,14 @@ class BalanceCard extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.shield_outlined, color: Colors.white, size: 14),
-                    SizedBox(width: 6),
+                    const Icon(Icons.shield_outlined, color: Colors.white, size: 14),
+                    const SizedBox(width: 6),
                     Text(
-                      'Saldos Consolidados',
-                      style: TextStyle(
+                      context.l10n.consolidatedBalances,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -87,7 +88,7 @@ class BalanceCard extends StatelessWidget {
                       color: Colors.white70,
                       size: 20,
                     ),
-                    tooltip: 'Ocultar saldos',
+                    tooltip: context.l10n.hideBalances,
                     onPressed: onToggleOcultar,
                   ),
                   IconButton(
@@ -96,7 +97,7 @@ class BalanceCard extends StatelessWidget {
                       color: fechaFiltro != null ? AppColors.amber : Colors.white70,
                       size: 20,
                     ),
-                    tooltip: 'Filtrar por fecha',
+                    tooltip: context.l10n.filterDate,
                     onPressed: onSelectFecha,
                   ),
                 ],
@@ -144,7 +145,7 @@ class BalanceCard extends StatelessWidget {
                   const Icon(Icons.event, color: AppColors.amber, size: 14),
                   const SizedBox(width: 6),
                   Text(
-                    'Hasta: $fechaFormatted',
+                    context.l10n.untilFechaformatted(fechaFormatted),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,

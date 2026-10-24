@@ -57,7 +57,7 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
       if (mounted) {
         AppFeedback.showError(
           context,
-          'El escáner no está disponible en este dispositivo. Selecciona fotos de la galería.',
+          context.l10n.scannerNotAvailableDeviceSelect,
         );
         await _seleccionarDeGaleria();
       }
@@ -82,7 +82,7 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
       if (mounted) {
         AppFeedback.showError(
           context,
-          'No se pudo acceder a la galería. Verifica los permisos.',
+          context.l10n.couldNotAccessGalleryCheck,
         );
       }
     }

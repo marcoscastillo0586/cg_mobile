@@ -54,7 +54,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
       initialDateRange: DateTimeRange(start: state.desde, end: state.hasta),
       firstDate: DateTime(2020),
       lastDate: DateTime(2035),
-      helpText: 'Selecciona rango para el reporte',
+      helpText: context.l10n.selectRangeReport,
     );
     if (picked != null) {
       AppFeedback.selection();
@@ -90,12 +90,12 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reportes y Analíticas'),
+        title: Text(context.l10n.reportsAnalytics),
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Actualizar reporte',
+            tooltip: context.l10n.refreshReport,
             onPressed: () {
               AppFeedback.selection();
               if (state.activeTab == 0) {
@@ -117,11 +117,11 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
           labelColor: AppColors.primary,
           unselectedLabelColor: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: const [
-            Tab(text: 'Categorías', icon: Icon(Icons.pie_chart_rounded, size: 18)),
-            Tab(text: 'Comparativa', icon: Icon(Icons.bar_chart_rounded, size: 18)),
-            Tab(text: 'Día a Día', icon: Icon(Icons.show_chart_rounded, size: 18)),
-            Tab(text: 'Precios', icon: Icon(Icons.sell_outlined, size: 18)),
+          tabs: [
+            Tab(text: context.l10n.categories2, icon: const Icon(Icons.pie_chart_rounded, size: 18)),
+            Tab(text: context.l10n.comparison, icon: const Icon(Icons.bar_chart_rounded, size: 18)),
+            Tab(text: context.l10n.dayDay, icon: const Icon(Icons.show_chart_rounded, size: 18)),
+            Tab(text: context.l10n.prices, icon: const Icon(Icons.sell_outlined, size: 18)),
           ],
         ),
       ),
@@ -161,18 +161,18 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildPeriodChoiceChip('mes_actual', 'Este Mes', state),
+                _buildPeriodChoiceChip('mes_actual', context.l10n.month, state),
                 const SizedBox(width: 8),
-                _buildPeriodChoiceChip('mes_anterior', 'Mes Anterior', state),
+                _buildPeriodChoiceChip('mes_anterior', context.l10n.previousMonth, state),
                 const SizedBox(width: 8),
-                _buildPeriodChoiceChip('anio_actual', 'Año Actual', state),
+                _buildPeriodChoiceChip('anio_actual', context.l10n.currentYear, state),
                 const SizedBox(width: 8),
                 ActionChip(
                   avatar: const Icon(Icons.date_range_rounded, size: 14),
                   label: Text(
                     state.selectedPeriodo == 'personalizado'
                         ? '${dateFormat.format(state.desde)} - ${dateFormat.format(state.hasta)}'
-                        : 'Personalizado',
+                        : context.l10n.custom,
                   ),
                   onPressed: _seleccionarRangoPersonalizado,
                 ),
@@ -199,7 +199,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
             // Top Conceptos / Subcategorías más frecuentes
             if (report.subcategorias.isNotEmpty) ...[
               Text(
-                'Detalle de Conceptos Frecuentes',
+                context.l10n.frequentConceptsDetail,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
@@ -291,7 +291,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Ejercicio Anual',
+                  context.l10n.annualOverview,
                   style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 Container(
@@ -336,7 +336,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
               children: [
                 Expanded(
                   child: _buildKpiCard(
-                    title: 'Ingresos Anuales',
+                    title: context.l10n.annualIncome,
                     value: Money.format(report.totalesAnuales.totalIngresosCents),
                     icon: Icons.arrow_downward_rounded,
                     color: AppColors.emerald,
@@ -346,7 +346,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 const SizedBox(width: 10),
                 Expanded(
                   child: _buildKpiCard(
-                    title: 'Egresos Anuales',
+                    title: context.l10n.annualExpenses,
                     value: Money.format(report.totalesAnuales.totalEgresosCents),
                     icon: Icons.arrow_upward_rounded,
                     color: AppColors.rose,
@@ -360,7 +360,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
               children: [
                 Expanded(
                   child: _buildKpiCard(
-                    title: 'Balance Neto',
+                    title: context.l10n.netBalance,
                     value: Money.format(report.totalesAnuales.balanceNetoCents),
                     icon: Icons.savings_outlined,
                     color: report.totalesAnuales.balanceNetoCents >= 0 ? AppColors.emerald : AppColors.rose,
@@ -370,7 +370,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 const SizedBox(width: 10),
                 Expanded(
                   child: _buildKpiCard(
-                    title: 'Tasa de Ahorro',
+                    title: context.l10n.savingsRate,
                     value: Money.percent(report.totalesAnuales.tasaAhorroPorcentaje),
                     icon: Icons.percent_rounded,
                     color: AppColors.primary,
@@ -391,7 +391,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Ingresos vs Egresos Mes a Mes',
+                      context.l10n.incomeVsExpensesMonth,
                       style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 16),
@@ -404,7 +404,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
 
             // Tabla Resumen Mensual
             Text(
-              'Desglose Mensual Detallado',
+              context.l10n.detailedMonthlyBreakdown,
               style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
@@ -421,18 +421,18 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                   return ListTile(
                     dense: true,
                     title: Text(
-                      m.nombreMesTexto,
+                      context.monthName(m.mes),
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                     ),
                     subtitle: Row(
                       children: [
                         Text(
-                          'Ing: ${Money.format(m.ingresosCents)}',
+                          context.l10n.incIngresoscents(Money.format(m.ingresosCents)),
                           style: const TextStyle(fontSize: 11, color: AppColors.emerald),
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Egr: ${Money.format(m.egresosCents)}',
+                          context.l10n.expEgresoscents(Money.format(m.egresosCents)),
                           style: const TextStyle(fontSize: 11, color: AppColors.rose),
                         ),
                       ],
@@ -450,7 +450,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                           ),
                         ),
                         Text(
-                          m.esSuperavit ? 'Superávit' : 'Déficit',
+                          m.esSuperavit ? context.l10n.surplus : context.l10n.deficit,
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
@@ -542,7 +542,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Curva de Gasto Diario',
+                context.l10n.dailySpendingCurve,
                 style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
               DropdownButtonHideUnderline(
@@ -551,7 +551,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                   isDense: true,
                   items: List.generate(12, (i) {
                     final mesNum = i + 1;
-                    final nombre = DateFormat('MMMM', 'es_AR').format(DateTime(2026, mesNum));
+                    final nombre = context.monthName(mesNum);
                     return DropdownMenuItem<int>(
                       value: mesNum,
                       child: Text(
@@ -581,7 +581,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
               children: [
                 Expanded(
                   child: _buildKpiCard(
-                    title: 'Total del Mes',
+                    title: context.l10n.monthTotal,
                     value: Money.format(report.totalEgresosMesCents),
                     icon: Icons.payments_outlined,
                     color: AppColors.primary,
@@ -591,7 +591,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 const SizedBox(width: 10),
                 Expanded(
                   child: _buildKpiCard(
-                    title: 'Pico Más Alto',
+                    title: context.l10n.highestPeak,
                     value: Money.format(report.maximoGastoDiarioCents),
                     icon: Icons.trending_up_rounded,
                     color: AppColors.rose,
@@ -611,9 +611,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Trayectoria Diaria de Egresos',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    Text(
+                      context.l10n.dailyExpenseTrend,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     const SizedBox(height: 16),
                     DailyLineChart(report: report),

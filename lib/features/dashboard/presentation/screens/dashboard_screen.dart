@@ -61,7 +61,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         if (mounted) ref.read(syncControllerProvider.notifier).sync();
       }, onError: (Object e) {
         debugPrint('[DB] No se pudo abrir la base local: $e');
-        if (mounted) AppFeedback.showError(context, 'No se pudo abrir la base local: $e');
+        if (mounted) AppFeedback.showError(context, context.l10n.couldNotOpenLocalDatabase(e));
       });
     });
   }
@@ -78,9 +78,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       initialDate: fechaInicial,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      helpText: 'Filtrar saldos hasta fecha',
-      confirmText: 'Aplicar',
-      cancelText: 'Limpiar',
+      helpText: context.l10n.filterBalancesUpDate,
+      confirmText: context.l10n.apply,
+      cancelText: context.l10n.clear,
     );
 
     if (seleccionada != null) {
@@ -123,15 +123,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Gastos',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        title: Text(
+          context.l10n.expenses2,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         actions: [
           const NotificationBellWidget(),
           IconButton(
             icon: const Icon(Icons.analytics_outlined),
-            tooltip: 'Reportes y Analíticas',
+            tooltip: context.l10n.reportsAnalytics,
             onPressed: () {
               AppFeedback.light();
               context.push(AppRoutes.analytics);
@@ -139,7 +139,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Actualizar saldos',
+            tooltip: context.l10n.refreshBalances,
             onPressed: () {
               AppFeedback.light();
               ref.read(dashboardNotifierProvider.notifier).cargarDashboard();
@@ -148,7 +148,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Ajustes y Configuración',
+            tooltip: context.l10n.settings,
             onPressed: () {
               AppFeedback.light();
               context.push(AppRoutes.settings);
@@ -193,7 +193,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ref.read(dashboardNotifierProvider.notifier).cargarDashboard();
                           ref.read(novedadesNotifierProvider.notifier).calcularNovedades();
                         },
-                        child: const Text('Reintentar'),
+                        child: Text(context.l10n.retry),
                       ),
                     ],
                   ),
@@ -285,7 +285,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ),
                           child: Center(
                             child: Text(
-                              'Mis Cuentas (${balances.accounts.length})',
+                              context.l10n.myAccountsAccounts(balances.accounts.length),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
@@ -314,7 +314,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    'Límites y Presupuestos',
+                                    context.l10n.limitsBudgets,
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,

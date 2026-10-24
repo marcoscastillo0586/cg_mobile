@@ -27,7 +27,6 @@ class ExpenseFormState extends Equatable {
 
   /// Último error (se traduce en la pantalla con ErrorMessages).
   final Object? error;
-  final String? qrFeedback;
 
   const ExpenseFormState({
     required this.status,
@@ -40,7 +39,6 @@ class ExpenseFormState extends Equatable {
     this.renglones = const [],
     this.ticketParseResult,
     this.error,
-    this.qrFeedback,
   });
 
   factory ExpenseFormState.initial() => ExpenseFormState(
@@ -62,7 +60,6 @@ class ExpenseFormState extends Equatable {
     bool clearTicket = false,
     Object? error,
     bool clearError = false,
-    String? qrFeedback,
   }) {
     return ExpenseFormState(
       status: status ?? this.status,
@@ -75,7 +72,6 @@ class ExpenseFormState extends Equatable {
       renglones: renglones ?? this.renglones,
       ticketParseResult: clearTicket ? null : (ticketParseResult ?? this.ticketParseResult),
       error: clearError ? null : (error ?? this.error),
-      qrFeedback: clearTicket ? null : (qrFeedback ?? this.qrFeedback),
     );
   }
 
@@ -126,6 +122,5 @@ class ExpenseFormState extends Equatable {
         renglones,
         ticketParseResult,
         error,
-        qrFeedback,
       ];
 }

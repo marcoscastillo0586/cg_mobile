@@ -5,6 +5,7 @@ import '../../../core/database/local_database.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/money/money.dart';
 import '../../../core/sync/outbox.dart';
+import '../../../l10n/l10n.dart';
 
 /// Largo máximo de un concepto (CONCEPT_MAX de @cg/shared).
 const conceptMax = 150;
@@ -68,20 +69,20 @@ class LocalMovementWriter {
   /// [replacingSeq]: corrige un alta rechazada (la reemplaza en la misma transacción).
   Future<SavedMovement> createExpense(ExpenseDraft d, {int? replacingSeq}) => _db.transaction((txn) async {
         final catalog = LocalCatalog(txn);
-        final general = _concept(d.generalConcept, 'El concepto general');
-        if (d.lines.isEmpty) throw _invalid('Debe ingresar al menos un gasto');
-        if (d.lines.length > 300) throw _invalid('Máximo 300 renglones por egreso');
-        final account = await _usableAccount(catalog, d.accountLocalId, 'Debe seleccionar un lugar para realizar el débito');
+        final general = _concept(d.generalConcept, (l) => l.generalConcept3);
+        if (d.lines.isEmpty) throw _invalid((l) => l.enterLeastOneExpense);
+        if (d.lines.length > 300) throw _invalid((l) => l.most300LinesPerExpense);
+        final account = await _usableAccount(catalog, d.accountLocalId, (l) => l.selectAccountDebit);
         final items = <(ExpenseLine, LocalCategory, String)>[];
         for (final (i, line) in d.lines.indexed) {
-          final concept = _concept(line.concept, 'El concepto del renglón ${i + 1}');
-          _positive(line.amountCents, 'renglón ${i + 1}');
+          final concept = _concept(line.concept, (l) => l.conceptLineI(i + 1));
+          _positive(line.amountCents, (l) => l.lineN(i + 1));
           final cat = await catalog.category(line.categoryLocalId);
-          if (cat == null) throw _invalid('Seleccione una categoría en el renglón ${i + 1}');
+          if (cat == null) throw _invalid((l) => l.selectCategoryLineI2(i + 1));
           if (cat.reservedForExpenses) {
-            throw ValidationFailure('La categoría ${cat.name} es reservada y no puede usarse en egresos', null, 'RESERVED_CATEGORY');
+            throw ValidationFailure.t((l) => l.categoryNameReservedCannotUsed(cat.name), 'RESERVED_CATEGORY');
           }
-          if (!cat.active) throw ValidationFailure('La categoría ${cat.name} está inactiva', null, 'CATEGORY_INACTIVE');
+          if (!cat.active) throw ValidationFailure.t((l) => l.categoryNameInactive(cat.name), 'CATEGORY_INACTIVE');
           items.add((line, cat, concept));
         }
         // Sin control de fondos: un egreso puede dejar la cuenta en negativo (el formulario avisa
@@ -109,9 +110,9 @@ class LocalMovementWriter {
 
   Future<SavedMovement> createIncome(IncomeDraft d, {int? replacingSeq}) => _db.transaction((txn) async {
         final catalog = LocalCatalog(txn);
-        final account = await _usableAccount(catalog, d.accountLocalId, 'Debe seleccionar la cuenta de destino');
-        final concept = _concept(d.concept, 'El concepto');
-        _positive(d.amountCents, 'ingreso');
+        final account = await _usableAccount(catalog, d.accountLocalId, (l) => l.selectDestinationAccount2);
+        final concept = _concept(d.concept, (l) => l.concept2);
+        _positive(d.amountCents, (l) => l.incomeWord);
         final category = await _roleCategory(catalog, CategoryRoles.income);
 
         await _dropReplaced(txn, replacingSeq);
@@ -130,21 +131,17 @@ class LocalMovementWriter {
 
   Future<SavedMovement> createTransfer(TransferDraft d, {int? replacingSeq}) => _db.transaction((txn) async {
         if (d.fromLocalId == d.toLocalId) {
-          throw const ValidationFailure('La cuenta de origen y de destino no pueden ser iguales', null, 'SAME_ACCOUNT');
+          throw ValidationFailure.t((l) => l.sourceDestinationAccountsCannotSame, 'SAME_ACCOUNT');
         }
         final catalog = LocalCatalog(txn);
-        final from = await _usableAccount(catalog, d.fromLocalId, 'Seleccione la cuenta de origen');
-        final to = await _usableAccount(catalog, d.toLocalId, 'Seleccione la cuenta de destino');
+        final from = await _usableAccount(catalog, d.fromLocalId, (l) => l.selectSourceAccount2);
+        final to = await _usableAccount(catalog, d.toLocalId, (l) => l.selectDestinationAccount3);
         if (from.currency != to.currency) {
-          throw const ValidationFailure(
-            'No se puede transferir entre cuentas de distinta moneda. Registrá un egreso y un ingreso con la cotización usada.',
-            null,
-            'CURRENCY_MISMATCH',
-          );
+          throw ValidationFailure.t((l) => l.cannotTransferBetweenAccountsDifferent2, 'CURRENCY_MISMATCH');
         }
-        _positive(d.amountCents, 'transferencia');
+        _positive(d.amountCents, (l) => l.transferWord);
         final typed = d.concept.trim();
-        if (typed.length > conceptMax) throw _invalid('El concepto no puede superar $conceptMax caracteres');
+        if (typed.length > conceptMax) throw _invalid((l) => l.conceptCannotExceedConceptmaxCharacters(conceptMax));
         _assertFunds(from, d.amountCents);
         final category = await _roleCategory(catalog, CategoryRoles.transfer);
         final concept = typed.isNotEmpty ? typed : 'Transferencia desde ${from.name.toUpperCase()} hacia ${to.name.toUpperCase()}';
@@ -170,17 +167,17 @@ class LocalMovementWriter {
   static Future<void> _dropReplaced(Transaction txn, int? seq) async {
     if (seq == null) return;
     final ops = await txn.query('outbox', where: "seq = ? AND status = 'rejected' AND action = 'create'", whereArgs: [seq]);
-    if (ops.isEmpty) throw _invalid('La operación a corregir ya no está rechazada');
+    if (ops.isEmpty) throw _invalid((l) => l.operationCorrectNoLongerRejected);
     await txn.delete('movement_headers', where: 'client_id = ? AND server_id IS NULL', whereArgs: [ops.single['client_id']]);
     await txn.delete('outbox', where: 'seq = ?', whereArgs: [seq]);
   }
 
   // ---------------- reglas ----------------
 
-  Future<LocalAccount> _usableAccount(LocalCatalog catalog, int localId, String missing) async {
+  Future<LocalAccount> _usableAccount(LocalCatalog catalog, int localId, String Function(AppLocalizations l) missing) async {
     final account = await catalog.account(localId);
     if (account == null) throw _invalid(missing);
-    if (!account.active) throw ValidationFailure('La cuenta ${account.name} está inactiva', null, 'ACCOUNT_INACTIVE');
+    if (!account.active) throw ValidationFailure.t((l) => l.accountNameInactive(account.name), 'ACCOUNT_INACTIVE');
     return account;
   }
 
@@ -188,11 +185,9 @@ class LocalMovementWriter {
   /// (el saldo local ya descuenta lo pendiente de enviar).
   static void _assertFunds(LocalAccount account, int amountCents) {
     if (account.balanceCents < amountCents) {
-      throw ValidationFailure(
-        'No dispone del saldo solicitado a transferir (${Money.format(amountCents, currency: account.currency)}) '
-        'en ${account.name.toUpperCase()}: disponible ${Money.format(account.balanceCents, currency: account.currency)}. '
-        'Realizá un ingreso en la cuenta de origen.',
-        null,
+      throw ValidationFailure.t(
+        (l) => l.insufficientFundsTransfer(Money.format(amountCents, currency: account.currency), account.name.toUpperCase(),
+            Money.format(account.balanceCents, currency: account.currency)),
         'INSUFFICIENT_FUNDS',
       );
     }
@@ -201,23 +196,23 @@ class LocalMovementWriter {
   static Future<LocalCategory> _roleCategory(LocalCatalog catalog, String role) async {
     final category = await catalog.roleCategory(role);
     if (category == null) {
-      throw ValidationFailure('Falta la categoría del sistema $role: sincronizá con conexión antes de cargar.', null, 'CATALOG_NOT_SYNCED');
+      throw ValidationFailure.t((l) => l.systemCategoryRoleMissingSync(role), 'CATALOG_NOT_SYNCED');
     }
     return category;
   }
 
-  static String _concept(String value, String label) {
+  static String _concept(String value, String Function(AppLocalizations l) label) {
     final v = value.trim();
-    if (v.isEmpty) throw _invalid('$label es obligatorio');
-    if (v.length > conceptMax) throw _invalid('$label no puede superar $conceptMax caracteres');
+    if (v.isEmpty) throw _invalid((l) => l.fieldRequired(label(l)));
+    if (v.length > conceptMax) throw _invalid((l) => l.fieldTooLong(label(l), conceptMax));
     return v;
   }
 
-  static void _positive(int cents, String what) {
-    if (cents <= 0) throw _invalid('El monto del $what debe ser mayor a cero');
+  static void _positive(int cents, String Function(AppLocalizations l) what) {
+    if (cents <= 0) throw _invalid((l) => l.amountOfMustBePositive(what(l)));
   }
 
-  static ValidationFailure _invalid(String message) => ValidationFailure(message, null, 'VALIDATION_ERROR');
+  static ValidationFailure _invalid(String Function(AppLocalizations l) text) => ValidationFailure.t(text);
 
   // ---------------- escritura ----------------
 

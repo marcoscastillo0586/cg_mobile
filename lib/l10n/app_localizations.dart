@@ -1520,6 +1520,1300 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No se pudo conectar con el servidor. Revisá tu conexión.'**
   String get errNetwork;
+
+  /// No description provided for @selectAccount.
+  ///
+  /// In es, this message translates to:
+  /// **'Seleccioná una cuenta'**
+  String get selectAccount;
+
+  /// No description provided for @operationNoLongerQueue.
+  ///
+  /// In es, this message translates to:
+  /// **'La operación ya no está en la cola'**
+  String get operationNoLongerQueue;
+
+  /// No description provided for @onlyEditsConflictCanRetried.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo se reintentan ediciones en conflicto'**
+  String get onlyEditsConflictCanRetried;
+
+  /// No description provided for @voucherNoLongerExistsPhone.
+  ///
+  /// In es, this message translates to:
+  /// **'El comprobante ya no existe en el celular'**
+  String get voucherNoLongerExistsPhone;
+
+  /// No description provided for @onlyRejectedCreationsCanCorrected.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo se corrigen altas rechazadas'**
+  String get onlyRejectedCreationsCanCorrected;
+
+  /// No description provided for @unknownIcon.
+  ///
+  /// In es, this message translates to:
+  /// **'Ícono desconocido'**
+  String get unknownIcon;
+
+  /// No description provided for @account.
+  ///
+  /// In es, this message translates to:
+  /// **'La cuenta'**
+  String get account;
+
+  /// No description provided for @currencyAccountMovementsCannotChange.
+  ///
+  /// In es, this message translates to:
+  /// **'No se puede cambiar la moneda de una cuenta con movimientos'**
+  String get currencyAccountMovementsCannotChange;
+
+  /// No description provided for @noChangesSave.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay cambios para guardar'**
+  String get noChangesSave;
+
+  /// No description provided for @nameMustHaveLeastAccountnamemin.
+  ///
+  /// In es, this message translates to:
+  /// **'El nombre debe tener al menos {accountNameMin} caracteres'**
+  String nameMustHaveLeastAccountnamemin(Object accountNameMin);
+
+  /// No description provided for @nameCannotExceedAccountnamemaxCharacters.
+  ///
+  /// In es, this message translates to:
+  /// **'El nombre no puede superar {accountNameMax} caracteres'**
+  String nameCannotExceedAccountnamemaxCharacters(Object accountNameMax);
+
+  /// No description provided for @selectRangeReport.
+  ///
+  /// In es, this message translates to:
+  /// **'Selecciona rango para el reporte'**
+  String get selectRangeReport;
+
+  /// No description provided for @reportsAnalytics.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportes y Analíticas'**
+  String get reportsAnalytics;
+
+  /// No description provided for @refreshReport.
+  ///
+  /// In es, this message translates to:
+  /// **'Actualizar reporte'**
+  String get refreshReport;
+
+  /// No description provided for @dayDay.
+  ///
+  /// In es, this message translates to:
+  /// **'Día a Día'**
+  String get dayDay;
+
+  /// No description provided for @month.
+  ///
+  /// In es, this message translates to:
+  /// **'Este Mes'**
+  String get month;
+
+  /// No description provided for @previousMonth.
+  ///
+  /// In es, this message translates to:
+  /// **'Mes Anterior'**
+  String get previousMonth;
+
+  /// No description provided for @currentYear.
+  ///
+  /// In es, this message translates to:
+  /// **'Año Actual'**
+  String get currentYear;
+
+  /// No description provided for @frequentConceptsDetail.
+  ///
+  /// In es, this message translates to:
+  /// **'Detalle de Conceptos Frecuentes'**
+  String get frequentConceptsDetail;
+
+  /// No description provided for @annualOverview.
+  ///
+  /// In es, this message translates to:
+  /// **'Ejercicio Anual'**
+  String get annualOverview;
+
+  /// No description provided for @annualIncome.
+  ///
+  /// In es, this message translates to:
+  /// **'Ingresos Anuales'**
+  String get annualIncome;
+
+  /// No description provided for @annualExpenses.
+  ///
+  /// In es, this message translates to:
+  /// **'Egresos Anuales'**
+  String get annualExpenses;
+
+  /// No description provided for @netBalance.
+  ///
+  /// In es, this message translates to:
+  /// **'Balance Neto'**
+  String get netBalance;
+
+  /// No description provided for @savingsRate.
+  ///
+  /// In es, this message translates to:
+  /// **'Tasa de Ahorro'**
+  String get savingsRate;
+
+  /// No description provided for @incomeVsExpensesMonth.
+  ///
+  /// In es, this message translates to:
+  /// **'Ingresos vs Egresos Mes a Mes'**
+  String get incomeVsExpensesMonth;
+
+  /// No description provided for @detailedMonthlyBreakdown.
+  ///
+  /// In es, this message translates to:
+  /// **'Desglose Mensual Detallado'**
+  String get detailedMonthlyBreakdown;
+
+  /// No description provided for @incIngresoscents.
+  ///
+  /// In es, this message translates to:
+  /// **'Ing: {ingresosCents}'**
+  String incIngresoscents(Object ingresosCents);
+
+  /// No description provided for @expEgresoscents.
+  ///
+  /// In es, this message translates to:
+  /// **'Egr: {egresosCents}'**
+  String expEgresoscents(Object egresosCents);
+
+  /// No description provided for @dailySpendingCurve.
+  ///
+  /// In es, this message translates to:
+  /// **'Curva de Gasto Diario'**
+  String get dailySpendingCurve;
+
+  /// No description provided for @monthTotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Total del Mes'**
+  String get monthTotal;
+
+  /// No description provided for @highestPeak.
+  ///
+  /// In es, this message translates to:
+  /// **'Pico Más Alto'**
+  String get highestPeak;
+
+  /// No description provided for @dailyExpenseTrend.
+  ///
+  /// In es, this message translates to:
+  /// **'Trayectoria Diaria de Egresos'**
+  String get dailyExpenseTrend;
+
+  /// No description provided for @noExpensesPeriod.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay egresos en este período'**
+  String get noExpensesPeriod;
+
+  /// No description provided for @totalExpenses.
+  ///
+  /// In es, this message translates to:
+  /// **'Total Gastos'**
+  String get totalExpenses;
+
+  /// No description provided for @tostringasfixedTotal.
+  ///
+  /// In es, this message translates to:
+  /// **'{toStringAsFixed}% del total'**
+  String tostringasfixedTotal(Object toStringAsFixed);
+
+  /// No description provided for @dayDianumSpentEgresoscents.
+  ///
+  /// In es, this message translates to:
+  /// **'Día {diaNum}\nGasto: {egresosCents}'**
+  String dayDianumSpentEgresoscents(Object diaNum, Object egresosCents);
+
+  /// No description provided for @searchItemPluCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar artículo o código PLU...'**
+  String get searchItemPluCode;
+
+  /// No description provided for @compareInflationBetweenPeriods.
+  ///
+  /// In es, this message translates to:
+  /// **'Comparar Inflación entre Períodos'**
+  String get compareInflationBetweenPeriods;
+
+  /// No description provided for @noRecordedItemsFound.
+  ///
+  /// In es, this message translates to:
+  /// **'No se encontraron artículos registrados'**
+  String get noRecordedItemsFound;
+
+  /// No description provided for @itemsRecordedWhenYouEnter.
+  ///
+  /// In es, this message translates to:
+  /// **'Los artículos se registran al cargar tickets o egresos detallados'**
+  String get itemsRecordedWhenYouEnter;
+
+  /// No description provided for @priceHistoryTrend.
+  ///
+  /// In es, this message translates to:
+  /// **'Historial de Precios y Tendencia'**
+  String get priceHistoryTrend;
+
+  /// No description provided for @noHistoricalDataItem.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay datos históricos para este artículo'**
+  String get noHistoricalDataItem;
+
+  /// No description provided for @currentPrice.
+  ///
+  /// In es, this message translates to:
+  /// **'Precio Actual'**
+  String get currentPrice;
+
+  /// No description provided for @totalChange.
+  ///
+  /// In es, this message translates to:
+  /// **'Variación Total'**
+  String get totalChange;
+
+  /// No description provided for @historicalLow.
+  ///
+  /// In es, this message translates to:
+  /// **'Mínimo Histórico'**
+  String get historicalLow;
+
+  /// No description provided for @historicalHigh.
+  ///
+  /// In es, this message translates to:
+  /// **'Máximo Histórico'**
+  String get historicalHigh;
+
+  /// No description provided for @unitPriceTrend.
+  ///
+  /// In es, this message translates to:
+  /// **'Evolución del Precio Unitario'**
+  String get unitPriceTrend;
+
+  /// No description provided for @purchaseHistory.
+  ///
+  /// In es, this message translates to:
+  /// **'Historial de Compras'**
+  String get purchaseHistory;
+
+  /// No description provided for @inflationMonitor.
+  ///
+  /// In es, this message translates to:
+  /// **'Monitor de Inflación'**
+  String get inflationMonitor;
+
+  /// No description provided for @comparisonIdenticalItemsPurchased.
+  ///
+  /// In es, this message translates to:
+  /// **'Comparativa de artículos idénticos comprados'**
+  String get comparisonIdenticalItemsPurchased;
+
+  /// No description provided for @noIdenticalItemsWerePurchased.
+  ///
+  /// In es, this message translates to:
+  /// **'No se detectaron artículos idénticos comprados en ambos períodos seleccionados.'**
+  String get noIdenticalItemsWerePurchased;
+
+  /// No description provided for @personalAverageInflation.
+  ///
+  /// In es, this message translates to:
+  /// **'Inflación Promedio Personal'**
+  String get personalAverageInflation;
+
+  /// No description provided for @productoscomunesItemsComparedProductosaumentaronWent.
+  ///
+  /// In es, this message translates to:
+  /// **'{productosComunes} artículos comparados ({productosAumentaron} subieron de precio)'**
+  String productoscomunesItemsComparedProductosaumentaronWent(
+      Object productosComunes, Object productosAumentaron);
+
+  /// No description provided for @detailItem.
+  ///
+  /// In es, this message translates to:
+  /// **'Detalle por Artículo'**
+  String get detailItem;
+
+  /// No description provided for @beforePrecio1centsNowPrecio2cents.
+  ///
+  /// In es, this message translates to:
+  /// **'Antes: {precio1Cents} ➔ Ahora: {precio2Cents}'**
+  String beforePrecio1centsNowPrecio2cents(
+      Object precio1Cents, Object precio2Cents);
+
+  /// No description provided for @loadingFinances.
+  ///
+  /// In es, this message translates to:
+  /// **'Cargando tu espacio financiero...'**
+  String get loadingFinances;
+
+  /// No description provided for @category2.
+  ///
+  /// In es, this message translates to:
+  /// **'La categoría'**
+  String get category2;
+
+  /// No description provided for @systemReservedCategoriesCannotChanged.
+  ///
+  /// In es, this message translates to:
+  /// **'Las categorías reservadas del sistema no pueden modificarse ni eliminarse'**
+  String get systemReservedCategoriesCannotChanged;
+
+  /// No description provided for @categoryNameRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'El nombre de la categoría es obligatorio'**
+  String get categoryNameRequired;
+
+  /// No description provided for @nameCannotExceedCategorynamemaxCharacters.
+  ///
+  /// In es, this message translates to:
+  /// **'El nombre no puede superar {categoryNameMax} caracteres'**
+  String nameCannotExceedCategorynamemaxCharacters(Object categoryNameMax);
+
+  /// No description provided for @couldNotOpenLocalDatabase.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo abrir la base local: {e}'**
+  String couldNotOpenLocalDatabase(Object e);
+
+  /// No description provided for @filterBalancesUpDate.
+  ///
+  /// In es, this message translates to:
+  /// **'Filtrar saldos hasta fecha'**
+  String get filterBalancesUpDate;
+
+  /// No description provided for @refreshBalances.
+  ///
+  /// In es, this message translates to:
+  /// **'Actualizar saldos'**
+  String get refreshBalances;
+
+  /// No description provided for @settings.
+  ///
+  /// In es, this message translates to:
+  /// **'Ajustes y Configuración'**
+  String get settings;
+
+  /// No description provided for @myAccountsAccounts.
+  ///
+  /// In es, this message translates to:
+  /// **'Mis Cuentas ({accounts})'**
+  String myAccountsAccounts(Object accounts);
+
+  /// No description provided for @limitsBudgets.
+  ///
+  /// In es, this message translates to:
+  /// **'Límites y Presupuestos'**
+  String get limitsBudgets;
+
+  /// No description provided for @consolidatedBalances.
+  ///
+  /// In es, this message translates to:
+  /// **'Saldos Consolidados'**
+  String get consolidatedBalances;
+
+  /// No description provided for @hideBalances.
+  ///
+  /// In es, this message translates to:
+  /// **'Ocultar saldos'**
+  String get hideBalances;
+
+  /// No description provided for @filterDate.
+  ///
+  /// In es, this message translates to:
+  /// **'Filtrar por fecha'**
+  String get filterDate;
+
+  /// No description provided for @untilFechaformatted.
+  ///
+  /// In es, this message translates to:
+  /// **'Hasta: {fechaFormatted}'**
+  String untilFechaformatted(Object fechaFormatted);
+
+  /// No description provided for @selectSourceAccount.
+  ///
+  /// In es, this message translates to:
+  /// **'Debes seleccionar una cuenta de origen'**
+  String get selectSourceAccount;
+
+  /// No description provided for @selectCategoryLineI.
+  ///
+  /// In es, this message translates to:
+  /// **'Debes seleccionar una categoría para el Renglón #{i}'**
+  String selectCategoryLineI(Object i);
+
+  /// No description provided for @qrReceiptsCannotConfirmedHere.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pueden confirmar tickets QR en este contexto'**
+  String get qrReceiptsCannotConfirmedHere;
+
+  /// No description provided for @accountNotServerYetSync.
+  ///
+  /// In es, this message translates to:
+  /// **'La cuenta todavía no está en el servidor: sincronizá y volvé a intentar'**
+  String get accountNotServerYetSync;
+
+  /// No description provided for @fillConceptField.
+  ///
+  /// In es, this message translates to:
+  /// **'Debe completar el campo Concepto'**
+  String get fillConceptField;
+
+  /// No description provided for @categoryNameNotServerYet.
+  ///
+  /// In es, this message translates to:
+  /// **'La categoría {name} todavía no está en el servidor: sincronizá'**
+  String categoryNameNotServerYet(Object name);
+
+  /// No description provided for @lineIMustHaveAmount.
+  ///
+  /// In es, this message translates to:
+  /// **'El Renglón #{i} debe tener un monto mayor a 0'**
+  String lineIMustHaveAmount(Object i);
+
+  /// No description provided for @expenseDate.
+  ///
+  /// In es, this message translates to:
+  /// **'Fecha del egreso'**
+  String get expenseDate;
+
+  /// No description provided for @sourceAccount.
+  ///
+  /// In es, this message translates to:
+  /// **'Cuenta de Origen'**
+  String get sourceAccount;
+
+  /// No description provided for @generalConcept2.
+  ///
+  /// In es, this message translates to:
+  /// **'Concepto General *'**
+  String get generalConcept2;
+
+  /// No description provided for @eGSupermarketBookstore.
+  ///
+  /// In es, this message translates to:
+  /// **'Ej: Supermercado, Librería...'**
+  String get eGSupermarketBookstore;
+
+  /// No description provided for @addLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar Renglón'**
+  String get addLine;
+
+  /// No description provided for @expenseTotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Total del Gasto'**
+  String get expenseTotal;
+
+  /// No description provided for @scannedQrCodeNotValid.
+  ///
+  /// In es, this message translates to:
+  /// **'El código QR escaneado no es una dirección web válida (http/https).'**
+  String get scannedQrCodeNotValid;
+
+  /// No description provided for @loadingExpenses.
+  ///
+  /// In es, this message translates to:
+  /// **'Cargando gastos...'**
+  String get loadingExpenses;
+
+  /// No description provided for @receiptReadItemsLines.
+  ///
+  /// In es, this message translates to:
+  /// **'Ticket leído: {items} renglones'**
+  String receiptReadItemsLines(Object items);
+
+  /// No description provided for @couldNotProcessQr.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo procesar QR'**
+  String get couldNotProcessQr;
+
+  /// No description provided for @motivoDoYouWantScan.
+  ///
+  /// In es, this message translates to:
+  /// **'{motivo}\n\n¿Deseas intentar reescanear el QR o usar la lectura por fotos?'**
+  String motivoDoYouWantScan(Object motivo);
+
+  /// No description provided for @usePhotos.
+  ///
+  /// In es, this message translates to:
+  /// **'Usar fotos'**
+  String get usePhotos;
+
+  /// No description provided for @scannerNotAvailableDeviceSelect.
+  ///
+  /// In es, this message translates to:
+  /// **'El escáner no está disponible en este dispositivo. Selecciona fotos de la galería.'**
+  String get scannerNotAvailableDeviceSelect;
+
+  /// No description provided for @couldNotAccessGalleryCheck.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo acceder a la galería. Verifica los permisos.'**
+  String get couldNotAccessGalleryCheck;
+
+  /// No description provided for @lineRenglonnum.
+  ///
+  /// In es, this message translates to:
+  /// **'Renglón #{renglonNum}'**
+  String lineRenglonnum(Object renglonNum);
+
+  /// No description provided for @deleteLine2.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar renglón'**
+  String get deleteLine2;
+
+  /// No description provided for @eGVegetablesMeatCleaning.
+  ///
+  /// In es, this message translates to:
+  /// **'Ej: Verduras, Carne, Limpieza...'**
+  String get eGVegetablesMeatCleaning;
+
+  /// No description provided for @selectDestinationAccount.
+  ///
+  /// In es, this message translates to:
+  /// **'Selecciona una cuenta de destino'**
+  String get selectDestinationAccount;
+
+  /// No description provided for @incomeDate.
+  ///
+  /// In es, this message translates to:
+  /// **'Fecha del ingreso'**
+  String get incomeDate;
+
+  /// No description provided for @amountAdd.
+  ///
+  /// In es, this message translates to:
+  /// **'Monto a Ingresar'**
+  String get amountAdd;
+
+  /// No description provided for @conceptReason.
+  ///
+  /// In es, this message translates to:
+  /// **'Concepto / Motivo'**
+  String get conceptReason;
+
+  /// No description provided for @eGSalaryFreelancePayment.
+  ///
+  /// In es, this message translates to:
+  /// **'Ej: Sueldo, Cobro freelance, Venta... (vacío: \"{conceptoIngresoPorDefecto}\")'**
+  String eGSalaryFreelancePayment(Object conceptoIngresoPorDefecto);
+
+  /// No description provided for @recordIncome2.
+  ///
+  /// In es, this message translates to:
+  /// **'Registrar Ingreso'**
+  String get recordIncome2;
+
+  /// No description provided for @amountMustGreaterThanZero.
+  ///
+  /// In es, this message translates to:
+  /// **'El monto debe ser mayor a cero'**
+  String get amountMustGreaterThanZero;
+
+  /// No description provided for @selectLeastOneCategory.
+  ///
+  /// In es, this message translates to:
+  /// **'Seleccione al menos una categoría'**
+  String get selectLeastOneCategory;
+
+  /// No description provided for @mostBudgetmaxcategoriesCategories.
+  ///
+  /// In es, this message translates to:
+  /// **'Máximo {budgetMaxCategories} categorías'**
+  String mostBudgetmaxcategoriesCategories(Object budgetMaxCategories);
+
+  /// No description provided for @selectLeastOneAccountApply.
+  ///
+  /// In es, this message translates to:
+  /// **'Debe seleccionar al menos un lugar donde aplicar el límite de gastos'**
+  String get selectLeastOneAccountApply;
+
+  /// No description provided for @limit2.
+  ///
+  /// In es, this message translates to:
+  /// **'El límite'**
+  String get limit2;
+
+  /// No description provided for @invalidDate.
+  ///
+  /// In es, this message translates to:
+  /// **'Fecha inválida'**
+  String get invalidDate;
+
+  /// No description provided for @endDateCannotBeforeStart.
+  ///
+  /// In es, this message translates to:
+  /// **'La fecha hasta no puede ser anterior a la fecha desde'**
+  String get endDateCannotBeforeStart;
+
+  /// No description provided for @generalConcept3.
+  ///
+  /// In es, this message translates to:
+  /// **'El concepto general'**
+  String get generalConcept3;
+
+  /// No description provided for @changeAccountsTransferEditSource.
+  ///
+  /// In es, this message translates to:
+  /// **'Para cambiar las cuentas de una transferencia editá origen y destino'**
+  String get changeAccountsTransferEditSource;
+
+  /// No description provided for @movementCannotMovedAccountAnother.
+  ///
+  /// In es, this message translates to:
+  /// **'No se puede mover el movimiento a una cuenta de otra moneda'**
+  String get movementCannotMovedAccountAnother;
+
+  /// No description provided for @transferLinesEditedAsPair.
+  ///
+  /// In es, this message translates to:
+  /// **'Los renglones de una transferencia se editan como par (origen, destino y monto)'**
+  String get transferLinesEditedAsPair;
+
+  /// No description provided for @concept2.
+  ///
+  /// In es, this message translates to:
+  /// **'El concepto'**
+  String get concept2;
+
+  /// No description provided for @incomesAlwaysUseReservedIncome.
+  ///
+  /// In es, this message translates to:
+  /// **'Los ingresos usan siempre la categoría reservada de ingresos'**
+  String get incomesAlwaysUseReservedIncome;
+
+  /// No description provided for @selectCategory.
+  ///
+  /// In es, this message translates to:
+  /// **'Seleccione una categoría'**
+  String get selectCategory;
+
+  /// No description provided for @categoryNameReservedCannotUsed.
+  ///
+  /// In es, this message translates to:
+  /// **'La categoría {name} es reservada y no puede usarse en egresos'**
+  String categoryNameReservedCannotUsed(Object name);
+
+  /// No description provided for @categoryNameInactive.
+  ///
+  /// In es, this message translates to:
+  /// **'La categoría {name} está inactiva'**
+  String categoryNameInactive(Object name);
+
+  /// No description provided for @singleLineTransferCannotDeleted.
+  ///
+  /// In es, this message translates to:
+  /// **'No se puede eliminar un solo renglón de una transferencia; eliminá el movimiento completo'**
+  String get singleLineTransferCannotDeleted;
+
+  /// No description provided for @onlyLineVoucherDeleteWhole.
+  ///
+  /// In es, this message translates to:
+  /// **'Es el único renglón del comprobante; eliminá el movimiento completo'**
+  String get onlyLineVoucherDeleteWhole;
+
+  /// No description provided for @movementNotTransfer.
+  ///
+  /// In es, this message translates to:
+  /// **'El movimiento no es una transferencia'**
+  String get movementNotTransfer;
+
+  /// No description provided for @transferDoesNotHaveIts.
+  ///
+  /// In es, this message translates to:
+  /// **'La transferencia no tiene su par de renglones en el celular'**
+  String get transferDoesNotHaveIts;
+
+  /// No description provided for @sourceDestinationAccountsCannotSame.
+  ///
+  /// In es, this message translates to:
+  /// **'La cuenta de origen y de destino no pueden ser iguales'**
+  String get sourceDestinationAccountsCannotSame;
+
+  /// No description provided for @cannotTransferBetweenAccountsDifferent.
+  ///
+  /// In es, this message translates to:
+  /// **'No se puede transferir entre cuentas de distinta moneda'**
+  String get cannotTransferBetweenAccountsDifferent;
+
+  /// No description provided for @voucherNotPhoneSyncTry.
+  ///
+  /// In es, this message translates to:
+  /// **'El comprobante no está en el celular; sincronizá y volvé a intentar'**
+  String get voucherNotPhoneSyncTry;
+
+  /// No description provided for @lineNoLongerPhone.
+  ///
+  /// In es, this message translates to:
+  /// **'El renglón ya no está en el celular'**
+  String get lineNoLongerPhone;
+
+  /// No description provided for @voucherHasNotReachedServer.
+  ///
+  /// In es, this message translates to:
+  /// **'El comprobante todavía no llegó al servidor: sincronizá antes de editar o borrar sus renglones'**
+  String get voucherHasNotReachedServer;
+
+  /// No description provided for @accountNameInactive.
+  ///
+  /// In es, this message translates to:
+  /// **'La cuenta {name} está inactiva'**
+  String accountNameInactive(Object name);
+
+  /// No description provided for @enterLeastOneExpense.
+  ///
+  /// In es, this message translates to:
+  /// **'Debe ingresar al menos un gasto'**
+  String get enterLeastOneExpense;
+
+  /// No description provided for @most300LinesPerExpense.
+  ///
+  /// In es, this message translates to:
+  /// **'Máximo 300 renglones por egreso'**
+  String get most300LinesPerExpense;
+
+  /// No description provided for @selectAccountDebit.
+  ///
+  /// In es, this message translates to:
+  /// **'Debe seleccionar un lugar para realizar el débito'**
+  String get selectAccountDebit;
+
+  /// No description provided for @conceptLineI.
+  ///
+  /// In es, this message translates to:
+  /// **'El concepto del renglón {i}'**
+  String conceptLineI(Object i);
+
+  /// No description provided for @selectCategoryLineI2.
+  ///
+  /// In es, this message translates to:
+  /// **'Seleccione una categoría en el renglón {i}'**
+  String selectCategoryLineI2(Object i);
+
+  /// No description provided for @selectDestinationAccount2.
+  ///
+  /// In es, this message translates to:
+  /// **'Debe seleccionar la cuenta de destino'**
+  String get selectDestinationAccount2;
+
+  /// No description provided for @selectSourceAccount2.
+  ///
+  /// In es, this message translates to:
+  /// **'Seleccione la cuenta de origen'**
+  String get selectSourceAccount2;
+
+  /// No description provided for @selectDestinationAccount3.
+  ///
+  /// In es, this message translates to:
+  /// **'Seleccione la cuenta de destino'**
+  String get selectDestinationAccount3;
+
+  /// No description provided for @cannotTransferBetweenAccountsDifferent2.
+  ///
+  /// In es, this message translates to:
+  /// **'No se puede transferir entre cuentas de distinta moneda. Registrá un egreso y un ingreso con la cotización usada.'**
+  String get cannotTransferBetweenAccountsDifferent2;
+
+  /// No description provided for @conceptCannotExceedConceptmaxCharacters.
+  ///
+  /// In es, this message translates to:
+  /// **'El concepto no puede superar {conceptMax} caracteres'**
+  String conceptCannotExceedConceptmaxCharacters(Object conceptMax);
+
+  /// No description provided for @operationCorrectNoLongerRejected.
+  ///
+  /// In es, this message translates to:
+  /// **'La operación a corregir ya no está rechazada'**
+  String get operationCorrectNoLongerRejected;
+
+  /// No description provided for @systemCategoryRoleMissingSync.
+  ///
+  /// In es, this message translates to:
+  /// **'Falta la categoría del sistema {role}: sincronizá con conexión antes de cargar.'**
+  String systemCategoryRoleMissingSync(Object role);
+
+  /// No description provided for @languageDefaultCurrency.
+  ///
+  /// In es, this message translates to:
+  /// **'Idioma y Moneda por Defecto'**
+  String get languageDefaultCurrency;
+
+  /// No description provided for @appLanguage.
+  ///
+  /// In es, this message translates to:
+  /// **'Idioma de la Aplicación'**
+  String get appLanguage;
+
+  /// No description provided for @defaultCurrencyNewAccounts.
+  ///
+  /// In es, this message translates to:
+  /// **'Moneda por Defecto (al crear cuentas)'**
+  String get defaultCurrencyNewAccounts;
+
+  /// No description provided for @sessionDiagnosticsDebug.
+  ///
+  /// In es, this message translates to:
+  /// **'Diagnóstico de sesión (debug)'**
+  String get sessionDiagnosticsDebug;
+
+  /// No description provided for @n2ParallelGetAuthMe.
+  ///
+  /// In es, this message translates to:
+  /// **'2 GET /auth/me en paralelo'**
+  String get n2ParallelGetAuthMe;
+
+  /// No description provided for @management.
+  ///
+  /// In es, this message translates to:
+  /// **'Módulos de Gestión Administrativa'**
+  String get management;
+
+  /// No description provided for @accountsPaymentMethods.
+  ///
+  /// In es, this message translates to:
+  /// **'Cuentas y Medios de Pago'**
+  String get accountsPaymentMethods;
+
+  /// No description provided for @manageBanksWalletsCash.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar bancos, billeteras y efectivo (ABM Lugares)'**
+  String get manageBanksWalletsCash;
+
+  /// No description provided for @createRenameActivateExpenseCategories.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear, renombrar y activar categorías de gasto'**
+  String get createRenameActivateExpenseCategories;
+
+  /// No description provided for @budgetsSpendingCaps.
+  ///
+  /// In es, this message translates to:
+  /// **'Presupuestos y Topes de Gasto'**
+  String get budgetsSpendingCaps;
+
+  /// No description provided for @monthlyLimitsAlertsOneTap.
+  ///
+  /// In es, this message translates to:
+  /// **'Límites mensuales, alertas y renovación en 1 tap'**
+  String get monthlyLimitsAlertsOneTap;
+
+  /// No description provided for @reportsPriceMonitor.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportes y Monitor de Precios'**
+  String get reportsPriceMonitor;
+
+  /// No description provided for @visualAnalyticsChartsInflationTrends.
+  ///
+  /// In es, this message translates to:
+  /// **'Analíticas visuales, gráficos y evolución de inflación'**
+  String get visualAnalyticsChartsInflationTrends;
+
+  /// No description provided for @appearanceTheme.
+  ///
+  /// In es, this message translates to:
+  /// **'Apariencia y Tema'**
+  String get appearanceTheme;
+
+  /// No description provided for @displayMode.
+  ///
+  /// In es, this message translates to:
+  /// **'Modo de Visualización'**
+  String get displayMode;
+
+  /// No description provided for @initialSetup.
+  ///
+  /// In es, this message translates to:
+  /// **'Configuración Inicial'**
+  String get initialSetup;
+
+  /// No description provided for @welcomePleaseChooseInitialPreferences.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Bienvenido a Gastos 2.0! Por favor, selecciona tus preferencias iniciales para configurar la aplicación:'**
+  String get welcomePleaseChooseInitialPreferences;
+
+  /// No description provided for @n1UsualCurrencyDefault.
+  ///
+  /// In es, this message translates to:
+  /// **'1. Moneda Habitual (Por Defecto)'**
+  String get n1UsualCurrencyDefault;
+
+  /// No description provided for @n2PreferredLanguage.
+  ///
+  /// In es, this message translates to:
+  /// **'2. Idioma de Preferencia'**
+  String get n2PreferredLanguage;
+
+  /// No description provided for @selectSourceDestinationAccounts.
+  ///
+  /// In es, this message translates to:
+  /// **'Selecciona cuenta de origen y destino'**
+  String get selectSourceDestinationAccounts;
+
+  /// No description provided for @transferDate.
+  ///
+  /// In es, this message translates to:
+  /// **'Fecha de la transferencia'**
+  String get transferDate;
+
+  /// No description provided for @source.
+  ///
+  /// In es, this message translates to:
+  /// **'Desde (Origen)'**
+  String get source;
+
+  /// No description provided for @selectSource.
+  ///
+  /// In es, this message translates to:
+  /// **'Seleccionar origen'**
+  String get selectSource;
+
+  /// No description provided for @swapAccounts.
+  ///
+  /// In es, this message translates to:
+  /// **'Invertir cuentas'**
+  String get swapAccounts;
+
+  /// No description provided for @destination.
+  ///
+  /// In es, this message translates to:
+  /// **'Hacia (Destino)'**
+  String get destination;
+
+  /// No description provided for @amountTransfer.
+  ///
+  /// In es, this message translates to:
+  /// **'Monto a Transferir'**
+  String get amountTransfer;
+
+  /// No description provided for @conceptReference.
+  ///
+  /// In es, this message translates to:
+  /// **'Concepto / Referencia'**
+  String get conceptReference;
+
+  /// No description provided for @eGWithdrawal.
+  ///
+  /// In es, this message translates to:
+  /// **'Ej: Extraccion'**
+  String get eGWithdrawal;
+
+  /// No description provided for @confirmTransfer.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmar Transferencia'**
+  String get confirmTransfer;
+
+  /// No description provided for @notOnPhoneSync.
+  ///
+  /// In es, this message translates to:
+  /// **'{what} no está en el celular; sincronizá y volvé a intentar'**
+  String notOnPhoneSync(String what);
+
+  /// No description provided for @fieldRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'{field} es obligatorio'**
+  String fieldRequired(String field);
+
+  /// No description provided for @fieldTooLong.
+  ///
+  /// In es, this message translates to:
+  /// **'{field} no puede superar {max} caracteres'**
+  String fieldTooLong(String field, int max);
+
+  /// No description provided for @amountOfMustBePositive.
+  ///
+  /// In es, this message translates to:
+  /// **'El monto del {what} debe ser mayor a cero'**
+  String amountOfMustBePositive(String what);
+
+  /// No description provided for @lineN.
+  ///
+  /// In es, this message translates to:
+  /// **'renglón {n}'**
+  String lineN(int n);
+
+  /// No description provided for @incomeWord.
+  ///
+  /// In es, this message translates to:
+  /// **'ingreso'**
+  String get incomeWord;
+
+  /// No description provided for @transferWord.
+  ///
+  /// In es, this message translates to:
+  /// **'transferencia'**
+  String get transferWord;
+
+  /// No description provided for @insufficientFundsTransfer.
+  ///
+  /// In es, this message translates to:
+  /// **'No dispone del saldo solicitado a transferir ({amount}) en {account}: disponible {available}. Realizá un ingreso en la cuenta de origen.'**
+  String insufficientFundsTransfer(
+      String amount, String account, String available);
+
+  /// No description provided for @insufficientFundsTransferEdit.
+  ///
+  /// In es, this message translates to:
+  /// **'No dispone del saldo solicitado a transferir ({amount}) en {account}. Realizá un ingreso en la cuenta de origen.'**
+  String insufficientFundsTransferEdit(String amount, String account);
+
+  /// No description provided for @categoryNotForBudgets.
+  ///
+  /// In es, this message translates to:
+  /// **'La categoría {name} no puede usarse en límites de gasto'**
+  String categoryNotForBudgets(String name);
+
+  /// No description provided for @accountAlreadyActive.
+  ///
+  /// In es, this message translates to:
+  /// **'La cuenta ya está activa'**
+  String get accountAlreadyActive;
+
+  /// No description provided for @accountAlreadyInactive.
+  ///
+  /// In es, this message translates to:
+  /// **'La cuenta ya está inactiva'**
+  String get accountAlreadyInactive;
+
+  /// No description provided for @categoryAlreadyActive.
+  ///
+  /// In es, this message translates to:
+  /// **'La categoría ya está activa'**
+  String get categoryAlreadyActive;
+
+  /// No description provided for @categoryAlreadyInactive.
+  ///
+  /// In es, this message translates to:
+  /// **'La categoría ya está inactiva'**
+  String get categoryAlreadyInactive;
+
+  /// No description provided for @accountNameTaken.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya existe una cuenta con ese nombre'**
+  String get accountNameTaken;
+
+  /// No description provided for @accountNameTakenInactive.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya existe una cuenta inactiva con ese nombre: activala'**
+  String get accountNameTakenInactive;
+
+  /// No description provided for @categoryNameTaken.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya existe una categoría con ese nombre'**
+  String get categoryNameTaken;
+
+  /// No description provided for @categoryNameTakenInactive.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya existe una categoría inactiva con ese nombre: activala'**
+  String get categoryNameTakenInactive;
+
+  /// No description provided for @alreadyTriedSyncBeforeDiscard.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya se intentó enviar: podría estar aplicada en el servidor. Sincronizá antes de descartarla.'**
+  String get alreadyTriedSyncBeforeDiscard;
+
+  /// No description provided for @comparison.
+  ///
+  /// In es, this message translates to:
+  /// **'Comparativa'**
+  String get comparison;
+
+  /// No description provided for @prices.
+  ///
+  /// In es, this message translates to:
+  /// **'Precios'**
+  String get prices;
+
+  /// No description provided for @custom.
+  ///
+  /// In es, this message translates to:
+  /// **'Personalizado'**
+  String get custom;
+
+  /// No description provided for @surplus.
+  ///
+  /// In es, this message translates to:
+  /// **'Superávit'**
+  String get surplus;
+
+  /// No description provided for @deficit.
+  ///
+  /// In es, this message translates to:
+  /// **'Déficit'**
+  String get deficit;
+
+  /// No description provided for @income2.
+  ///
+  /// In es, this message translates to:
+  /// **'Ingresos'**
+  String get income2;
+
+  /// No description provided for @expenses.
+  ///
+  /// In es, this message translates to:
+  /// **'Egresos'**
+  String get expenses;
+
+  /// No description provided for @apply.
+  ///
+  /// In es, this message translates to:
+  /// **'Aplicar'**
+  String get apply;
+
+  /// No description provided for @clear.
+  ///
+  /// In es, this message translates to:
+  /// **'Limpiar'**
+  String get clear;
+
+  /// No description provided for @expenses2.
+  ///
+  /// In es, this message translates to:
+  /// **'Gastos'**
+  String get expenses2;
+
+  /// No description provided for @transfer2.
+  ///
+  /// In es, this message translates to:
+  /// **'Transferir'**
+  String get transfer2;
+
+  /// No description provided for @history.
+  ///
+  /// In es, this message translates to:
+  /// **'Historial'**
+  String get history;
+
+  /// No description provided for @date.
+  ///
+  /// In es, this message translates to:
+  /// **'Fecha'**
+  String get date;
+
+  /// No description provided for @destinationAccount.
+  ///
+  /// In es, this message translates to:
+  /// **'Cuenta de destino.'**
+  String get destinationAccount;
+
+  /// No description provided for @system.
+  ///
+  /// In es, this message translates to:
+  /// **'Sistema'**
+  String get system;
+
+  /// No description provided for @light.
+  ///
+  /// In es, this message translates to:
+  /// **'Claro'**
+  String get light;
+
+  /// No description provided for @dark.
+  ///
+  /// In es, this message translates to:
+  /// **'Oscuro'**
+  String get dark;
+
+  /// No description provided for @start.
+  ///
+  /// In es, this message translates to:
+  /// **'Comenzar'**
+  String get start;
+
+  /// No description provided for @linesCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 renglón} other{{count} renglones}}'**
+  String linesCount(int count);
+
+  /// No description provided for @purchasesCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 compra} other{{count} compras}}'**
+  String purchasesCount(int count);
+
+  /// No description provided for @ticketSumDiffers.
+  ///
+  /// In es, this message translates to:
+  /// **'Suma de renglones ({sum}) difiere del total del ticket ({total}): diferencia {diff}. Revisá los montos.'**
+  String ticketSumDiffers(String sum, String total, String diff);
+
+  /// No description provided for @ticketReadSumTotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Ticket leído: suma {sum} | total {total}'**
+  String ticketReadSumTotal(String sum, String total);
+
+  /// No description provided for @ticketSumNoTotal.
+  ///
+  /// In es, this message translates to:
+  /// **'Suma de renglones: {sum} (no se detectó un total en el ticket).'**
+  String ticketSumNoTotal(String sum);
+
+  /// No description provided for @chartMonthTooltip.
+  ///
+  /// In es, this message translates to:
+  /// **'{month}\n{kind}: {amount}\nBalance: {balance}'**
+  String chartMonthTooltip(
+      String month, String kind, String amount, String balance);
+
+  /// No description provided for @currencyArs.
+  ///
+  /// In es, this message translates to:
+  /// **'Pesos argentinos (ARS \$)'**
+  String get currencyArs;
+
+  /// No description provided for @currencyUsd.
+  ///
+  /// In es, this message translates to:
+  /// **'Dólares (USD \$)'**
+  String get currencyUsd;
+
+  /// No description provided for @cameraPermissionDenied.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin permiso para usar la cámara. Habilitalo en los ajustes del celular para leer el QR.'**
+  String get cameraPermissionDenied;
+
+  /// No description provided for @cameraUnsupported.
+  ///
+  /// In es, this message translates to:
+  /// **'Este celular no permite leer códigos QR.'**
+  String get cameraUnsupported;
+
+  /// No description provided for @cameraError.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo usar la cámara.'**
+  String get cameraError;
 }
 
 class _AppLocalizationsDelegate

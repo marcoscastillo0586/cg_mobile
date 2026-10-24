@@ -383,5 +383,546 @@
       }
     }
   },
-  "errNetwork": "No se pudo conectar con el servidor. Revisá tu conexión."
+  "errNetwork": "No se pudo conectar con el servidor. Revisá tu conexión.",
+  "selectAccount": "Seleccioná una cuenta",
+  "operationNoLongerQueue": "La operación ya no está en la cola",
+  "onlyEditsConflictCanRetried": "Solo se reintentan ediciones en conflicto",
+  "voucherNoLongerExistsPhone": "El comprobante ya no existe en el celular",
+  "onlyRejectedCreationsCanCorrected": "Solo se corrigen altas rechazadas",
+  "unknownIcon": "Ícono desconocido",
+  "account": "La cuenta",
+  "currencyAccountMovementsCannotChange": "No se puede cambiar la moneda de una cuenta con movimientos",
+  "noChangesSave": "No hay cambios para guardar",
+  "nameMustHaveLeastAccountnamemin": "El nombre debe tener al menos {accountNameMin} caracteres",
+  "@nameMustHaveLeastAccountnamemin": {
+    "placeholders": {
+      "accountNameMin": {
+        "type": "Object"
+      }
+    }
+  },
+  "nameCannotExceedAccountnamemaxCharacters": "El nombre no puede superar {accountNameMax} caracteres",
+  "@nameCannotExceedAccountnamemaxCharacters": {
+    "placeholders": {
+      "accountNameMax": {
+        "type": "Object"
+      }
+    }
+  },
+  "selectRangeReport": "Selecciona rango para el reporte",
+  "reportsAnalytics": "Reportes y Analíticas",
+  "refreshReport": "Actualizar reporte",
+  "dayDay": "Día a Día",
+  "month": "Este Mes",
+  "previousMonth": "Mes Anterior",
+  "currentYear": "Año Actual",
+  "frequentConceptsDetail": "Detalle de Conceptos Frecuentes",
+  "annualOverview": "Ejercicio Anual",
+  "annualIncome": "Ingresos Anuales",
+  "annualExpenses": "Egresos Anuales",
+  "netBalance": "Balance Neto",
+  "savingsRate": "Tasa de Ahorro",
+  "incomeVsExpensesMonth": "Ingresos vs Egresos Mes a Mes",
+  "detailedMonthlyBreakdown": "Desglose Mensual Detallado",
+  "incIngresoscents": "Ing: {ingresosCents}",
+  "@incIngresoscents": {
+    "placeholders": {
+      "ingresosCents": {
+        "type": "Object"
+      }
+    }
+  },
+  "expEgresoscents": "Egr: {egresosCents}",
+  "@expEgresoscents": {
+    "placeholders": {
+      "egresosCents": {
+        "type": "Object"
+      }
+    }
+  },
+  "dailySpendingCurve": "Curva de Gasto Diario",
+  "monthTotal": "Total del Mes",
+  "highestPeak": "Pico Más Alto",
+  "dailyExpenseTrend": "Trayectoria Diaria de Egresos",
+  "noExpensesPeriod": "No hay egresos en este período",
+  "totalExpenses": "Total Gastos",
+  "tostringasfixedTotal": "{toStringAsFixed}% del total",
+  "@tostringasfixedTotal": {
+    "placeholders": {
+      "toStringAsFixed": {
+        "type": "Object"
+      }
+    }
+  },
+  "dayDianumSpentEgresoscents": "Día {diaNum}\nGasto: {egresosCents}",
+  "@dayDianumSpentEgresoscents": {
+    "placeholders": {
+      "diaNum": {
+        "type": "Object"
+      },
+      "egresosCents": {
+        "type": "Object"
+      }
+    }
+  },
+  "searchItemPluCode": "Buscar artículo o código PLU...",
+  "compareInflationBetweenPeriods": "Comparar Inflación entre Períodos",
+  "noRecordedItemsFound": "No se encontraron artículos registrados",
+  "itemsRecordedWhenYouEnter": "Los artículos se registran al cargar tickets o egresos detallados",
+  "priceHistoryTrend": "Historial de Precios y Tendencia",
+  "noHistoricalDataItem": "No hay datos históricos para este artículo",
+  "currentPrice": "Precio Actual",
+  "totalChange": "Variación Total",
+  "historicalLow": "Mínimo Histórico",
+  "historicalHigh": "Máximo Histórico",
+  "unitPriceTrend": "Evolución del Precio Unitario",
+  "purchaseHistory": "Historial de Compras",
+  "inflationMonitor": "Monitor de Inflación",
+  "comparisonIdenticalItemsPurchased": "Comparativa de artículos idénticos comprados",
+  "noIdenticalItemsWerePurchased": "No se detectaron artículos idénticos comprados en ambos períodos seleccionados.",
+  "personalAverageInflation": "Inflación Promedio Personal",
+  "productoscomunesItemsComparedProductosaumentaronWent": "{productosComunes} artículos comparados ({productosAumentaron} subieron de precio)",
+  "@productoscomunesItemsComparedProductosaumentaronWent": {
+    "placeholders": {
+      "productosComunes": {
+        "type": "Object"
+      },
+      "productosAumentaron": {
+        "type": "Object"
+      }
+    }
+  },
+  "detailItem": "Detalle por Artículo",
+  "beforePrecio1centsNowPrecio2cents": "Antes: {precio1Cents} ➔ Ahora: {precio2Cents}",
+  "@beforePrecio1centsNowPrecio2cents": {
+    "placeholders": {
+      "precio1Cents": {
+        "type": "Object"
+      },
+      "precio2Cents": {
+        "type": "Object"
+      }
+    }
+  },
+  "loadingFinances": "Cargando tu espacio financiero...",
+  "category2": "La categoría",
+  "systemReservedCategoriesCannotChanged": "Las categorías reservadas del sistema no pueden modificarse ni eliminarse",
+  "categoryNameRequired": "El nombre de la categoría es obligatorio",
+  "nameCannotExceedCategorynamemaxCharacters": "El nombre no puede superar {categoryNameMax} caracteres",
+  "@nameCannotExceedCategorynamemaxCharacters": {
+    "placeholders": {
+      "categoryNameMax": {
+        "type": "Object"
+      }
+    }
+  },
+  "couldNotOpenLocalDatabase": "No se pudo abrir la base local: {e}",
+  "@couldNotOpenLocalDatabase": {
+    "placeholders": {
+      "e": {
+        "type": "Object"
+      }
+    }
+  },
+  "filterBalancesUpDate": "Filtrar saldos hasta fecha",
+  "refreshBalances": "Actualizar saldos",
+  "settings": "Ajustes y Configuración",
+  "myAccountsAccounts": "Mis Cuentas ({accounts})",
+  "@myAccountsAccounts": {
+    "placeholders": {
+      "accounts": {
+        "type": "Object"
+      }
+    }
+  },
+  "limitsBudgets": "Límites y Presupuestos",
+  "consolidatedBalances": "Saldos Consolidados",
+  "hideBalances": "Ocultar saldos",
+  "filterDate": "Filtrar por fecha",
+  "untilFechaformatted": "Hasta: {fechaFormatted}",
+  "@untilFechaformatted": {
+    "placeholders": {
+      "fechaFormatted": {
+        "type": "Object"
+      }
+    }
+  },
+  "selectSourceAccount": "Debes seleccionar una cuenta de origen",
+  "selectCategoryLineI": "Debes seleccionar una categoría para el Renglón #{i}",
+  "@selectCategoryLineI": {
+    "placeholders": {
+      "i": {
+        "type": "Object"
+      }
+    }
+  },
+  "qrReceiptsCannotConfirmedHere": "No se pueden confirmar tickets QR en este contexto",
+  "accountNotServerYetSync": "La cuenta todavía no está en el servidor: sincronizá y volvé a intentar",
+  "fillConceptField": "Debe completar el campo Concepto",
+  "categoryNameNotServerYet": "La categoría {name} todavía no está en el servidor: sincronizá",
+  "@categoryNameNotServerYet": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "lineIMustHaveAmount": "El Renglón #{i} debe tener un monto mayor a 0",
+  "@lineIMustHaveAmount": {
+    "placeholders": {
+      "i": {
+        "type": "Object"
+      }
+    }
+  },
+  "expenseDate": "Fecha del egreso",
+  "sourceAccount": "Cuenta de Origen",
+  "generalConcept2": "Concepto General *",
+  "eGSupermarketBookstore": "Ej: Supermercado, Librería...",
+  "addLine": "Agregar Renglón",
+  "expenseTotal": "Total del Gasto",
+  "scannedQrCodeNotValid": "El código QR escaneado no es una dirección web válida (http/https).",
+  "loadingExpenses": "Cargando gastos...",
+  "receiptReadItemsLines": "Ticket leído: {items} renglones",
+  "@receiptReadItemsLines": {
+    "placeholders": {
+      "items": {
+        "type": "Object"
+      }
+    }
+  },
+  "couldNotProcessQr": "No se pudo procesar QR",
+  "motivoDoYouWantScan": "{motivo}\n\n¿Deseas intentar reescanear el QR o usar la lectura por fotos?",
+  "@motivoDoYouWantScan": {
+    "placeholders": {
+      "motivo": {
+        "type": "Object"
+      }
+    }
+  },
+  "usePhotos": "Usar fotos",
+  "scannerNotAvailableDeviceSelect": "El escáner no está disponible en este dispositivo. Selecciona fotos de la galería.",
+  "couldNotAccessGalleryCheck": "No se pudo acceder a la galería. Verifica los permisos.",
+  "lineRenglonnum": "Renglón #{renglonNum}",
+  "@lineRenglonnum": {
+    "placeholders": {
+      "renglonNum": {
+        "type": "Object"
+      }
+    }
+  },
+  "deleteLine2": "Eliminar renglón",
+  "eGVegetablesMeatCleaning": "Ej: Verduras, Carne, Limpieza...",
+  "selectDestinationAccount": "Selecciona una cuenta de destino",
+  "incomeDate": "Fecha del ingreso",
+  "amountAdd": "Monto a Ingresar",
+  "conceptReason": "Concepto / Motivo",
+  "eGSalaryFreelancePayment": "Ej: Sueldo, Cobro freelance, Venta... (vacío: \"{conceptoIngresoPorDefecto}\")",
+  "@eGSalaryFreelancePayment": {
+    "placeholders": {
+      "conceptoIngresoPorDefecto": {
+        "type": "Object"
+      }
+    }
+  },
+  "recordIncome2": "Registrar Ingreso",
+  "amountMustGreaterThanZero": "El monto debe ser mayor a cero",
+  "selectLeastOneCategory": "Seleccione al menos una categoría",
+  "mostBudgetmaxcategoriesCategories": "Máximo {budgetMaxCategories} categorías",
+  "@mostBudgetmaxcategoriesCategories": {
+    "placeholders": {
+      "budgetMaxCategories": {
+        "type": "Object"
+      }
+    }
+  },
+  "selectLeastOneAccountApply": "Debe seleccionar al menos un lugar donde aplicar el límite de gastos",
+  "limit2": "El límite",
+  "invalidDate": "Fecha inválida",
+  "endDateCannotBeforeStart": "La fecha hasta no puede ser anterior a la fecha desde",
+  "generalConcept3": "El concepto general",
+  "changeAccountsTransferEditSource": "Para cambiar las cuentas de una transferencia editá origen y destino",
+  "movementCannotMovedAccountAnother": "No se puede mover el movimiento a una cuenta de otra moneda",
+  "transferLinesEditedAsPair": "Los renglones de una transferencia se editan como par (origen, destino y monto)",
+  "concept2": "El concepto",
+  "incomesAlwaysUseReservedIncome": "Los ingresos usan siempre la categoría reservada de ingresos",
+  "selectCategory": "Seleccione una categoría",
+  "categoryNameReservedCannotUsed": "La categoría {name} es reservada y no puede usarse en egresos",
+  "@categoryNameReservedCannotUsed": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "categoryNameInactive": "La categoría {name} está inactiva",
+  "@categoryNameInactive": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "singleLineTransferCannotDeleted": "No se puede eliminar un solo renglón de una transferencia; eliminá el movimiento completo",
+  "onlyLineVoucherDeleteWhole": "Es el único renglón del comprobante; eliminá el movimiento completo",
+  "movementNotTransfer": "El movimiento no es una transferencia",
+  "transferDoesNotHaveIts": "La transferencia no tiene su par de renglones en el celular",
+  "sourceDestinationAccountsCannotSame": "La cuenta de origen y de destino no pueden ser iguales",
+  "cannotTransferBetweenAccountsDifferent": "No se puede transferir entre cuentas de distinta moneda",
+  "voucherNotPhoneSyncTry": "El comprobante no está en el celular; sincronizá y volvé a intentar",
+  "lineNoLongerPhone": "El renglón ya no está en el celular",
+  "voucherHasNotReachedServer": "El comprobante todavía no llegó al servidor: sincronizá antes de editar o borrar sus renglones",
+  "accountNameInactive": "La cuenta {name} está inactiva",
+  "@accountNameInactive": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "enterLeastOneExpense": "Debe ingresar al menos un gasto",
+  "most300LinesPerExpense": "Máximo 300 renglones por egreso",
+  "selectAccountDebit": "Debe seleccionar un lugar para realizar el débito",
+  "conceptLineI": "El concepto del renglón {i}",
+  "@conceptLineI": {
+    "placeholders": {
+      "i": {
+        "type": "Object"
+      }
+    }
+  },
+  "selectCategoryLineI2": "Seleccione una categoría en el renglón {i}",
+  "@selectCategoryLineI2": {
+    "placeholders": {
+      "i": {
+        "type": "Object"
+      }
+    }
+  },
+  "selectDestinationAccount2": "Debe seleccionar la cuenta de destino",
+  "selectSourceAccount2": "Seleccione la cuenta de origen",
+  "selectDestinationAccount3": "Seleccione la cuenta de destino",
+  "cannotTransferBetweenAccountsDifferent2": "No se puede transferir entre cuentas de distinta moneda. Registrá un egreso y un ingreso con la cotización usada.",
+  "conceptCannotExceedConceptmaxCharacters": "El concepto no puede superar {conceptMax} caracteres",
+  "@conceptCannotExceedConceptmaxCharacters": {
+    "placeholders": {
+      "conceptMax": {
+        "type": "Object"
+      }
+    }
+  },
+  "operationCorrectNoLongerRejected": "La operación a corregir ya no está rechazada",
+  "systemCategoryRoleMissingSync": "Falta la categoría del sistema {role}: sincronizá con conexión antes de cargar.",
+  "@systemCategoryRoleMissingSync": {
+    "placeholders": {
+      "role": {
+        "type": "Object"
+      }
+    }
+  },
+  "languageDefaultCurrency": "Idioma y Moneda por Defecto",
+  "appLanguage": "Idioma de la Aplicación",
+  "defaultCurrencyNewAccounts": "Moneda por Defecto (al crear cuentas)",
+  "sessionDiagnosticsDebug": "Diagnóstico de sesión (debug)",
+  "n2ParallelGetAuthMe": "2 GET /auth/me en paralelo",
+  "management": "Módulos de Gestión Administrativa",
+  "accountsPaymentMethods": "Cuentas y Medios de Pago",
+  "manageBanksWalletsCash": "Gestionar bancos, billeteras y efectivo (ABM Lugares)",
+  "createRenameActivateExpenseCategories": "Crear, renombrar y activar categorías de gasto",
+  "budgetsSpendingCaps": "Presupuestos y Topes de Gasto",
+  "monthlyLimitsAlertsOneTap": "Límites mensuales, alertas y renovación en 1 tap",
+  "reportsPriceMonitor": "Reportes y Monitor de Precios",
+  "visualAnalyticsChartsInflationTrends": "Analíticas visuales, gráficos y evolución de inflación",
+  "appearanceTheme": "Apariencia y Tema",
+  "displayMode": "Modo de Visualización",
+  "initialSetup": "Configuración Inicial",
+  "welcomePleaseChooseInitialPreferences": "¡Bienvenido a Gastos 2.0! Por favor, selecciona tus preferencias iniciales para configurar la aplicación:",
+  "n1UsualCurrencyDefault": "1. Moneda Habitual (Por Defecto)",
+  "n2PreferredLanguage": "2. Idioma de Preferencia",
+  "selectSourceDestinationAccounts": "Selecciona cuenta de origen y destino",
+  "transferDate": "Fecha de la transferencia",
+  "source": "Desde (Origen)",
+  "selectSource": "Seleccionar origen",
+  "swapAccounts": "Invertir cuentas",
+  "destination": "Hacia (Destino)",
+  "amountTransfer": "Monto a Transferir",
+  "conceptReference": "Concepto / Referencia",
+  "eGWithdrawal": "Ej: Extraccion",
+  "confirmTransfer": "Confirmar Transferencia",
+  "notOnPhoneSync": "{what} no está en el celular; sincronizá y volvé a intentar",
+  "@notOnPhoneSync": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "fieldRequired": "{field} es obligatorio",
+  "@fieldRequired": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "fieldTooLong": "{field} no puede superar {max} caracteres",
+  "@fieldTooLong": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "amountOfMustBePositive": "El monto del {what} debe ser mayor a cero",
+  "@amountOfMustBePositive": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "lineN": "renglón {n}",
+  "@lineN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "incomeWord": "ingreso",
+  "transferWord": "transferencia",
+  "insufficientFundsTransfer": "No dispone del saldo solicitado a transferir ({amount}) en {account}: disponible {available}. Realizá un ingreso en la cuenta de origen.",
+  "@insufficientFundsTransfer": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      },
+      "available": {
+        "type": "String"
+      }
+    }
+  },
+  "insufficientFundsTransferEdit": "No dispone del saldo solicitado a transferir ({amount}) en {account}. Realizá un ingreso en la cuenta de origen.",
+  "@insufficientFundsTransferEdit": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "categoryNotForBudgets": "La categoría {name} no puede usarse en límites de gasto",
+  "@categoryNotForBudgets": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountAlreadyActive": "La cuenta ya está activa",
+  "accountAlreadyInactive": "La cuenta ya está inactiva",
+  "categoryAlreadyActive": "La categoría ya está activa",
+  "categoryAlreadyInactive": "La categoría ya está inactiva",
+  "accountNameTaken": "Ya existe una cuenta con ese nombre",
+  "accountNameTakenInactive": "Ya existe una cuenta inactiva con ese nombre: activala",
+  "categoryNameTaken": "Ya existe una categoría con ese nombre",
+  "categoryNameTakenInactive": "Ya existe una categoría inactiva con ese nombre: activala",
+  "alreadyTriedSyncBeforeDiscard": "Ya se intentó enviar: podría estar aplicada en el servidor. Sincronizá antes de descartarla.",
+  "comparison": "Comparativa",
+  "prices": "Precios",
+  "custom": "Personalizado",
+  "surplus": "Superávit",
+  "deficit": "Déficit",
+  "income2": "Ingresos",
+  "expenses": "Egresos",
+  "apply": "Aplicar",
+  "clear": "Limpiar",
+  "expenses2": "Gastos",
+  "transfer2": "Transferir",
+  "history": "Historial",
+  "date": "Fecha",
+  "destinationAccount": "Cuenta de destino.",
+  "system": "Sistema",
+  "light": "Claro",
+  "dark": "Oscuro",
+  "start": "Comenzar",
+  "linesCount": "{count, plural, =1{1 renglón} other{{count} renglones}}",
+  "@linesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "purchasesCount": "{count, plural, =1{1 compra} other{{count} compras}}",
+  "@purchasesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ticketSumDiffers": "Suma de renglones ({sum}) difiere del total del ticket ({total}): diferencia {diff}. Revisá los montos.",
+  "@ticketSumDiffers": {
+    "placeholders": {
+      "sum": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "diff": {
+        "type": "String"
+      }
+    }
+  },
+  "ticketReadSumTotal": "Ticket leído: suma {sum} | total {total}",
+  "@ticketReadSumTotal": {
+    "placeholders": {
+      "sum": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "ticketSumNoTotal": "Suma de renglones: {sum} (no se detectó un total en el ticket).",
+  "@ticketSumNoTotal": {
+    "placeholders": {
+      "sum": {
+        "type": "String"
+      }
+    }
+  },
+  "chartMonthTooltip": "{month}\n{kind}: {amount}\nBalance: {balance}",
+  "@chartMonthTooltip": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "kind": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "currencyArs": "Pesos argentinos (ARS $)",
+  "currencyUsd": "Dólares (USD $)",
+  "cameraPermissionDenied": "Sin permiso para usar la cámara. Habilitalo en los ajustes del celular para leer el QR.",
+  "cameraUnsupported": "Este celular no permite leer códigos QR.",
+  "cameraError": "No se pudo usar la cámara."
 }

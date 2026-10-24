@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/storage/secure_storage_service.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Ajustes locales del dispositivo. Se conservan al cerrar sesión.
 /// El servidor no se configura acá: se fija al compilar (`API_BASE_URL`).
@@ -40,15 +41,13 @@ final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>(
 class SettingsNotifier extends StateNotifier<SettingsState> {
   final SecureStorageService _storageService;
 
-  static const Map<String, String> monedasDisponibles = {
-    'ARS': 'Pesos Argentinos (ARS \$)',
-    'USD': 'Dólares (USD \$)',
-    'EUR': 'Euros (EUR €)',
-    'PEN': 'Soles Peruanos (PEN S/)',
-    'CLP': 'Pesos Chilenos (CLP \$)',
-    'MXN': 'Pesos Mexicanos (MXN \$)',
-    'BRL': 'Reales (BRL R\$)',
-  };
+  /// La API solo maneja ARS y USD. Nombre visible: [currencyLabel].
+  static const List<String> monedasDisponibles = ['ARS', 'USD'];
+
+  static String currencyLabel(String code, AppLocalizations l) => switch (code) {
+        'USD' => l.currencyUsd,
+        _ => l.currencyArs,
+      };
 
   static const Map<String, String> idiomasDisponibles = {
     'es': 'Español',
@@ -80,7 +79,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
       final savedCurrency = await _storageService.getDefaultCurrency();
       if (savedCurrency != null && savedCurrency.isNotEmpty) {
-        state = state.copyWith(defaultCurrency: savedCurrency);
+        // Una moneda guardada que ya no se ofrece (EUR, PEN…) vuelve a ARS.
+        state = state.copyWith(defaultCurrency: monedasDisponibles.contains(savedCurrency) ? savedCurrency : 'ARS');
       }
 
       final firstDone = await _storageService.isFirstLaunchDone();

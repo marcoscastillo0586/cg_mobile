@@ -796,4 +796,790 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get errNetwork =>
       'No se pudo conectar con el servidor. Revisá tu conexión.';
+
+  @override
+  String get selectAccount => 'Seleccioná una cuenta';
+
+  @override
+  String get operationNoLongerQueue => 'La operación ya no está en la cola';
+
+  @override
+  String get onlyEditsConflictCanRetried =>
+      'Solo se reintentan ediciones en conflicto';
+
+  @override
+  String get voucherNoLongerExistsPhone =>
+      'El comprobante ya no existe en el celular';
+
+  @override
+  String get onlyRejectedCreationsCanCorrected =>
+      'Solo se corrigen altas rechazadas';
+
+  @override
+  String get unknownIcon => 'Ícono desconocido';
+
+  @override
+  String get account => 'La cuenta';
+
+  @override
+  String get currencyAccountMovementsCannotChange =>
+      'No se puede cambiar la moneda de una cuenta con movimientos';
+
+  @override
+  String get noChangesSave => 'No hay cambios para guardar';
+
+  @override
+  String nameMustHaveLeastAccountnamemin(Object accountNameMin) {
+    return 'El nombre debe tener al menos $accountNameMin caracteres';
+  }
+
+  @override
+  String nameCannotExceedAccountnamemaxCharacters(Object accountNameMax) {
+    return 'El nombre no puede superar $accountNameMax caracteres';
+  }
+
+  @override
+  String get selectRangeReport => 'Selecciona rango para el reporte';
+
+  @override
+  String get reportsAnalytics => 'Reportes y Analíticas';
+
+  @override
+  String get refreshReport => 'Actualizar reporte';
+
+  @override
+  String get dayDay => 'Día a Día';
+
+  @override
+  String get month => 'Este Mes';
+
+  @override
+  String get previousMonth => 'Mes Anterior';
+
+  @override
+  String get currentYear => 'Año Actual';
+
+  @override
+  String get frequentConceptsDetail => 'Detalle de Conceptos Frecuentes';
+
+  @override
+  String get annualOverview => 'Ejercicio Anual';
+
+  @override
+  String get annualIncome => 'Ingresos Anuales';
+
+  @override
+  String get annualExpenses => 'Egresos Anuales';
+
+  @override
+  String get netBalance => 'Balance Neto';
+
+  @override
+  String get savingsRate => 'Tasa de Ahorro';
+
+  @override
+  String get incomeVsExpensesMonth => 'Ingresos vs Egresos Mes a Mes';
+
+  @override
+  String get detailedMonthlyBreakdown => 'Desglose Mensual Detallado';
+
+  @override
+  String incIngresoscents(Object ingresosCents) {
+    return 'Ing: $ingresosCents';
+  }
+
+  @override
+  String expEgresoscents(Object egresosCents) {
+    return 'Egr: $egresosCents';
+  }
+
+  @override
+  String get dailySpendingCurve => 'Curva de Gasto Diario';
+
+  @override
+  String get monthTotal => 'Total del Mes';
+
+  @override
+  String get highestPeak => 'Pico Más Alto';
+
+  @override
+  String get dailyExpenseTrend => 'Trayectoria Diaria de Egresos';
+
+  @override
+  String get noExpensesPeriod => 'No hay egresos en este período';
+
+  @override
+  String get totalExpenses => 'Total Gastos';
+
+  @override
+  String tostringasfixedTotal(Object toStringAsFixed) {
+    return '$toStringAsFixed% del total';
+  }
+
+  @override
+  String dayDianumSpentEgresoscents(Object diaNum, Object egresosCents) {
+    return 'Día $diaNum\nGasto: $egresosCents';
+  }
+
+  @override
+  String get searchItemPluCode => 'Buscar artículo o código PLU...';
+
+  @override
+  String get compareInflationBetweenPeriods =>
+      'Comparar Inflación entre Períodos';
+
+  @override
+  String get noRecordedItemsFound => 'No se encontraron artículos registrados';
+
+  @override
+  String get itemsRecordedWhenYouEnter =>
+      'Los artículos se registran al cargar tickets o egresos detallados';
+
+  @override
+  String get priceHistoryTrend => 'Historial de Precios y Tendencia';
+
+  @override
+  String get noHistoricalDataItem =>
+      'No hay datos históricos para este artículo';
+
+  @override
+  String get currentPrice => 'Precio Actual';
+
+  @override
+  String get totalChange => 'Variación Total';
+
+  @override
+  String get historicalLow => 'Mínimo Histórico';
+
+  @override
+  String get historicalHigh => 'Máximo Histórico';
+
+  @override
+  String get unitPriceTrend => 'Evolución del Precio Unitario';
+
+  @override
+  String get purchaseHistory => 'Historial de Compras';
+
+  @override
+  String get inflationMonitor => 'Monitor de Inflación';
+
+  @override
+  String get comparisonIdenticalItemsPurchased =>
+      'Comparativa de artículos idénticos comprados';
+
+  @override
+  String get noIdenticalItemsWerePurchased =>
+      'No se detectaron artículos idénticos comprados en ambos períodos seleccionados.';
+
+  @override
+  String get personalAverageInflation => 'Inflación Promedio Personal';
+
+  @override
+  String productoscomunesItemsComparedProductosaumentaronWent(
+      Object productosComunes, Object productosAumentaron) {
+    return '$productosComunes artículos comparados ($productosAumentaron subieron de precio)';
+  }
+
+  @override
+  String get detailItem => 'Detalle por Artículo';
+
+  @override
+  String beforePrecio1centsNowPrecio2cents(
+      Object precio1Cents, Object precio2Cents) {
+    return 'Antes: $precio1Cents ➔ Ahora: $precio2Cents';
+  }
+
+  @override
+  String get loadingFinances => 'Cargando tu espacio financiero...';
+
+  @override
+  String get category2 => 'La categoría';
+
+  @override
+  String get systemReservedCategoriesCannotChanged =>
+      'Las categorías reservadas del sistema no pueden modificarse ni eliminarse';
+
+  @override
+  String get categoryNameRequired => 'El nombre de la categoría es obligatorio';
+
+  @override
+  String nameCannotExceedCategorynamemaxCharacters(Object categoryNameMax) {
+    return 'El nombre no puede superar $categoryNameMax caracteres';
+  }
+
+  @override
+  String couldNotOpenLocalDatabase(Object e) {
+    return 'No se pudo abrir la base local: $e';
+  }
+
+  @override
+  String get filterBalancesUpDate => 'Filtrar saldos hasta fecha';
+
+  @override
+  String get refreshBalances => 'Actualizar saldos';
+
+  @override
+  String get settings => 'Ajustes y Configuración';
+
+  @override
+  String myAccountsAccounts(Object accounts) {
+    return 'Mis Cuentas ($accounts)';
+  }
+
+  @override
+  String get limitsBudgets => 'Límites y Presupuestos';
+
+  @override
+  String get consolidatedBalances => 'Saldos Consolidados';
+
+  @override
+  String get hideBalances => 'Ocultar saldos';
+
+  @override
+  String get filterDate => 'Filtrar por fecha';
+
+  @override
+  String untilFechaformatted(Object fechaFormatted) {
+    return 'Hasta: $fechaFormatted';
+  }
+
+  @override
+  String get selectSourceAccount => 'Debes seleccionar una cuenta de origen';
+
+  @override
+  String selectCategoryLineI(Object i) {
+    return 'Debes seleccionar una categoría para el Renglón #$i';
+  }
+
+  @override
+  String get qrReceiptsCannotConfirmedHere =>
+      'No se pueden confirmar tickets QR en este contexto';
+
+  @override
+  String get accountNotServerYetSync =>
+      'La cuenta todavía no está en el servidor: sincronizá y volvé a intentar';
+
+  @override
+  String get fillConceptField => 'Debe completar el campo Concepto';
+
+  @override
+  String categoryNameNotServerYet(Object name) {
+    return 'La categoría $name todavía no está en el servidor: sincronizá';
+  }
+
+  @override
+  String lineIMustHaveAmount(Object i) {
+    return 'El Renglón #$i debe tener un monto mayor a 0';
+  }
+
+  @override
+  String get expenseDate => 'Fecha del egreso';
+
+  @override
+  String get sourceAccount => 'Cuenta de Origen';
+
+  @override
+  String get generalConcept2 => 'Concepto General *';
+
+  @override
+  String get eGSupermarketBookstore => 'Ej: Supermercado, Librería...';
+
+  @override
+  String get addLine => 'Agregar Renglón';
+
+  @override
+  String get expenseTotal => 'Total del Gasto';
+
+  @override
+  String get scannedQrCodeNotValid =>
+      'El código QR escaneado no es una dirección web válida (http/https).';
+
+  @override
+  String get loadingExpenses => 'Cargando gastos...';
+
+  @override
+  String receiptReadItemsLines(Object items) {
+    return 'Ticket leído: $items renglones';
+  }
+
+  @override
+  String get couldNotProcessQr => 'No se pudo procesar QR';
+
+  @override
+  String motivoDoYouWantScan(Object motivo) {
+    return '$motivo\n\n¿Deseas intentar reescanear el QR o usar la lectura por fotos?';
+  }
+
+  @override
+  String get usePhotos => 'Usar fotos';
+
+  @override
+  String get scannerNotAvailableDeviceSelect =>
+      'El escáner no está disponible en este dispositivo. Selecciona fotos de la galería.';
+
+  @override
+  String get couldNotAccessGalleryCheck =>
+      'No se pudo acceder a la galería. Verifica los permisos.';
+
+  @override
+  String lineRenglonnum(Object renglonNum) {
+    return 'Renglón #$renglonNum';
+  }
+
+  @override
+  String get deleteLine2 => 'Eliminar renglón';
+
+  @override
+  String get eGVegetablesMeatCleaning => 'Ej: Verduras, Carne, Limpieza...';
+
+  @override
+  String get selectDestinationAccount => 'Selecciona una cuenta de destino';
+
+  @override
+  String get incomeDate => 'Fecha del ingreso';
+
+  @override
+  String get amountAdd => 'Monto a Ingresar';
+
+  @override
+  String get conceptReason => 'Concepto / Motivo';
+
+  @override
+  String eGSalaryFreelancePayment(Object conceptoIngresoPorDefecto) {
+    return 'Ej: Sueldo, Cobro freelance, Venta... (vacío: \"$conceptoIngresoPorDefecto\")';
+  }
+
+  @override
+  String get recordIncome2 => 'Registrar Ingreso';
+
+  @override
+  String get amountMustGreaterThanZero => 'El monto debe ser mayor a cero';
+
+  @override
+  String get selectLeastOneCategory => 'Seleccione al menos una categoría';
+
+  @override
+  String mostBudgetmaxcategoriesCategories(Object budgetMaxCategories) {
+    return 'Máximo $budgetMaxCategories categorías';
+  }
+
+  @override
+  String get selectLeastOneAccountApply =>
+      'Debe seleccionar al menos un lugar donde aplicar el límite de gastos';
+
+  @override
+  String get limit2 => 'El límite';
+
+  @override
+  String get invalidDate => 'Fecha inválida';
+
+  @override
+  String get endDateCannotBeforeStart =>
+      'La fecha hasta no puede ser anterior a la fecha desde';
+
+  @override
+  String get generalConcept3 => 'El concepto general';
+
+  @override
+  String get changeAccountsTransferEditSource =>
+      'Para cambiar las cuentas de una transferencia editá origen y destino';
+
+  @override
+  String get movementCannotMovedAccountAnother =>
+      'No se puede mover el movimiento a una cuenta de otra moneda';
+
+  @override
+  String get transferLinesEditedAsPair =>
+      'Los renglones de una transferencia se editan como par (origen, destino y monto)';
+
+  @override
+  String get concept2 => 'El concepto';
+
+  @override
+  String get incomesAlwaysUseReservedIncome =>
+      'Los ingresos usan siempre la categoría reservada de ingresos';
+
+  @override
+  String get selectCategory => 'Seleccione una categoría';
+
+  @override
+  String categoryNameReservedCannotUsed(Object name) {
+    return 'La categoría $name es reservada y no puede usarse en egresos';
+  }
+
+  @override
+  String categoryNameInactive(Object name) {
+    return 'La categoría $name está inactiva';
+  }
+
+  @override
+  String get singleLineTransferCannotDeleted =>
+      'No se puede eliminar un solo renglón de una transferencia; eliminá el movimiento completo';
+
+  @override
+  String get onlyLineVoucherDeleteWhole =>
+      'Es el único renglón del comprobante; eliminá el movimiento completo';
+
+  @override
+  String get movementNotTransfer => 'El movimiento no es una transferencia';
+
+  @override
+  String get transferDoesNotHaveIts =>
+      'La transferencia no tiene su par de renglones en el celular';
+
+  @override
+  String get sourceDestinationAccountsCannotSame =>
+      'La cuenta de origen y de destino no pueden ser iguales';
+
+  @override
+  String get cannotTransferBetweenAccountsDifferent =>
+      'No se puede transferir entre cuentas de distinta moneda';
+
+  @override
+  String get voucherNotPhoneSyncTry =>
+      'El comprobante no está en el celular; sincronizá y volvé a intentar';
+
+  @override
+  String get lineNoLongerPhone => 'El renglón ya no está en el celular';
+
+  @override
+  String get voucherHasNotReachedServer =>
+      'El comprobante todavía no llegó al servidor: sincronizá antes de editar o borrar sus renglones';
+
+  @override
+  String accountNameInactive(Object name) {
+    return 'La cuenta $name está inactiva';
+  }
+
+  @override
+  String get enterLeastOneExpense => 'Debe ingresar al menos un gasto';
+
+  @override
+  String get most300LinesPerExpense => 'Máximo 300 renglones por egreso';
+
+  @override
+  String get selectAccountDebit =>
+      'Debe seleccionar un lugar para realizar el débito';
+
+  @override
+  String conceptLineI(Object i) {
+    return 'El concepto del renglón $i';
+  }
+
+  @override
+  String selectCategoryLineI2(Object i) {
+    return 'Seleccione una categoría en el renglón $i';
+  }
+
+  @override
+  String get selectDestinationAccount2 =>
+      'Debe seleccionar la cuenta de destino';
+
+  @override
+  String get selectSourceAccount2 => 'Seleccione la cuenta de origen';
+
+  @override
+  String get selectDestinationAccount3 => 'Seleccione la cuenta de destino';
+
+  @override
+  String get cannotTransferBetweenAccountsDifferent2 =>
+      'No se puede transferir entre cuentas de distinta moneda. Registrá un egreso y un ingreso con la cotización usada.';
+
+  @override
+  String conceptCannotExceedConceptmaxCharacters(Object conceptMax) {
+    return 'El concepto no puede superar $conceptMax caracteres';
+  }
+
+  @override
+  String get operationCorrectNoLongerRejected =>
+      'La operación a corregir ya no está rechazada';
+
+  @override
+  String systemCategoryRoleMissingSync(Object role) {
+    return 'Falta la categoría del sistema $role: sincronizá con conexión antes de cargar.';
+  }
+
+  @override
+  String get languageDefaultCurrency => 'Idioma y Moneda por Defecto';
+
+  @override
+  String get appLanguage => 'Idioma de la Aplicación';
+
+  @override
+  String get defaultCurrencyNewAccounts =>
+      'Moneda por Defecto (al crear cuentas)';
+
+  @override
+  String get sessionDiagnosticsDebug => 'Diagnóstico de sesión (debug)';
+
+  @override
+  String get n2ParallelGetAuthMe => '2 GET /auth/me en paralelo';
+
+  @override
+  String get management => 'Módulos de Gestión Administrativa';
+
+  @override
+  String get accountsPaymentMethods => 'Cuentas y Medios de Pago';
+
+  @override
+  String get manageBanksWalletsCash =>
+      'Gestionar bancos, billeteras y efectivo (ABM Lugares)';
+
+  @override
+  String get createRenameActivateExpenseCategories =>
+      'Crear, renombrar y activar categorías de gasto';
+
+  @override
+  String get budgetsSpendingCaps => 'Presupuestos y Topes de Gasto';
+
+  @override
+  String get monthlyLimitsAlertsOneTap =>
+      'Límites mensuales, alertas y renovación en 1 tap';
+
+  @override
+  String get reportsPriceMonitor => 'Reportes y Monitor de Precios';
+
+  @override
+  String get visualAnalyticsChartsInflationTrends =>
+      'Analíticas visuales, gráficos y evolución de inflación';
+
+  @override
+  String get appearanceTheme => 'Apariencia y Tema';
+
+  @override
+  String get displayMode => 'Modo de Visualización';
+
+  @override
+  String get initialSetup => 'Configuración Inicial';
+
+  @override
+  String get welcomePleaseChooseInitialPreferences =>
+      '¡Bienvenido a Gastos 2.0! Por favor, selecciona tus preferencias iniciales para configurar la aplicación:';
+
+  @override
+  String get n1UsualCurrencyDefault => '1. Moneda Habitual (Por Defecto)';
+
+  @override
+  String get n2PreferredLanguage => '2. Idioma de Preferencia';
+
+  @override
+  String get selectSourceDestinationAccounts =>
+      'Selecciona cuenta de origen y destino';
+
+  @override
+  String get transferDate => 'Fecha de la transferencia';
+
+  @override
+  String get source => 'Desde (Origen)';
+
+  @override
+  String get selectSource => 'Seleccionar origen';
+
+  @override
+  String get swapAccounts => 'Invertir cuentas';
+
+  @override
+  String get destination => 'Hacia (Destino)';
+
+  @override
+  String get amountTransfer => 'Monto a Transferir';
+
+  @override
+  String get conceptReference => 'Concepto / Referencia';
+
+  @override
+  String get eGWithdrawal => 'Ej: Extraccion';
+
+  @override
+  String get confirmTransfer => 'Confirmar Transferencia';
+
+  @override
+  String notOnPhoneSync(String what) {
+    return '$what no está en el celular; sincronizá y volvé a intentar';
+  }
+
+  @override
+  String fieldRequired(String field) {
+    return '$field es obligatorio';
+  }
+
+  @override
+  String fieldTooLong(String field, int max) {
+    return '$field no puede superar $max caracteres';
+  }
+
+  @override
+  String amountOfMustBePositive(String what) {
+    return 'El monto del $what debe ser mayor a cero';
+  }
+
+  @override
+  String lineN(int n) {
+    return 'renglón $n';
+  }
+
+  @override
+  String get incomeWord => 'ingreso';
+
+  @override
+  String get transferWord => 'transferencia';
+
+  @override
+  String insufficientFundsTransfer(
+      String amount, String account, String available) {
+    return 'No dispone del saldo solicitado a transferir ($amount) en $account: disponible $available. Realizá un ingreso en la cuenta de origen.';
+  }
+
+  @override
+  String insufficientFundsTransferEdit(String amount, String account) {
+    return 'No dispone del saldo solicitado a transferir ($amount) en $account. Realizá un ingreso en la cuenta de origen.';
+  }
+
+  @override
+  String categoryNotForBudgets(String name) {
+    return 'La categoría $name no puede usarse en límites de gasto';
+  }
+
+  @override
+  String get accountAlreadyActive => 'La cuenta ya está activa';
+
+  @override
+  String get accountAlreadyInactive => 'La cuenta ya está inactiva';
+
+  @override
+  String get categoryAlreadyActive => 'La categoría ya está activa';
+
+  @override
+  String get categoryAlreadyInactive => 'La categoría ya está inactiva';
+
+  @override
+  String get accountNameTaken => 'Ya existe una cuenta con ese nombre';
+
+  @override
+  String get accountNameTakenInactive =>
+      'Ya existe una cuenta inactiva con ese nombre: activala';
+
+  @override
+  String get categoryNameTaken => 'Ya existe una categoría con ese nombre';
+
+  @override
+  String get categoryNameTakenInactive =>
+      'Ya existe una categoría inactiva con ese nombre: activala';
+
+  @override
+  String get alreadyTriedSyncBeforeDiscard =>
+      'Ya se intentó enviar: podría estar aplicada en el servidor. Sincronizá antes de descartarla.';
+
+  @override
+  String get comparison => 'Comparativa';
+
+  @override
+  String get prices => 'Precios';
+
+  @override
+  String get custom => 'Personalizado';
+
+  @override
+  String get surplus => 'Superávit';
+
+  @override
+  String get deficit => 'Déficit';
+
+  @override
+  String get income2 => 'Ingresos';
+
+  @override
+  String get expenses => 'Egresos';
+
+  @override
+  String get apply => 'Aplicar';
+
+  @override
+  String get clear => 'Limpiar';
+
+  @override
+  String get expenses2 => 'Gastos';
+
+  @override
+  String get transfer2 => 'Transferir';
+
+  @override
+  String get history => 'Historial';
+
+  @override
+  String get date => 'Fecha';
+
+  @override
+  String get destinationAccount => 'Cuenta de destino.';
+
+  @override
+  String get system => 'Sistema';
+
+  @override
+  String get light => 'Claro';
+
+  @override
+  String get dark => 'Oscuro';
+
+  @override
+  String get start => 'Comenzar';
+
+  @override
+  String linesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count renglones',
+      one: '1 renglón',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String purchasesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count compras',
+      one: '1 compra',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String ticketSumDiffers(String sum, String total, String diff) {
+    return 'Suma de renglones ($sum) difiere del total del ticket ($total): diferencia $diff. Revisá los montos.';
+  }
+
+  @override
+  String ticketReadSumTotal(String sum, String total) {
+    return 'Ticket leído: suma $sum | total $total';
+  }
+
+  @override
+  String ticketSumNoTotal(String sum) {
+    return 'Suma de renglones: $sum (no se detectó un total en el ticket).';
+  }
+
+  @override
+  String chartMonthTooltip(
+      String month, String kind, String amount, String balance) {
+    return '$month\n$kind: $amount\nBalance: $balance';
+  }
+
+  @override
+  String get currencyArs => 'Pesos argentinos (ARS \$)';
+
+  @override
+  String get currencyUsd => 'Dólares (USD \$)';
+
+  @override
+  String get cameraPermissionDenied =>
+      'Sin permiso para usar la cámara. Habilitalo en los ajustes del celular para leer el QR.';
+
+  @override
+  String get cameraUnsupported => 'Este celular no permite leer códigos QR.';
+
+  @override
+  String get cameraError => 'No se pudo usar la cámara.';
 }

@@ -3,6 +3,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/database/local_catalog.dart';
 import '../../../../core/money/money.dart';
 import '../../domain/entities/renglon_gasto.dart';
+import '../../../../l10n/l10n.dart';
 
 class RenglonGastoCard extends StatefulWidget {
   final int index;
@@ -141,7 +142,7 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'Renglón #$renglonNum',
+                        context.l10n.lineRenglonnum(renglonNum),
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -158,7 +159,7 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                       color: AppColors.rose,
                       size: 20,
                     ),
-                    tooltip: 'Eliminar renglón',
+                    tooltip: context.l10n.deleteLine2,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     onPressed: widget.onEliminar,
@@ -173,9 +174,9 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
             const SizedBox(height: 12),
 
             // Campo: Concepto del renglón
-            const Text(
-              'Concepto',
-              style: TextStyle(
+            Text(
+              context.l10n.concept,
+              style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 12,
                 color: AppColors.lightTextSecondary,
@@ -210,7 +211,7 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                   focusNode: focusNode,
                   textCapitalization: TextCapitalization.sentences,
                   decoration: InputDecoration(
-                    hintText: 'Ej: Verduras, Carne, Limpieza...',
+                    hintText: context.l10n.eGVegetablesMeatCleaning,
                     prefixIcon: const Icon(Icons.edit_note_rounded, size: 20),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     suffixIcon: controller.text.isNotEmpty
@@ -239,9 +240,9 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Monto',
-                        style: TextStyle(
+                      Text(
+                        context.l10n.amount,
+                        style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
                           color: AppColors.lightTextSecondary,
@@ -264,7 +265,7 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                             fontWeight: FontWeight.bold,
                           ),
                           hintText: '0,00',
-                          errorText: _montoInvalido ? 'Importe inválido (máx. 2 decimales)' : null,
+                          errorText: _montoInvalido ? context.l10n.invalidAmountMax2Decimals : null,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         ),
                       ),
@@ -279,9 +280,9 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Categoría',
-                        style: TextStyle(
+                      Text(
+                        context.l10n.category,
+                        style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
                           color: AppColors.lightTextSecondary,
@@ -298,7 +299,7 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                             value: widget.renglon.categoriaId,
                             isExpanded: true,
                             isDense: true,
-                            hint: const Text('Categoría', style: TextStyle(fontSize: 13)),
+                            hint: Text(context.l10n.category, style: const TextStyle(fontSize: 13)),
                             items: widget.categorias.map((cat) {
                               return DropdownMenuItem<int>(
                                 value: cat.localId,

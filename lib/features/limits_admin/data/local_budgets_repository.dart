@@ -85,20 +85,20 @@ class LocalBudgetsRepository {
   }) =>
       _db.transaction((txn) async {
         _period(startDate, endDate);
-        if (limitCents <= 0) throw LocalOps.invalid('El monto debe ser mayor a cero');
+        if (limitCents <= 0) throw LocalOps.invalid((l) => l.amountMustGreaterThanZero);
         final cats = categoryIds.toSet().toList(), accs = accountIds.toSet().toList();
-        if (cats.isEmpty) throw LocalOps.invalid('Seleccione al menos una categoría');
-        if (cats.length > budgetMaxCategories) throw LocalOps.invalid('Máximo $budgetMaxCategories categorías');
-        if (accs.isEmpty) throw LocalOps.invalid('Debe seleccionar al menos un lugar donde aplicar el límite de gastos');
+        if (cats.isEmpty) throw LocalOps.invalid((l) => l.selectLeastOneCategory);
+        if (cats.length > budgetMaxCategories) throw LocalOps.invalid((l) => l.mostBudgetmaxcategoriesCategories(budgetMaxCategories));
+        if (accs.isEmpty) throw LocalOps.invalid((l) => l.selectLeastOneAccountApply);
         final catRefs = <Map<String, Object>>[];
         for (final id in cats) {
-          final c = await LocalOps.require(txn, 'categories', id, 'La categoría');
+          final c = await LocalOps.require(txn, 'categories', id, (l) => l.category2);
           if (c['role'] == 'TRANSFER' || c['role'] == 'INCOME') {
-            throw ValidationFailure('La categoría ${c['name']} no puede usarse en límites de gasto', null, 'RESERVED_CATEGORY');
+            throw ValidationFailure.t((l) => l.categoryNotForBudgets(c['name']! as String), 'RESERVED_CATEGORY');
           }
           catRefs.add(LocalOps.ref(c));
         }
-        final accRefs = [for (final id in accs) LocalOps.ref(await LocalOps.require(txn, 'accounts', id, 'La cuenta'))];
+        final accRefs = [for (final id in accs) LocalOps.ref(await LocalOps.require(txn, 'accounts', id, (l) => l.account))];
         final clientId = LocalDatabase.newId();
         final localId = await txn.insert('budgets', {
           'client_id': clientId, 'start_date': startDate, 'end_date': endDate, 'limit_cents': limitCents, 'updated_at': LocalOps.stamp(),
@@ -120,7 +120,7 @@ class LocalBudgetsRepository {
 
   /// Fechas y/o monto (la API de sincronización no cambia categorías ni cuentas de un límite).
   Future<String> update(int localId, {String? startDate, String? endDate, int? limitCents}) => _db.transaction((txn) async {
-        final row = await LocalOps.require(txn, 'budgets', localId, 'El límite');
+        final row = await LocalOps.require(txn, 'budgets', localId, (l) => l.limit2);
         final changes = <String, Object?>{};
         final data = <String, Object?>{};
         if (startDate != null && startDate != row['start_date']) {
@@ -132,18 +132,18 @@ class LocalBudgetsRepository {
           data['endDate'] = endDate;
         }
         if (limitCents != null && limitCents != row['limit_cents']) {
-          if (limitCents <= 0) throw LocalOps.invalid('El monto debe ser mayor a cero');
+          if (limitCents <= 0) throw LocalOps.invalid((l) => l.amountMustGreaterThanZero);
           changes['limit_cents'] = limitCents;
           data['limit'] = Money.toApiDecimal(limitCents);
         }
-        if (data.isEmpty) throw LocalOps.invalid('No hay cambios para guardar');
+        if (data.isEmpty) throw LocalOps.invalid((l) => l.noChangesSave);
         _period((changes['start_date'] ?? row['start_date'])! as String, (changes['end_date'] ?? row['end_date'])! as String);
         return _enqueueUpdate(txn, row, changes, data);
       });
 
   /// `renovarLimiteGasto`: desde + 1 mes; hasta = último día del mes de (hasta + 1 mes).
   Future<String> renew(int localId) => _db.transaction((txn) async {
-        final row = await LocalOps.require(txn, 'budgets', localId, 'El límite');
+        final row = await LocalOps.require(txn, 'budgets', localId, (l) => l.limit2);
         return _enqueueUpdate(txn, row, {
           'start_date': addMonths(row['start_date']! as String, 1),
           'end_date': lastDayOfMonth(addMonths(row['end_date']! as String, 1)),
@@ -151,7 +151,7 @@ class LocalBudgetsRepository {
       });
 
   Future<String?> delete(int localId) => _db.transaction((txn) async {
-        final row = await LocalOps.require(txn, 'budgets', localId, 'El límite');
+        final row = await LocalOps.require(txn, 'budgets', localId, (l) => l.limit2);
         return LocalOps.deleteRow(txn, entity: 'budget', table: 'budgets', row: row);
       });
 
@@ -169,9 +169,9 @@ class LocalBudgetsRepository {
 
   static void _period(String start, String end) {
     final re = RegExp(r'^\d{4}-\d{2}-\d{2}$');
-    if (!re.hasMatch(start) || !re.hasMatch(end)) throw LocalOps.invalid('Fecha inválida');
+    if (!re.hasMatch(start) || !re.hasMatch(end)) throw LocalOps.invalid((l) => l.invalidDate);
     if (end.compareTo(start) < 0) {
-      throw const ValidationFailure('La fecha hasta no puede ser anterior a la fecha desde', null, 'INVALID_PERIOD');
+      throw ValidationFailure.t((l) => l.endDateCannotBeforeStart, 'INVALID_PERIOD');
     }
   }
 

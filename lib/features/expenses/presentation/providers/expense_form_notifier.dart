@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/local_catalog.dart';
 import '../../../../core/errors/failures.dart';
-import '../../../../core/money/money.dart';
 import '../../../../core/sync/outbox_repository.dart';
 import '../../data/tickets_repository.dart';
 import '../../domain/entities/qr_ticket.dart';
@@ -146,23 +145,10 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
     ];
     _ticketClientSyncId = qr == null ? null : LocalDatabase.newId();
 
-    final suma = Money.format(parseResult.sumaRenglonesCents);
-    final totalD = parseResult.totalDetectadoCents;
-    final String feedback;
-    if (totalD != null) {
-      feedback = parseResult.tieneDiferenciaTotal
-          ? 'Suma de renglones ($suma) difiere del total del ticket (${Money.format(totalD)}): diferencia '
-              '${Money.format(parseResult.sumaRenglonesCents - totalD)}. Revisá los montos.'
-          : 'Ticket leído: suma $suma | total ${Money.format(totalD)}';
-    } else {
-      feedback = 'Suma de renglones: $suma (no se detectó un total en el ticket).';
-    }
-
     state = state.copyWith(
       status: ExpenseFormStatus.ready,
       ticketParseResult: parseResult,
       renglones: renglonesNuevos.isNotEmpty ? renglonesNuevos : [RenglonGasto.nuevo(defaultCategoriaId: ticketCat)],
-      qrFeedback: feedback,
       fecha: qr?.isoDate == null ? null : DateTime.tryParse(qr!.isoDate!),
       conceptoGeneral: qr?.generalConcept,
     );
@@ -182,7 +168,7 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
     if (state.ticketParseResult?.qr != null) return _confirmarTicketQr(state.ticketParseResult!.qr!);
     final cuenta = state.selectedCuentaId;
     if (cuenta == null) {
-      state = state.copyWith(error: const ValidationFailure('Debes seleccionar una cuenta de origen', null, 'VALIDATION_ERROR'));
+      state = state.copyWith(error: ValidationFailure.t((l) => l.selectSourceAccount, 'VALIDATION_ERROR'));
       return false;
     }
     final general = state.conceptoGeneral.trim();
@@ -195,7 +181,7 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
         lines: [
           for (final (i, r) in state.renglones.indexed)
             if (r.categoriaId == null)
-              throw ValidationFailure('Debes seleccionar una categoría para el Renglón #${i + 1}', null, 'VALIDATION_ERROR')
+              throw ValidationFailure.t((l) => l.selectCategoryLineI(i + 1), 'VALIDATION_ERROR')
             else
               // Renglón sin concepto: usa el concepto general (como antes).
               ExpenseLine(concept: r.concepto.trim().isEmpty ? general : r.concepto, categoryLocalId: r.categoriaId!, amountCents: r.montoCents),
@@ -216,29 +202,29 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
   Future<bool> _confirmarTicketQr(QrTicket qr) async {
     final cuenta = state.cuentaSeleccionada;
     if (cuenta == null) {
-      state = state.copyWith(error: const ValidationFailure('Debes seleccionar una cuenta de origen', null, 'VALIDATION_ERROR'));
+      state = state.copyWith(error: ValidationFailure.t((l) => l.selectSourceAccount, 'VALIDATION_ERROR'));
       return false;
     }
     final tickets = _tickets;
     if (tickets == null) {
-      state = state.copyWith(error: const ValidationFailure('No se pueden confirmar tickets QR en este contexto', null, 'NOT_AVAILABLE'));
+      state = state.copyWith(error: ValidationFailure.t((l) => l.qrReceiptsCannotConfirmedHere, 'NOT_AVAILABLE'));
       return false;
     }
     state = state.copyWith(status: ExpenseFormStatus.submitting, clearError: true);
     try {
       if (cuenta.serverId == null) {
-        throw const ValidationFailure('La cuenta todavía no está en el servidor: sincronizá y volvé a intentar', null, 'VALIDATION_ERROR');
+        throw ValidationFailure.t((l) => l.accountNotServerYetSync, 'VALIDATION_ERROR');
       }
       final general = state.conceptoGeneral.trim();
-      if (general.isEmpty) throw const ValidationFailure('Debe completar el campo Concepto', null, 'VALIDATION_ERROR');
+      if (general.isEmpty) throw ValidationFailure.t((l) => l.fillConceptField, 'VALIDATION_ERROR');
       final items = <QrTicketConfirmItem>[];
       for (final (i, r) in state.renglones.indexed) {
         final cat = state.categorias.where((c) => c.localId == r.categoriaId).firstOrNull;
-        if (cat == null) throw ValidationFailure('Debes seleccionar una categoría para el Renglón #${i + 1}', null, 'VALIDATION_ERROR');
+        if (cat == null) throw ValidationFailure.t((l) => l.selectCategoryLineI(i + 1), 'VALIDATION_ERROR');
         if (cat.serverId == null) {
-          throw ValidationFailure('La categoría ${cat.name} todavía no está en el servidor: sincronizá', null, 'VALIDATION_ERROR');
+          throw ValidationFailure.t((l) => l.categoryNameNotServerYet(cat.name), 'VALIDATION_ERROR');
         }
-        if (r.montoCents <= 0) throw ValidationFailure('El Renglón #${i + 1} debe tener un monto mayor a 0', null, 'VALIDATION_ERROR');
+        if (r.montoCents <= 0) throw ValidationFailure.t((l) => l.lineIMustHaveAmount(i + 1), 'VALIDATION_ERROR');
         items.add(QrTicketConfirmItem(
           concept: r.concepto.trim().isEmpty ? general : r.concepto.trim(),
           categoryServerId: cat.serverId!,

@@ -55,7 +55,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
       initialDate: estado.fecha,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 30)),
-      helpText: 'Fecha de la transferencia',
+      helpText: context.l10n.transferDate,
     );
 
     if (seleccionada != null) {
@@ -122,15 +122,15 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Desde (Origen)',
-                                style: TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
+                              Text(
+                                context.l10n.source,
+                                style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
                               ),
                               DropdownButtonHideUnderline(
                                 child: DropdownButton<int>(
                                   isExpanded: true,
                                   value: state.selectedOrigenId,
-                                  hint: const Text('Seleccionar origen'),
+                                  hint: Text(context.l10n.selectSource),
                                   items: state.cuentas.map((lug) {
                                     return DropdownMenuItem<int>(
                                       value: lug.localId,
@@ -162,7 +162,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
                         const Expanded(child: Divider()),
                         IconButton(
                           icon: const Icon(Icons.swap_vert_rounded, color: AppColors.primary),
-                          tooltip: 'Invertir cuentas',
+                          tooltip: context.l10n.swapAccounts,
                           onPressed: () {
                             AppFeedback.medium();
                             ref.read(transferFormNotifierProvider.notifier).intercambiarCuentas();
@@ -188,9 +188,9 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Hacia (Destino)',
-                                style: TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
+                              Text(
+                                context.l10n.destination,
+                                style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
                               ),
                               DropdownButtonHideUnderline(
                                 child: DropdownButton<int>(
@@ -228,9 +228,9 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
             const SizedBox(height: 20),
 
             // 2. Monto a Transferir
-            const Text(
-              'Monto a Transferir',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            Text(
+              context.l10n.amountTransfer,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 6),
             TextField(
@@ -252,9 +252,9 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
             const SizedBox(height: 18),
 
             // 3. Concepto / Motivo (Punto 9.2: Máximo 20 caracteres alfanuméricos)
-            const Text(
-              'Concepto / Referencia',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            Text(
+              context.l10n.conceptReference,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 6),
             TextField(
@@ -264,18 +264,18 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
                 LengthLimitingTextInputFormatter(20),
                 FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]')),
               ],
-              decoration: const InputDecoration(
-                hintText: 'Ej: Extraccion',
-                prefixIcon: Icon(Icons.swap_horiz_rounded, size: 20),
+              decoration: InputDecoration(
+                hintText: context.l10n.eGWithdrawal,
+                prefixIcon: const Icon(Icons.swap_horiz_rounded, size: 20),
                 counterText: '',
               ),
             ),
             const SizedBox(height: 18),
 
             // 4. Fecha
-            const Text(
-              'Fecha',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            Text(
+              context.l10n.date,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 6),
             InkWell(
@@ -327,7 +327,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : const Text('Confirmar Transferencia'),
+                  : Text(context.l10n.confirmTransfer),
             ),
             const SizedBox(height: 24),
           ],

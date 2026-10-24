@@ -59,7 +59,7 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
       initialDate: estado.fecha,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 30)),
-      helpText: 'Fecha del egreso',
+      helpText: context.l10n.expenseDate,
     );
 
     if (seleccionada != null) {
@@ -162,9 +162,9 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 1. Selector de Cuenta Origen
-                  const Text(
-                    'Cuenta de Origen',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  Text(
+                    context.l10n.sourceAccount,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                   const SizedBox(height: 8),
                   AccountPicker(
@@ -184,18 +184,18 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Concepto General *',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            Text(
+                              context.l10n.generalConcept2,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                             ),
                             const SizedBox(height: 6),
                             TextField(
                               controller: _conceptoGeneralController,
                               textCapitalization: TextCapitalization.sentences,
-                              decoration: const InputDecoration(
-                                hintText: 'Ej: Supermercado, Librería...',
-                                prefixIcon: Icon(Icons.storefront_rounded, size: 20),
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              decoration: InputDecoration(
+                                hintText: context.l10n.eGSupermarketBookstore,
+                                prefixIcon: const Icon(Icons.storefront_rounded, size: 20),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                               ),
                             ),
                           ],
@@ -209,9 +209,9 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Fecha',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            Text(
+                              context.l10n.date,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                             ),
                             const SizedBox(height: 6),
                             InkWell(
@@ -260,7 +260,7 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                   const SizedBox(height: 16),
 
                   // Banner Feedback de Lectura de Ticket
-                  if (state.qrFeedback != null) ...[
+                  if (state.ticketParseResult != null) ...[
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -287,7 +287,7 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              state.qrFeedback!,
+                              _ticketFeedback(state.ticketParseResult!, context.l10n),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -310,9 +310,9 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                   ],
 
                   // 4. Título Renglones (sin botón redundante al costado)
-                  const Text(
-                    'Renglones',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  Text(
+                    context.l10n.lines2,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                   const SizedBox(height: 10),
 
@@ -367,9 +367,9 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                       ),
                     ),
                     icon: const Icon(Icons.add, size: 20),
-                    label: const Text(
-                      'Agregar Renglón',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    label: Text(
+                      context.l10n.addLine,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
 
@@ -419,16 +419,16 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Total del Gasto',
-                                  style: TextStyle(
+                                Text(
+                                  context.l10n.expenseTotal,
+                                  style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.lightTextSecondary,
                                   ),
                                 ),
                                 Text(
-                                  '${state.cantidadRenglones} ${state.cantidadRenglones == 1 ? "renglón" : "renglones"}',
+                                  context.l10n.linesCount(state.cantidadRenglones),
                                   style: const TextStyle(
                                     fontSize: 11,
                                     color: AppColors.lightTextSecondary,
@@ -496,4 +496,14 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
             ),
     );
   }
+}
+
+/// Resumen de la lectura del ticket: suma de renglones contra el total impreso, si se leyó.
+String _ticketFeedback(TicketParseResult r, AppLocalizations l) {
+  final suma = Money.format(r.sumaRenglonesCents);
+  final total = r.totalDetectadoCents;
+  if (total == null) return l.ticketSumNoTotal(suma);
+  return r.tieneDiferenciaTotal
+      ? l.ticketSumDiffers(suma, Money.format(total), Money.format(r.sumaRenglonesCents - total))
+      : l.ticketReadSumTotal(suma, Money.format(total));
 }

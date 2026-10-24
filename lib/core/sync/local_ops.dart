@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import '../errors/failures.dart';
 import 'outbox.dart';
+import '../../l10n/l10n.dart';
 
 /// Ayudas compartidas por las altas, bajas y cambios locales (cuentas, categorías, límites).
 abstract final class LocalOps {
@@ -12,7 +13,7 @@ abstract final class LocalOps {
     return '${t.year.toString().padLeft(4, '0')}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
   }
 
-  static ValidationFailure invalid(String message) => ValidationFailure(message, null, 'VALIDATION_ERROR');
+  static ValidationFailure invalid(String Function(AppLocalizations l) text) => ValidationFailure.t(text);
 
   /// Otra fila (no eliminada) con el mismo nombre, sin distinguir mayúsculas: (local_id, active).
   static Future<(int, bool)?> sameName(DatabaseExecutor db, String table, String name, {int? exceptLocalId}) async {
@@ -53,9 +54,9 @@ abstract final class LocalOps {
   /// Sin server_id todavía (alta pendiente): no hay versión que comparar.
   static int? baseVersion(Map<String, Object?> row) => row['server_id'] == null ? null : row['version'] as int?;
 
-  static Future<Map<String, Object?>> require(DatabaseExecutor db, String table, int localId, String what) async {
+  static Future<Map<String, Object?>> require(DatabaseExecutor db, String table, int localId, String Function(AppLocalizations l) what) async {
     final rows = await db.query(table, where: 'local_id = ? AND deleted = 0', whereArgs: [localId]);
-    if (rows.isEmpty) throw invalid('$what no está en el celular; sincronizá y volvé a intentar');
+    if (rows.isEmpty) throw invalid((l) => l.notOnPhoneSync(what(l)));
     return rows.single;
   }
 }

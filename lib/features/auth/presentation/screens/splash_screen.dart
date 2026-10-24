@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../l10n/l10n.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -40,9 +41,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Cargando tu espacio financiero...',
-              style: TextStyle(color: AppColors.lightTextSecondary, fontSize: 14),
+            Text(
+              context.l10n.loadingFinances,
+              style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 14),
             ),
             const SizedBox(height: 32),
             const SizedBox(

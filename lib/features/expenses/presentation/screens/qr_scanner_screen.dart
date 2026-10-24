@@ -36,7 +36,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       if (mounted) {
         AppFeedback.showError(
           context,
-          'El código QR escaneado no es una dirección web válida (http/https).',
+          context.l10n.scannedQrCodeNotValid,
         );
       }
       return;
@@ -44,7 +44,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
     setState(() {
       _isProcessing = true;
-      _processingMessage = 'Cargando gastos...';
+      _processingMessage = context.l10n.loadingExpenses;
     });
 
     try {
@@ -62,7 +62,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         imagePaths: const [],
         qr: qr,
       );
-      AppFeedback.showSuccess(context, 'Ticket leído: ${qr.items.length} renglones');
+      AppFeedback.showSuccess(context, context.l10n.receiptReadItemsLines(qr.items.length));
       context.pop(result);
     } catch (e) {
       if (mounted) {
@@ -79,15 +79,15 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.qr_code_2_rounded, color: AppColors.rose),
-            SizedBox(width: 10),
-            Text('No se pudo procesar QR', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Icon(Icons.qr_code_2_rounded, color: AppColors.rose),
+            const SizedBox(width: 10),
+            Text(context.l10n.couldNotProcessQr, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
         ),
         content: Text(
-          '$motivo\n\n¿Deseas intentar reescanear el QR o usar la lectura por fotos?',
+          context.l10n.motivoDoYouWantScan(motivo),
           style: const TextStyle(fontSize: 13),
         ),
         actions: [
@@ -102,7 +102,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                     Navigator.of(ctx).pop();
                     context.pop(); // Volver a pantalla de fotos
                   },
-                  child: const Text('Usar fotos', style: TextStyle(fontSize: 12)),
+                  child: Text(context.l10n.usePhotos, style: const TextStyle(fontSize: 12)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -115,7 +115,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                   onPressed: () {
                     Navigator.of(ctx).pop();
                   },
-                  child: const Text('Reintentar', style: TextStyle(fontSize: 12)),
+                  child: Text(context.l10n.retry, style: const TextStyle(fontSize: 12)),
                 ),
               ),
             ],
@@ -146,6 +146,20 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
             // 1. Escáner de QR
             MobileScanner(
               controller: _controller,
+              errorBuilder: (context, error, child) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    switch (error.errorCode) {
+                      MobileScannerErrorCode.permissionDenied => context.l10n.cameraPermissionDenied,
+                      MobileScannerErrorCode.unsupported => context.l10n.cameraUnsupported,
+                      _ => context.l10n.cameraError,
+                    },
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
               onDetect: (capture) {
                 final barcodes = capture.barcodes;
                 for (final barcode in barcodes) {

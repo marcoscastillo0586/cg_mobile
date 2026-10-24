@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../domain/entities/monthly_comparison_entity.dart';
+import '../../../../l10n/l10n.dart';
 
 class MonthlyBarChart extends StatefulWidget {
   final MonthlyComparisonReportEntity report;
@@ -19,11 +20,6 @@ class MonthlyBarChart extends StatefulWidget {
 
 class _MonthlyBarChartState extends State<MonthlyBarChart> {
   int _touchedGroupIndex = -1;
-
-  static const List<String> _shortMonths = [
-    'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -46,9 +42,9 @@ class _MonthlyBarChartState extends State<MonthlyBarChart> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildLegendItem(AppColors.emerald, 'Ingresos'),
+            _buildLegendItem(AppColors.emerald, context.l10n.income2),
             const SizedBox(width: 24),
-            _buildLegendItem(AppColors.rose, 'Egresos'),
+            _buildLegendItem(AppColors.rose, context.l10n.expenses),
           ],
         ),
         const SizedBox(height: 16),
@@ -66,11 +62,11 @@ class _MonthlyBarChartState extends State<MonthlyBarChart> {
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final mesData = meses[group.x];
                     final isIngreso = rodIndex == 0;
-                    final tipo = isIngreso ? 'Ingresos' : 'Egresos';
+                    final tipo = isIngreso ? context.l10n.income2 : context.l10n.expenses;
                     final valor = isIngreso ? mesData.ingresosCents : mesData.egresosCents;
 
                     return BarTooltipItem(
-                      '${mesData.nombreMesTexto}\n$tipo: ${Money.format(valor)}\nBalance: ${Money.format(mesData.balanceCents)}',
+                      context.l10n.chartMonthTooltip(context.monthName(mesData.mes), tipo, Money.format(valor), Money.format(mesData.balanceCents)),
                       const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                     );
                   },
@@ -113,14 +109,14 @@ class _MonthlyBarChartState extends State<MonthlyBarChart> {
                     showTitles: true,
                     getTitlesWidget: (val, meta) {
                       final index = val.toInt();
-                      if (index < 0 || index >= _shortMonths.length) {
+                      if (index < 0 || index >= 12) {
                         return const SizedBox.shrink();
                       }
                       final isSelected = index == _touchedGroupIndex;
                       return Padding(
                         padding: const EdgeInsets.only(top: 6),
                         child: Text(
-                          _shortMonths[index],
+                          context.monthName(index + 1, short: true),
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,

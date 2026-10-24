@@ -71,7 +71,7 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Buscar artículo o código PLU...',
+                    hintText: context.l10n.searchItemPluCode,
                     prefixIcon: const Icon(Icons.search_rounded),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
@@ -93,7 +93,7 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
               const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.compare_arrows_rounded),
-                tooltip: 'Comparar Inflación entre Períodos',
+                tooltip: context.l10n.compareInflationBetweenPeriods,
                 style: IconButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -114,20 +114,20 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
               }
 
               if (state.productosPrecios.isEmpty) {
-                return const Center(
+                return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.inventory_2_outlined, size: 54, color: AppColors.lightTextSecondary),
-                      SizedBox(height: 12),
+                      const Icon(Icons.inventory_2_outlined, size: 54, color: AppColors.lightTextSecondary),
+                      const SizedBox(height: 12),
                       Text(
-                        'No se encontraron artículos registrados',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        context.l10n.noRecordedItemsFound,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
-                      SizedBox(height: 6),
+                      const SizedBox(height: 6),
                       Text(
-                        'Los artículos se registran al cargar tickets o egresos detallados',
-                        style: TextStyle(color: AppColors.lightTextSecondary, fontSize: 13),
+                        context.l10n.itemsRecordedWhenYouEnter,
+                        style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 13),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -195,7 +195,7 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
                                   Row(
                                     children: [
                                       Text(
-                                        '${item.totalCompras} ${item.totalCompras == 1 ? "compra" : "compras"}',
+                                        context.l10n.purchasesCount(item.totalCompras),
                                         style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
                                       ),
                                       if (item.ultimoLugar.isNotEmpty) ...[
@@ -362,9 +362,9 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'Historial de Precios y Tendencia',
-                        style: TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
+                      Text(
+                        context.l10n.priceHistoryTrend,
+                        style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
                       ),
                     ],
                   ),
@@ -394,7 +394,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                         ),
                       )
                     : _history == null || _history!.historial.isEmpty
-                    ? const Center(child: Text('No hay datos históricos para este artículo'))
+                    ? Center(child: Text(context.l10n.noHistoricalDataItem))
                     : ListView(
                         padding: const EdgeInsets.all(20),
                         children: [
@@ -403,7 +403,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                             children: [
                               Expanded(
                                 child: _buildKpiCard(
-                                  'Precio Actual',
+                                  context.l10n.currentPrice,
                                   Money.format(_history!.precioActualCents),
                                   AppColors.primary,
                                   isDark,
@@ -412,7 +412,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                               const SizedBox(width: 10),
                               Expanded(
                                 child: _buildKpiCard(
-                                  'Variación Total',
+                                  context.l10n.totalChange,
                                   '${_history!.aumentoPorcentaje > 0 ? "+" : ""}${_history!.aumentoPorcentaje.toStringAsFixed(1)}%',
                                   _history!.aumentoPorcentaje > 0 ? AppColors.rose : AppColors.emerald,
                                   isDark,
@@ -425,7 +425,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                             children: [
                               Expanded(
                                 child: _buildKpiCard(
-                                  'Mínimo Histórico',
+                                  context.l10n.historicalLow,
                                   Money.format(_history!.precioMinimoCents),
                                   AppColors.emerald,
                                   isDark,
@@ -434,7 +434,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                               const SizedBox(width: 10),
                               Expanded(
                                 child: _buildKpiCard(
-                                  'Máximo Histórico',
+                                  context.l10n.historicalHigh,
                                   Money.format(_history!.precioMaximoCents),
                                   AppColors.rose,
                                   isDark,
@@ -446,9 +446,9 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
 
                           // Gráfico de Tendencia de Precios
                           if (_history!.historial.length >= 2) ...[
-                            const Text(
-                              'Evolución del Precio Unitario',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            Text(
+                              context.l10n.unitPriceTrend,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                             ),
                             const SizedBox(height: 14),
                             SizedBox(
@@ -517,9 +517,9 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                           ],
 
                           // Registro Cronológico de Compras
-                          const Text(
-                            'Historial de Compras',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          Text(
+                            context.l10n.purchaseHistory,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                           ),
                           const SizedBox(height: 10),
                           ..._history!.historial.reversed.map((compra) {
@@ -663,13 +663,13 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
                     child: Icon(Icons.compare_arrows_rounded, color: Colors.white),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Monitor de Inflación', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        Text('Comparativa de artículos idénticos comprados',
-                            style: TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
+                        Text(context.l10n.inflationMonitor, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(context.l10n.comparisonIdenticalItemsPurchased,
+                            style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
                       ],
                     ),
                   ),
@@ -695,11 +695,11 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
                           ),
                         )
                   : _result == null || _result!.comparativa.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Padding(
-                            padding: EdgeInsets.all(24.0),
+                            padding: const EdgeInsets.all(24.0),
                             child: Text(
-                              'No se detectaron artículos idénticos comprados en ambos períodos seleccionados.',
+                              context.l10n.noIdenticalItemsWerePurchased,
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -733,8 +733,8 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        const Text('Inflación Promedio Personal',
-                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                        Text(context.l10n.personalAverageInflation,
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                         const SizedBox(height: 2),
                                         Text(
                                           '${_result!.inflacionPromedio > 0 ? "+" : ""}${_result!.inflacionPromedio.toStringAsFixed(1)}%',
@@ -747,7 +747,7 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
                                           ),
                                         ),
                                         Text(
-                                          '${_result!.productosComunes} artículos comparados (${_result!.productosAumentaron} subieron de precio)',
+                                          context.l10n.productoscomunesItemsComparedProductosaumentaronWent(_result!.productosComunes, _result!.productosAumentaron),
                                           style: const TextStyle(
                                               fontSize: 11, color: AppColors.lightTextSecondary),
                                         ),
@@ -760,8 +760,8 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
                             const SizedBox(height: 16),
 
                             // Lista de productos comparados
-                            const Text('Detalle por Artículo',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Text(context.l10n.detailItem,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                             const SizedBox(height: 8),
                             ..._result!.comparativa.map((item) {
                               final subio = item.porcentaje > 0;
@@ -791,7 +791,7 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
                                                 overflow: TextOverflow.ellipsis),
                                             const SizedBox(height: 4),
                                             Text(
-                                              'Antes: ${Money.format(item.precio1Cents)} ➔ Ahora: ${Money.format(item.precio2Cents)}',
+                                              context.l10n.beforePrecio1centsNowPrecio2cents(Money.format(item.precio1Cents), Money.format(item.precio2Cents)),
                                               style: const TextStyle(
                                                   fontSize: 12, color: AppColors.lightTextSecondary),
                                             ),

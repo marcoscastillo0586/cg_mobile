@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../domain/entities/category_expense_report_entity.dart';
+import '../../../../l10n/l10n.dart';
 
 class CategoryPieChart extends StatefulWidget {
   final CategoryExpenseReportEntity report;
@@ -55,7 +56,7 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
             Icon(Icons.pie_chart_outline_rounded, size: 54, color: isDark ? Colors.white24 : Colors.black26),
             const SizedBox(height: 12),
             Text(
-              'No hay egresos en este período',
+              context.l10n.noExpensesPeriod,
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
@@ -139,7 +140,7 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
                   Text(
                     _touchedIndex >= 0 && _touchedIndex < categorias.length
                         ? categorias[_touchedIndex].nombre
-                        : 'Total Gastos',
+                        : context.l10n.totalExpenses,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -163,7 +164,7 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
                   ),
                   if (_touchedIndex >= 0 && _touchedIndex < categorias.length)
                     Text(
-                      '${categorias[_touchedIndex].porcentaje.toStringAsFixed(1)}% del total',
+                      context.l10n.tostringasfixedTotal(categorias[_touchedIndex].porcentaje.toStringAsFixed(1)),
                       style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                 ],

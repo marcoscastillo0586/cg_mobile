@@ -157,7 +157,7 @@ class OutboxRepository {
 
   Future<Map<String, Object?>> _op(DatabaseExecutor db, int seq) async {
     final rows = await db.query('outbox', where: 'seq = ?', whereArgs: [seq]);
-    if (rows.isEmpty) throw const ValidationFailure('La operación ya no está en la cola', null, 'VALIDATION_ERROR');
+    if (rows.isEmpty) throw ValidationFailure.t((l) => l.operationNoLongerQueue, 'VALIDATION_ERROR');
     return rows.single;
   }
 
@@ -167,8 +167,7 @@ class OutboxRepository {
         final op = await _op(txn, seq);
         final entry = await _entry(txn, op);
         if (!entry.canDiscard) {
-          throw const ValidationFailure(
-            'Ya se intentó enviar: podría estar aplicada en el servidor. Sincronizá antes de descartarla.', null, 'VALIDATION_ERROR');
+          throw ValidationFailure.t((l) => l.alreadyTriedSyncBeforeDiscard);
         }
         if (op['status'] == 'pending') await PushService.revert(txn, op);
         final table = Outbox.tables[op['entity']];
@@ -184,12 +183,12 @@ class OutboxRepository {
   Future<void> retryMine(int seq) => _db.transaction((txn) async {
         final op = await _op(txn, seq);
         final entry = await _entry(txn, op);
-        if (!entry.canRetryMine) throw const ValidationFailure('Solo se reintentan ediciones en conflicto', null, 'VALIDATION_ERROR');
+        if (!entry.canRetryMine) throw ValidationFailure.t((l) => l.onlyEditsConflictCanRetried, 'VALIDATION_ERROR');
         final result = jsonDecode(op['server_result']! as String) as Map<String, dynamic>;
         final serverId = result['serverId'] as int;
         final data = jsonDecode(op['data']! as String) as Map<String, dynamic>;
         final rows = await txn.query('movement_headers', where: 'server_id = ? AND deleted = 0', whereArgs: [serverId]);
-        if (rows.isEmpty) throw const ValidationFailure('El comprobante ya no existe en el celular', null, 'VALIDATION_ERROR');
+        if (rows.isEmpty) throw ValidationFailure.t((l) => l.voucherNoLongerExistsPhone, 'VALIDATION_ERROR');
         final h = rows.single;
         final occurred = h['occurred_at']! as String;
         final changes = <String, Object?>{
@@ -216,7 +215,7 @@ class OutboxRepository {
   /// Datos del alta rechazada para abrir su formulario y corregirla.
   Future<CorrectionSource> correction(int seq) async {
     final op = await _op(_db, seq);
-    if (!(await _entry(_db, op)).canCorrect) throw const ValidationFailure('Solo se corrigen altas rechazadas', null, 'VALIDATION_ERROR');
+    if (!(await _entry(_db, op)).canCorrect) throw ValidationFailure.t((l) => l.onlyRejectedCreationsCanCorrected, 'VALIDATION_ERROR');
     final d = jsonDecode(op['data']! as String) as Map<String, dynamic>;
     final type = d['type'] as int;
     final date = DateTime.parse(d['date'] as String? ?? DateTime.now().toIso8601String().substring(0, 10));

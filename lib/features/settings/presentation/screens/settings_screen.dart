@@ -75,13 +75,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ajustes y Configuración', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(context.l10n.settings, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
         children: [
           // 2. Sección: Idioma y Moneda por Defecto
-          _buildSectionHeader('Idioma y Moneda por Defecto'),
+          _buildSectionHeader(context.l10n.languageDefaultCurrency),
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -93,7 +93,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Idioma de la Aplicación', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(context.l10n.appLanguage, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: settingsState.language,
@@ -117,7 +117,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  const Text('Moneda por Defecto (al crear cuentas)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(context.l10n.defaultCurrencyNewAccounts, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: settingsState.defaultCurrency,
@@ -127,10 +127,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       prefixIcon: const Icon(Icons.attach_money_rounded),
                     ),
-                    items: SettingsNotifier.monedasDisponibles.entries.map((e) {
+                    items: SettingsNotifier.monedasDisponibles.map((code) {
                       return DropdownMenuItem<String>(
-                        value: e.key,
-                        child: Text(e.value),
+                        value: code,
+                        child: Text(SettingsNotifier.currencyLabel(code, context.l10n)),
                       );
                     }).toList(),
                     onChanged: (val) {
@@ -199,8 +199,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               child: ListTile(
                 leading: const Icon(Icons.bug_report_outlined),
-                title: const Text('Diagnóstico de sesión (debug)'),
-                subtitle: Text(_diagnostico ?? '2 GET /auth/me en paralelo', style: const TextStyle(fontSize: 12)),
+                title: Text(context.l10n.sessionDiagnosticsDebug),
+                subtitle: Text(_diagnostico ?? context.l10n.n2ParallelGetAuthMe, style: const TextStyle(fontSize: 12)),
                 onTap: _diagnosticarSesion,
               ),
             ),
@@ -229,7 +229,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 20),
 
           // 4. Sección: Módulos de Administración
-          _buildSectionHeader('Módulos de Gestión Administrativa'),
+          _buildSectionHeader(context.l10n.management),
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -241,32 +241,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _buildAdminTile(
                   icon: Icons.account_balance_wallet_outlined,
                   color: AppColors.emerald,
-                  title: 'Cuentas y Medios de Pago',
-                  subtitle: 'Gestionar bancos, billeteras y efectivo (ABM Lugares)',
+                  title: context.l10n.accountsPaymentMethods,
+                  subtitle: context.l10n.manageBanksWalletsCash,
                   onTap: () => context.push(AppRoutes.accountsAdmin),
                 ),
                 const Divider(height: 1),
                 _buildAdminTile(
                   icon: Icons.category_outlined,
                   color: AppColors.primary,
-                  title: 'Rubros y Categorías',
-                  subtitle: 'Crear, renombrar y activar categorías de gasto',
+                  title: context.l10n.categories,
+                  subtitle: context.l10n.createRenameActivateExpenseCategories,
                   onTap: () => context.push(AppRoutes.categoriesAdmin),
                 ),
                 const Divider(height: 1),
                 _buildAdminTile(
                   icon: Icons.pie_chart_outline_rounded,
                   color: AppColors.amber,
-                  title: 'Presupuestos y Topes de Gasto',
-                  subtitle: 'Límites mensuales, alertas y renovación en 1 tap',
+                  title: context.l10n.budgetsSpendingCaps,
+                  subtitle: context.l10n.monthlyLimitsAlertsOneTap,
                   onTap: () => context.push(AppRoutes.limitsAdmin),
                 ),
                 const Divider(height: 1),
                 _buildAdminTile(
                   icon: Icons.analytics_outlined,
                   color: AppColors.rose,
-                  title: 'Reportes y Monitor de Precios',
-                  subtitle: 'Analíticas visuales, gráficos y evolución de inflación',
+                  title: context.l10n.reportsPriceMonitor,
+                  subtitle: context.l10n.visualAnalyticsChartsInflationTrends,
                   onTap: () => context.push(AppRoutes.analytics),
                 ),
               ],
@@ -275,7 +275,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 20),
 
           // 5. Sección: Apariencia Visual
-          _buildSectionHeader('Apariencia y Tema'),
+          _buildSectionHeader(context.l10n.appearanceTheme),
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -287,24 +287,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Modo de Visualización', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(context.l10n.displayMode, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   const SizedBox(height: 12),
                   SegmentedButton<ThemeMode>(
-                    segments: const [
+                    segments: [
                       ButtonSegment(
                         value: ThemeMode.system,
-                        icon: Icon(Icons.brightness_auto_rounded),
-                        label: Text('Sistema'),
+                        icon: const Icon(Icons.brightness_auto_rounded),
+                        label: Text(context.l10n.system),
                       ),
                       ButtonSegment(
                         value: ThemeMode.light,
-                        icon: Icon(Icons.light_mode_rounded),
-                        label: Text('Claro'),
+                        icon: const Icon(Icons.light_mode_rounded),
+                        label: Text(context.l10n.light),
                       ),
                       ButtonSegment(
                         value: ThemeMode.dark,
-                        icon: Icon(Icons.dark_mode_rounded),
-                        label: Text('Oscuro'),
+                        icon: const Icon(Icons.dark_mode_rounded),
+                        label: Text(context.l10n.dark),
                       ),
                     ],
                     selected: {settingsState.themeMode},

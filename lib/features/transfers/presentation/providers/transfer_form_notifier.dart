@@ -76,7 +76,7 @@ class TransferFormNotifier extends StateNotifier<TransferFormState> {
   Future<bool> realizarTransferencia() async {
     final origen = state.selectedOrigenId, destino = state.selectedDestinoId;
     if (origen == null || destino == null) {
-      state = state.copyWith(error: const ValidationFailure('Selecciona cuenta de origen y destino', null, 'VALIDATION_ERROR'));
+      state = state.copyWith(error: ValidationFailure.t((l) => l.selectSourceDestinationAccounts, 'VALIDATION_ERROR'));
       return false;
     }
     state = state.copyWith(status: TransferFormStatus.submitting, clearError: true);

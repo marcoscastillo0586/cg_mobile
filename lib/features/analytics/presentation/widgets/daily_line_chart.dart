@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../domain/entities/daily_evolution_entity.dart';
+import '../../../../l10n/l10n.dart';
 
 class DailyLineChart extends StatelessWidget {
   final DailyEvolutionReportEntity report;
@@ -54,7 +55,7 @@ class DailyLineChart extends StatelessWidget {
                         ),
                       );
                       return LineTooltipItem(
-                        'Día $diaNum\nGasto: ${Money.format(item.egresosCents)}',
+                        context.l10n.dayDianumSpentEgresoscents(diaNum, Money.format(item.egresosCents)),
                         const TextStyle(
                           color: Colors.white,
                           fontSize: 11,

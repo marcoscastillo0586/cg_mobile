@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../providers/settings_provider.dart';
+import '../../../../l10n/l10n.dart';
 
 class OnboardingDialog extends StatefulWidget {
   final String initialMoneda;
@@ -33,11 +34,11 @@ class _OnboardingDialogState extends State<OnboardingDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.tune_rounded, color: AppColors.primary, size: 24),
-          SizedBox(width: 10),
-          Text('Configuración Inicial', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Icon(Icons.tune_rounded, color: AppColors.primary, size: 24),
+          const SizedBox(width: 10),
+          Text(context.l10n.initialSetup, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ],
       ),
       content: SingleChildScrollView(
@@ -45,16 +46,16 @@ class _OnboardingDialogState extends State<OnboardingDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '¡Bienvenido a Gastos 2.0! Por favor, selecciona tus preferencias iniciales para configurar la aplicación:',
-              style: TextStyle(fontSize: 13, color: AppColors.lightTextSecondary),
+            Text(
+              context.l10n.welcomePleaseChooseInitialPreferences,
+              style: const TextStyle(fontSize: 13, color: AppColors.lightTextSecondary),
             ),
             const SizedBox(height: 16),
 
             // 1. Moneda Habitual
-            const Text(
-              '1. Moneda Habitual (Por Defecto)',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            Text(
+              context.l10n.n1UsualCurrencyDefault,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
@@ -64,10 +65,10 @@ class _OnboardingDialogState extends State<OnboardingDialog> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
-              items: SettingsNotifier.monedasDisponibles.entries.map((e) {
+              items: SettingsNotifier.monedasDisponibles.map((code) {
                 return DropdownMenuItem<String>(
-                  value: e.key,
-                  child: Text(e.value),
+                  value: code,
+                  child: Text(SettingsNotifier.currencyLabel(code, context.l10n)),
                 );
               }).toList(),
               onChanged: (val) {
@@ -77,9 +78,9 @@ class _OnboardingDialogState extends State<OnboardingDialog> {
             const SizedBox(height: 16),
 
             // 2. Idioma de Preferencia
-            const Text(
-              '2. Idioma de Preferencia',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            Text(
+              context.l10n.n2PreferredLanguage,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
@@ -113,7 +114,7 @@ class _OnboardingDialogState extends State<OnboardingDialog> {
             widget.onConfirmar(moneda: _selectedMoneda, idioma: _selectedIdioma);
             Navigator.of(context).pop();
           },
-          child: const Text('Comenzar', style: TextStyle(fontWeight: FontWeight.bold)),
+          child: Text(context.l10n.start, style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
       ],
     );

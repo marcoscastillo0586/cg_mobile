@@ -45,7 +45,7 @@ class LocalCategoriesRepository {
   Future<String> rename(int localId, String name) => _db.transaction((txn) async {
         final row = await _editable(txn, localId);
         final n = _name(name);
-        if (n == row['name']) throw LocalOps.invalid('No hay cambios para guardar');
+        if (n == row['name']) throw LocalOps.invalid((l) => l.noChangesSave);
         await _assertFreeName(txn, n, exceptLocalId: localId);
         return _enqueueUpdate(txn, row, {'name': n}, {'name': n});
       });
@@ -58,7 +58,7 @@ class LocalCategoriesRepository {
   /// luego UNKNOWN_REF al reintentar). La baja física llega en el próximo pull.
   Future<String> setActive(int localId, bool active) => _db.transaction((txn) async {
         final row = await _editable(txn, localId);
-        if ((row['active'] == 1) == active) throw LocalOps.invalid(active ? 'La categoría ya está activa' : 'La categoría ya está inactiva');
+        if ((row['active'] == 1) == active) throw LocalOps.invalid((l) => active ? l.categoryAlreadyActive : l.categoryAlreadyInactive);
         if (active) return _enqueueUpdate(txn, row, {'active': 1}, {'active': true});
         await txn.update('categories', {'active': 0, 'updated_at': LocalOps.stamp()}, where: 'local_id = ?', whereArgs: [localId]);
         return Outbox.enqueue(txn,
@@ -92,9 +92,9 @@ class LocalCategoriesRepository {
   // ---------------- reglas ----------------
 
   static Future<Map<String, Object?>> _editable(Transaction txn, int localId) async {
-    final row = await LocalOps.require(txn, 'categories', localId, 'La categoría');
+    final row = await LocalOps.require(txn, 'categories', localId, (l) => l.category2);
     if (row['role'] != null) {
-      throw const ValidationFailure('Las categorías reservadas del sistema no pueden modificarse ni eliminarse', null, 'RESERVED_CATEGORY');
+      throw ValidationFailure.t((l) => l.systemReservedCategoriesCannotChanged, 'RESERVED_CATEGORY');
     }
     return row;
   }
@@ -113,18 +113,14 @@ class LocalCategoriesRepository {
 
   static String _name(String name) {
     final n = name.trim();
-    if (n.isEmpty) throw LocalOps.invalid('El nombre de la categoría es obligatorio');
-    if (n.length > categoryNameMax) throw LocalOps.invalid('El nombre no puede superar $categoryNameMax caracteres');
+    if (n.isEmpty) throw LocalOps.invalid((l) => l.categoryNameRequired);
+    if (n.length > categoryNameMax) throw LocalOps.invalid((l) => l.nameCannotExceedCategorynamemaxCharacters(categoryNameMax));
     return n;
   }
 
   static Future<void> _assertFreeName(Transaction txn, String name, {int? exceptLocalId}) async {
     final same = await LocalOps.sameName(txn, 'categories', name, exceptLocalId: exceptLocalId);
     if (same == null) return;
-    throw ValidationFailure(
-      same.$2 ? 'Ya existe una categoría con ese nombre' : 'Ya existe una categoría inactiva con ese nombre: activala',
-      null,
-      'DUPLICATE_NAME',
-    );
+    throw ValidationFailure.t((l) => same.$2 ? l.categoryNameTaken : l.categoryNameTakenInactive, 'DUPLICATE_NAME');
   }
 }
