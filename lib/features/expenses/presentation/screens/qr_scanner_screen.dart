@@ -5,9 +5,9 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/utils/app_feedback.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../data/tickets_repository.dart';
 import '../../domain/entities/ticket_parse_result.dart';
+import '../../../../l10n/l10n.dart';
 
 class QrScannerScreen extends ConsumerStatefulWidget {
   const QrScannerScreen({super.key});
@@ -68,7 +68,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       if (mounted) {
         setState(() => _isProcessing = false);
         debugPrint('[TICKET] No se pudo leer el QR: $e');
-        _mostrarDialogoFalloQr(ErrorMessages.describe(e, isEn: false) + (ErrorMessages.codeOf(e) != null ? ' (${ErrorMessages.codeOf(e)})' : ''));
+        _mostrarDialogoFalloQr(ErrorMessages.describe(e, context.l10n) + (ErrorMessages.codeOf(e) != null ? ' (${ErrorMessages.codeOf(e)})' : ''));
         await _controller.start();
       }
     }
@@ -127,16 +127,10 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(settingsProvider);
-    final isEn = settings.language == 'en';
 
-    final titulo = isEn ? 'Scan Ticket QR' : 'Escanear QR del Ticket';
-    final instruccion = isEn
-        ? 'Point camera at receipt QR code'
-        : 'Apuntá la cámara al código QR del ticket';
-    final avisoPrivacidad = isEn
-        ? 'If this merchant is new, the page text will be sent to an external AI service to learn its reading rules.'
-        : 'Si este comercio es nuevo, el texto de la página se enviará a un servicio externo para aprender sus reglas.';
+    final titulo = context.l10n.scanTicketQr;
+    final instruccion = context.l10n.pointCameraReceiptQrCode;
+    final avisoPrivacidad = context.l10n.ifMerchantNewPageText;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -228,7 +222,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                         const CircularProgressIndicator(color: AppColors.primary),
                         const SizedBox(height: 16),
                         Text(
-                          isEn ? 'Learning this merchant...' : _processingMessage,
+                          _processingMessage,
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const SizedBox(height: 20),
@@ -243,7 +237,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                             minimumSize: const Size(0, 44),
                           ),
                           icon: const Icon(Icons.cancel_outlined, size: 18),
-                          label: Text(isEn ? 'Cancel' : 'Cancelar'),
+                          label: Text(context.l10n.cancel),
                         ),
                       ],
                     ),
@@ -271,7 +265,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                       ),
                       icon: const Icon(Icons.cancel_outlined, size: 18),
                       label: Text(
-                        isEn ? 'Cancel' : 'Cancelar',
+                        context.l10n.cancel,
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                       ),
                     ),

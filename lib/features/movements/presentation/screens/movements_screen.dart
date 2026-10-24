@@ -9,10 +9,10 @@ import '../../../../core/money/money.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../../../../core/widgets/movements_skeleton.dart';
 import '../../../../routes/app_routes.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/movement_list_notifier.dart';
 import '../providers/movement_list_state.dart';
 import '../widgets/movement_card.dart';
+import '../../../../l10n/l10n.dart';
 
 class MovementsScreen extends ConsumerStatefulWidget {
   final int? initialLugarId;
@@ -57,12 +57,12 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
     });
   }
 
-  Future<void> _seleccionarRango(bool isEn) async {
+  Future<void> _seleccionarRango() async {
     final r = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2000),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      helpText: isEn ? 'Date range' : 'Rango de fechas',
+      helpText: context.l10n.dateRange,
     );
     if (r == null) return;
     final f = DateFormat('yyyy-MM-dd');
@@ -72,14 +72,13 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(movementListNotifierProvider);
-    final isEn = ref.watch(settingsProvider).language == 'en';
     final notifier = ref.read(movementListNotifierProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(state.nombreCuenta ?? (isEn ? 'Movements' : 'Movimientos')),
+        title: Text(state.nombreCuenta ?? (context.l10n.movements3)),
         actions: [
-          IconButton(icon: const Icon(Icons.date_range_rounded), onPressed: () => _seleccionarRango(isEn)),
+          IconButton(icon: const Icon(Icons.date_range_rounded), onPressed: () => _seleccionarRango()),
           IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: notifier.cargarMovimientos),
         ],
       ),
@@ -91,7 +90,7 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
               controller: _searchController,
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
-                hintText: isEn ? 'Search by text or amount' : 'Buscar por texto o monto',
+                hintText: context.l10n.searchTextAmount,
                 prefixIcon: const Icon(Icons.search_rounded),
               ),
             ),
@@ -117,19 +116,19 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Text(
                 state.hasFilters
-                    ? '${state.total} ${isEn ? 'results' : 'resultados'} · Total ${Money.format(state.filteredTotalCents)}'
-                    : (isEn ? 'Last ${state.total} movements' : 'Últimos ${state.total} movimientos'),
+                    ? '${state.total} ${context.l10n.results} · Total ${Money.format(state.filteredTotalCents)}'
+                    : (context.l10n.lastMovements(state.total)),
                 key: const ValueKey('movimientos-resumen'),
                 style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary, fontWeight: FontWeight.w600),
               ),
             ),
-          Expanded(child: _lista(state, isEn)),
+          Expanded(child: _lista(state)),
         ],
       ),
     );
   }
 
-  Widget _lista(MovementListState state, bool isEn) {
+  Widget _lista(MovementListState state) {
     if (state.isLoading && state.movimientos.isEmpty) return const MovementsSkeleton();
     final error = state.error;
     if (state.status == MovementListStatus.error && state.movimientos.isEmpty && error != null) {
@@ -139,7 +138,7 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
         const Icon(Icons.cloud_off_rounded, size: 54, color: AppColors.rose),
         const SizedBox(height: 12),
         Text(
-          ErrorMessages.describe(error, isEn: isEn) + (code != null ? '\n($code)' : ''),
+          ErrorMessages.describe(error, context.l10n) + (code != null ? '\n($code)' : ''),
           textAlign: TextAlign.center,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
@@ -147,13 +146,13 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
         Center(
           child: ElevatedButton(
             onPressed: ref.read(movementListNotifierProvider.notifier).cargarMovimientos,
-            child: Text(isEn ? 'Retry' : 'Reintentar'),
+            child: Text(context.l10n.retry),
           ),
         ),
       ]);
     }
     if (state.movimientos.isEmpty) {
-      return Center(child: Text(isEn ? 'No movements' : 'No hay movimientos'));
+      return Center(child: Text(context.l10n.noMovements));
     }
     return RefreshIndicator(
       onRefresh: ref.read(movementListNotifierProvider.notifier).cargarMovimientos,
@@ -169,7 +168,7 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
             if (error != null) {
               return Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text(ErrorMessages.describe(error, isEn: isEn),
+                child: Text(ErrorMessages.describe(error, context.l10n),
                     textAlign: TextAlign.center, style: const TextStyle(color: AppColors.rose)),
               );
             }
@@ -178,7 +177,6 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
           final item = state.movimientos[i];
           return MovementCard(
             item: item,
-            isEn: isEn,
             // Edición y borrado por la outbox (funcionan sin conexión; el envío lo hace el sincronizador).
             onEditar: () async {
               await context.push(AppRoutes.movementEdit(item.id));

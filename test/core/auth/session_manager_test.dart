@@ -7,6 +7,8 @@ import 'package:gastos_mobile/core/errors/exceptions.dart';
 import 'package:gastos_mobile/core/network/auth_interceptor.dart';
 import 'package:gastos_mobile/core/network/dio_client.dart';
 import 'fake_auth_server.dart';
+import 'package:flutter/widgets.dart';
+import 'package:gastos_mobile/l10n/app_localizations.dart';
 
 class _Setup {
   final FakeAuthServer server;
@@ -50,8 +52,8 @@ void main() {
     }
     expect(error, isA<AuthException>());
     expect(ErrorMessages.codeOf(error!), 'INVALID_CREDENTIALS');
-    expect(ErrorMessages.describe(error, isEn: false), 'Email o contraseña incorrectos.');
-    expect(ErrorMessages.describe(error, isEn: true), 'Wrong email or password.');
+    expect(ErrorMessages.describe(error, lookupAppLocalizations(const Locale('es'))), 'Email o contraseña incorrectos.');
+    expect(ErrorMessages.describe(error, lookupAppLocalizations(const Locale('en'))), 'Wrong email or password.');
     expect(s.storage.value, isNull);
   });
 

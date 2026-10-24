@@ -6,11 +6,11 @@ import '../../../../core/money/money.dart';
 import '../../../../core/widgets/account_avatar.dart';
 import '../../../../core/widgets/dialog_controllers.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../data/local_accounts_repository.dart';
 import '../../domain/account_item.dart';
 import '../providers/accounts_admin_notifier.dart';
 import '../providers/accounts_admin_state.dart';
+import '../../../../l10n/l10n.dart';
 
 class AccountsAdminScreen extends ConsumerStatefulWidget {
   const AccountsAdminScreen({super.key});
@@ -29,21 +29,20 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(accountsAdminNotifierProvider);
-    final isEn = ref.watch(settingsProvider).language == 'en';
     final notifier = ref.read(accountsAdminNotifierProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEn ? 'Accounts' : 'Cuentas y Medios de Pago'),
+        title: Text(context.l10n.accounts),
         actions: [
           IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: notifier.cargarCuentas),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         key: const ValueKey('nueva-cuenta'),
-        onPressed: () => _editar(context, null, isEn),
+        onPressed: () => _editar(context, null),
         icon: const Icon(Icons.add_rounded),
-        label: Text(isEn ? 'New account' : 'Nueva cuenta'),
+        label: Text(context.l10n.newAccount),
       ),
       body: RefreshIndicator(
         onRefresh: notifier.cargarCuentas,
@@ -54,7 +53,7 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
               child: Row(
                 children: [
                   ChoiceChip(
-                    label: Text('${isEn ? 'All' : 'Todas'} (${state.cuentas.length})'),
+                    label: Text('${context.l10n.all} (${state.cuentas.length})'),
                     selected: !state.mostrarSoloActivas,
                     onSelected: (_) {
                       if (state.mostrarSoloActivas) notifier.toggleFiltroSoloActivas();
@@ -62,7 +61,7 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
                   ),
                   const SizedBox(width: 8),
                   ChoiceChip(
-                    label: Text('${isEn ? 'Active' : 'Activas'} (${state.activasCount})'),
+                    label: Text('${context.l10n.active} (${state.activasCount})'),
                     selected: state.mostrarSoloActivas,
                     onSelected: (_) {
                       if (!state.mostrarSoloActivas) notifier.toggleFiltroSoloActivas();
@@ -71,14 +70,14 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
                 ],
               ),
             ),
-            Expanded(child: _buildBody(state, isEn)),
+            Expanded(child: _buildBody(state)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBody(AccountsAdminState state, bool isEn) {
+  Widget _buildBody(AccountsAdminState state) {
     if (state.status == AccountsAdminStatus.loading && state.cuentas.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -91,7 +90,7 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
           const Icon(Icons.cloud_off_rounded, size: 54, color: AppColors.rose),
           const SizedBox(height: 12),
           Text(
-            ErrorMessages.describe(error, isEn: isEn) + (code != null ? '\n($code)' : ''),
+            ErrorMessages.describe(error, context.l10n) + (code != null ? '\n($code)' : ''),
             textAlign: TextAlign.center,
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
@@ -99,7 +98,7 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
           Center(
             child: ElevatedButton(
               onPressed: ref.read(accountsAdminNotifierProvider.notifier).cargarCuentas,
-              child: Text(isEn ? 'Retry' : 'Reintentar'),
+              child: Text(context.l10n.retry),
             ),
           ),
         ],
@@ -109,54 +108,51 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
     if (cuentas.isEmpty) {
       return ListView(children: [
         const SizedBox(height: 80),
-        Center(child: Text(isEn ? 'No accounts' : 'No hay cuentas registradas')),
+        Center(child: Text(context.l10n.noAccounts)),
       ]);
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
       itemCount: cuentas.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => _AccountTile(item: cuentas[i], isEn: isEn, onAction: (a) => _accion(context, cuentas[i], a, isEn)),
+      itemBuilder: (_, i) => _AccountTile(item: cuentas[i], onAction: (a) => _accion(context, cuentas[i], a)),
     );
   }
 
-  Future<void> _accion(BuildContext context, AccountItem item, String accion, bool isEn) async {
+  Future<void> _accion(BuildContext context, AccountItem item, String accion) async {
     final notifier = ref.read(accountsAdminNotifierProvider.notifier);
     switch (accion) {
       case 'edit':
-        await _editar(context, item, isEn);
+        await _editar(context, item);
       case 'toggle':
         final error = await notifier.run((r) => r.setActive(item.id, !item.active));
         if (context.mounted) {
           await reportLocalAction(context, ref, error,
               ok: item.active
-                  ? (isEn ? 'Account deactivated.' : 'Cuenta desactivada.')
-                  : (isEn ? 'Account activated.' : 'Cuenta activada.'),
-              isEn: isEn);
+                  ? (context.l10n.accountDeactivated)
+                  : (context.l10n.accountActivated));
         }
       case 'delete':
         final ok = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: Text(isEn ? 'Delete account?' : '¿Eliminar la cuenta?'),
-            content: Text(isEn
-                ? 'Without movements it is deleted; with movements it is deactivated.'
-                : 'Sin movimientos se elimina; con movimientos se desactiva.'),
+            title: Text(context.l10n.deleteAccount),
+            content: Text(context.l10n.withoutMovementsDeletedMovementsDeactivated),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
-              TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(isEn ? 'Delete' : 'Eliminar')),
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.l10n.cancel)),
+              TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(context.l10n.delete)),
             ],
           ),
         );
         if (ok != true) return;
         final error = await notifier.run((r) => r.delete(item.id));
-        if (context.mounted) await reportLocalAction(context, ref, error, ok: isEn ? 'Account deleted.' : 'Cuenta eliminada.', isEn: isEn);
+        if (context.mounted) await reportLocalAction(context, ref, error, ok: context.l10n.accountDeleted);
     }
   }
 
   /// Alta (item null) o edición de nombre/moneda. El ícono se elige al crear (la API de
   /// sincronización no lo cambia después).
-  Future<void> _editar(BuildContext context, AccountItem? item, bool isEn) async {
+  Future<void> _editar(BuildContext context, AccountItem? item) async {
     var moneda = item?.currency ?? Currency.ars;
     String? icono;
     final texto = await showDialog<String>(
@@ -165,7 +161,7 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
         initial: [item?.name ?? ''],
         builder: (ctx, c) => StatefulBuilder(
           builder: (ctx, setLocal) => AlertDialog(
-            title: Text(item == null ? (isEn ? 'New account' : 'Nueva cuenta') : (isEn ? 'Edit account' : 'Editar cuenta')),
+            title: Text(item == null ? (context.l10n.newAccount) : (context.l10n.editAccount)),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -175,11 +171,11 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
                     key: const ValueKey('cuenta-nombre'),
                     controller: c[0],
                     maxLength: accountNameMax,
-                    decoration: InputDecoration(labelText: isEn ? 'Name' : 'Nombre'),
+                    decoration: InputDecoration(labelText: context.l10n.name),
                   ),
                   DropdownButtonFormField<Currency>(
                     initialValue: moneda,
-                    decoration: InputDecoration(labelText: isEn ? 'Currency' : 'Moneda'),
+                    decoration: InputDecoration(labelText: context.l10n.currency),
                     items: [for (final c in Currency.values) DropdownMenuItem(value: c, child: Text(c.code))],
                     onChanged: item != null && item.movementsCount > 0 ? null : (v) => setLocal(() => moneda = v ?? moneda),
                   ),
@@ -187,13 +183,13 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        isEn ? 'Currency is locked: the account has movements.' : 'La moneda no se cambia: la cuenta tiene movimientos.',
+                        context.l10n.currencyLockedAccountHasMovements,
                         style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
                       ),
                     ),
                   if (item == null) ...[
                     const SizedBox(height: 12),
-                    Text(isEn ? 'Icon' : 'Ícono', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text(context.l10n.icon, style: const TextStyle(fontWeight: FontWeight.w600)),
                     Wrap(
                       spacing: 6,
                       children: [
@@ -211,11 +207,11 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isEn ? 'Cancel' : 'Cancelar')),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.l10n.cancel)),
               TextButton(
                   key: const ValueKey('cuenta-guardar'),
                   onPressed: () => Navigator.pop(ctx, c[0].text),
-                  child: Text(isEn ? 'Save' : 'Guardar')),
+                  child: Text(context.l10n.save)),
             ],
           ),
         ),
@@ -228,18 +224,16 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
         : r.update(item.id, name: texto, currency: item.movementsCount > 0 ? null : moneda));
     if (context.mounted) {
       await reportLocalAction(context, ref, error,
-          ok: item == null ? (isEn ? 'Account created.' : 'Cuenta creada.') : (isEn ? 'Account updated.' : 'Cuenta actualizada.'),
-          isEn: isEn);
+          ok: item == null ? (context.l10n.accountCreated) : (context.l10n.accountUpdated));
     }
   }
 }
 
 class _AccountTile extends StatelessWidget {
   final AccountItem item;
-  final bool isEn;
   final ValueChanged<String> onAction;
 
-  const _AccountTile({required this.item, required this.isEn, required this.onAction});
+  const _AccountTile({required this.item, required this.onAction});
 
   @override
   Widget build(BuildContext context) {
@@ -268,12 +262,12 @@ class _AccountTile extends StatelessWidget {
                       spacing: 6,
                       children: [
                         _Badge(text: item.currency.code, color: color),
-                        if (!item.active) _Badge(text: isEn ? 'Inactive' : 'Inactiva', color: Colors.grey),
+                        if (!item.active) _Badge(text: context.l10n.inactive, color: Colors.grey),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${item.movementsCount} ${isEn ? 'movements' : 'movimientos'}${item.serverId == null ? (isEn ? ' · pending sync' : ' · sin sincronizar') : ''}',
+                      '${item.movementsCount} ${context.l10n.movements2}${item.serverId == null ? (context.l10n.pendingSync) : ''}',
                       style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
                     ),
                   ],
@@ -294,12 +288,12 @@ class _AccountTile extends StatelessWidget {
                 key: ValueKey('menu-cuenta-${item.name}'),
                 onSelected: onAction,
                 itemBuilder: (_) => [
-                  PopupMenuItem(value: 'edit', child: Text(isEn ? 'Edit' : 'Editar')),
+                  PopupMenuItem(value: 'edit', child: Text(context.l10n.edit)),
                   PopupMenuItem(
                     value: 'toggle',
-                    child: Text(item.active ? (isEn ? 'Deactivate' : 'Desactivar') : (isEn ? 'Activate' : 'Activar')),
+                    child: Text(item.active ? (context.l10n.deactivate) : (context.l10n.activate)),
                   ),
-                  PopupMenuItem(value: 'delete', child: Text(isEn ? 'Delete' : 'Eliminar')),
+                  PopupMenuItem(value: 'delete', child: Text(context.l10n.delete)),
                 ],
               ),
             ],

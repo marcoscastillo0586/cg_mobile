@@ -1,5 +1,6 @@
 import 'exceptions.dart';
 import 'failures.dart';
+import '../../l10n/l10n.dart';
 
 /// Texto para el usuario a partir de un error, traducido según el `code` de la API.
 ///
@@ -8,64 +9,39 @@ import 'failures.dart';
 class ErrorMessages {
   ErrorMessages._();
 
-  static const Map<String, (String es, String en)> _byCode = {
-    'INVALID_CREDENTIALS': ('Email o contraseña incorrectos.', 'Wrong email or password.'),
-    'ACCOUNT_LOCKED': (
-      'Demasiados intentos fallidos. Probá de nuevo en 15 minutos.',
-      'Too many failed attempts. Try again in 15 minutes.'
-    ),
-    'RATE_LIMITED': ('Demasiadas solicitudes. Esperá un momento.', 'Too many requests. Please wait a moment.'),
-    'INVALID_REFRESH': ('Tu sesión expiró. Iniciá sesión nuevamente.', 'Your session expired. Please sign in again.'),
-    'INVALID_TOKEN': ('Tu sesión expiró. Iniciá sesión nuevamente.', 'Your session expired. Please sign in again.'),
-    'UNAUTHORIZED': ('Tenés que iniciar sesión.', 'You need to sign in.'),
-    'NOT_FOUND': (
-      'El servidor no tiene esta función o el dato no existe.',
-      'The server does not have this feature or the item does not exist.'
-    ),
-    'DUPLICATE': ('Ya existe un registro con esos datos.', 'A record with that data already exists.'),
-    'EMAIL_TAKEN': ('Ya existe una cuenta con ese email.', 'An account with that email already exists.'),
-    'INSUFFICIENT_FUNDS': (
-      'No dispone del saldo a transferir. Realizá un ingreso en la cuenta de origen.',
-      'Not enough balance to transfer. Record an income in the source account first.'
-    ),
-    'RESERVED_CATEGORY': ('Esa categoría está reservada por el sistema.', 'That category is reserved by the system.'),
-    'SAME_ACCOUNT': ('La cuenta de origen y la de destino no pueden ser iguales.', 'Source and destination accounts must differ.'),
-    'CURRENCY_MISMATCH': (
-      'No se puede transferir entre cuentas de distinta moneda.',
-      'Cannot transfer between accounts in different currencies.'
-    ),
-    'ACCOUNT_INACTIVE': ('La cuenta está inactiva.', 'The account is inactive.'),
-    'ACCOUNT_HAS_FUNDS': (
-      'Esta cuenta tiene dinero, deje la cuenta vacía y vuelva a intentarlo.',
-      'This account has money; empty it and try again.'
-    ),
-    'CURRENCY_LOCKED': ('No se puede cambiar la moneda de una cuenta con movimientos.', 'The currency of an account with movements cannot change.'),
-    'DUPLICATE_NAME': ('Ya existe otro registro con ese nombre.', 'Another record already has that name.'),
-    'INVALID_PERIOD': ('La fecha hasta no puede ser anterior a la fecha desde.', 'The end date cannot be before the start date.'),
-    'LAST_DETAIL': ('Es el único renglón del comprobante; eliminá el movimiento completo.', 'It is the only line; delete the whole movement.'),
-    'TRANSFER_EDIT': ('Una transferencia se edita como par (origen, destino y monto).', 'A transfer is edited as a pair (source, destination, amount).'),
-    'VERSION_CONFLICT': ('El registro cambió en el servidor.', 'The record changed on the server.'),
-    'CATEGORY_INACTIVE': ('La categoría está inactiva.', 'The category is inactive.'),
-    'CATALOG_NOT_SYNCED': (
-      'Faltan datos del servidor en el celular: sincronizá con conexión.',
-      'Server data is missing on this phone: sync while online.'
-    ),
-    'INTERNAL_ERROR': ('Error interno del servidor.', 'Internal server error.'),
-    'NOT_AVAILABLE': ('Función no disponible por ahora.', 'Feature not available for now.'),
-    'CONFIG_MISSING': (
-      'La app no tiene configurada la dirección del servidor (API_BASE_URL).',
-      'The app has no server address configured (API_BASE_URL).'
-    ),
-    'UNEXPECTED_RESPONSE': ('El servidor respondió algo inesperado.', 'Unexpected response from the server.'),
-  };
+  static String? _byCode(String code, AppLocalizations l) => switch (code) {
+        'INVALID_CREDENTIALS' => l.errInvalidCredentials,
+        'ACCOUNT_LOCKED' => l.errAccountLocked,
+        'RATE_LIMITED' => l.errRateLimited,
+        'INVALID_REFRESH' => l.errInvalidRefresh,
+        'INVALID_TOKEN' => l.errInvalidToken,
+        'UNAUTHORIZED' => l.errUnauthorized,
+        'NOT_FOUND' => l.errNotFound,
+        'DUPLICATE' => l.errDuplicate,
+        'EMAIL_TAKEN' => l.errEmailTaken,
+        'INSUFFICIENT_FUNDS' => l.errInsufficientFunds,
+        'RESERVED_CATEGORY' => l.errReservedCategory,
+        'SAME_ACCOUNT' => l.errSameAccount,
+        'CURRENCY_MISMATCH' => l.errCurrencyMismatch,
+        'ACCOUNT_INACTIVE' => l.errAccountInactive,
+        'ACCOUNT_HAS_FUNDS' => l.errAccountHasFunds,
+        'CURRENCY_LOCKED' => l.errCurrencyLocked,
+        'DUPLICATE_NAME' => l.errDuplicateName,
+        'INVALID_PERIOD' => l.errInvalidPeriod,
+        'LAST_DETAIL' => l.errLastDetail,
+        'TRANSFER_EDIT' => l.errTransferEdit,
+        'VERSION_CONFLICT' => l.errVersionConflict,
+        'CATEGORY_INACTIVE' => l.errCategoryInactive,
+        'CATALOG_NOT_SYNCED' => l.errCatalogNotSynced,
+        'INTERNAL_ERROR' => l.errInternalError,
+        'NOT_AVAILABLE' => l.errNotAvailable,
+        'CONFIG_MISSING' => l.errConfigMissing,
+        'UNEXPECTED_RESPONSE' => l.errUnexpectedResponse,
+        _ => null,
+      };
 
-  static String describe(Object error, {required bool isEn}) {
-    if (error is NetworkException) {
-      return isEn ? 'Cannot reach the server. Check your connection.' : 'No se pudo conectar con el servidor. Revisá tu conexión.';
-    }
-    if (error is NetworkFailure) {
-      return isEn ? 'Cannot reach the server. Check your connection.' : 'No se pudo conectar con el servidor. Revisá tu conexión.';
-    }
+  static String describe(Object error, AppLocalizations l) {
+    if (error is NetworkException || error is NetworkFailure) return l.errNetwork;
     String? code;
     String message = error.toString();
     if (error is ServerException) {
@@ -75,12 +51,13 @@ class ErrorMessages {
       code = error.code;
       message = error.message;
     } else if (error is Failure) {
+      // Validación hecha en el celular: el texto ya es específico (cuenta, disponible, renglón).
+      final localized = error.localized;
+      if (localized != null) return localized(l);
       code = error.code;
       message = error.message;
-      // Validación hecha en el celular: el mensaje ya es específico (cuenta, disponible, renglón).
-      if (error is ValidationFailure && !isEn) return message;
     }
-    return forCode(code, message, isEn: isEn);
+    return forCode(code, message, l);
   }
 
   /// Código de la API del error, si lo tiene.
@@ -91,13 +68,11 @@ class ErrorMessages {
     return null;
   }
 
-  static String forCode(String? code, String serverMessage, {required bool isEn}) {
-    // VALIDATION_ERROR trae un mensaje específico del campo: se muestra tal cual.
-    if (code == 'VALIDATION_ERROR') {
-      return isEn ? 'Invalid data: $serverMessage' : serverMessage;
-    }
-    final known = code == null ? null : _byCode[code];
-    if (known != null) return isEn ? known.$2 : known.$1;
+  static String forCode(String? code, String serverMessage, AppLocalizations l) {
+    // VALIDATION_ERROR trae un mensaje específico del campo (del servidor, en español).
+    if (code == 'VALIDATION_ERROR') return l.localeName == 'es' ? serverMessage : l.errInvalidData(serverMessage);
+    final known = code == null ? null : _byCode(code, l);
+    if (known != null) return known;
     if (code == null) return serverMessage;
     return '$serverMessage ($code)';
   }

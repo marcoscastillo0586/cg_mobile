@@ -3,6 +3,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/widgets/account_avatar.dart';
 import '../../domain/entities/balances.dart';
+import '../../../../l10n/l10n.dart';
 
 class AccountCard extends StatelessWidget {
   final BalanceAccount account;
@@ -10,7 +11,6 @@ class AccountCard extends StatelessWidget {
   final bool isSelected;
   final ValueChanged<bool?>? onToggleSelection;
   final VoidCallback? onTap;
-  final bool isEn;
 
   const AccountCard({
     super.key,
@@ -19,7 +19,6 @@ class AccountCard extends StatelessWidget {
     this.isSelected = true,
     this.onToggleSelection,
     this.onTap,
-    this.isEn = false,
   });
 
   @override
@@ -86,14 +85,14 @@ class AccountCard extends StatelessWidget {
                     ),
                     if (account.balanceCents < 0 && !ocultarMontos)
                       Text(
-                        isEn ? 'Record an income' : 'Registrá un ingreso',
+                        context.l10n.recordIncome,
                         key: ValueKey('cuenta-negativa-${account.id}'),
                         style: const TextStyle(fontSize: 11, color: AppColors.rose, fontWeight: FontWeight.w600),
                       ),
                     if (isUsd && !ocultarMontos)
                       Text(
                         account.balanceArsCents == null
-                            ? (isEn ? 'no exchange rate' : 'sin cotización')
+                            ? (context.l10n.noExchangeRate)
                             : Money.format(account.balanceArsCents!),
                         style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
                       ),

@@ -12,11 +12,11 @@ import '../../../../core/utils/date_utils.dart';
 import '../../../../core/widgets/account_picker.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../domain/entities/ticket_parse_result.dart';
 import '../providers/expense_form_notifier.dart';
 import '../providers/expense_form_state.dart';
 import '../widgets/renglon_gasto_card.dart';
+import '../../../../l10n/l10n.dart';
 
 class CreateExpenseScreen extends ConsumerStatefulWidget {
   /// Alta rechazada a corregir (desde "Pendientes y rechazados").
@@ -78,7 +78,6 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
   }
 
   void _guardarGasto() async {
-    final isEn = ref.read(settingsProvider).language == 'en';
     final st = ref.read(expenseFormNotifierProvider);
     final cuenta = st.cuentaSeleccionada;
     // Sin fondos se puede guardar igual (el dinero puede no estar cargado), pero se avisa y se confirma.
@@ -86,14 +85,14 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
       final seguir = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(isEn ? 'Balance will be negative' : 'La cuenta queda en negativo'),
-          content: Text(negativeBalanceText(cuenta, st.totalCents, isEn: isEn)),
+          title: Text(context.l10n.balanceWillNegative),
+          content: Text(negativeBalanceText(cuenta, st.totalCents, context.l10n)),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.l10n.cancel)),
             TextButton(
               key: const ValueKey('guardar-igual'),
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text(isEn ? 'Save anyway' : 'Guardar igual'),
+              child: Text(context.l10n.saveAnyway),
             ),
           ],
         ),
@@ -106,25 +105,24 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
     if (ok && esQr) {
       // Quedó registrado en el servidor: se descarga en la sincronización.
       unawaited(ref.read(syncControllerProvider.notifier).sync());
-      AppFeedback.showSuccess(context, isEn ? 'Ticket recorded on the server.' : 'Ticket registrado en el servidor.');
+      AppFeedback.showSuccess(context, context.l10n.ticketRecordedServer);
       context.pop(true);
     } else if (ok) {
-      await afterLocalWrite(context, ref, isEn ? 'Expense' : 'Egreso', isEn: isEn);
+      await afterLocalWrite(context, ref, context.l10n.expense);
       if (mounted) context.pop(true);
     } else {
       final error = ref.read(expenseFormNotifierProvider).error;
       if (error == null) return;
       final hint = esQr && error is NetworkException
-          ? (isEn ? ' Confirming a QR ticket requires a connection.' : ' Confirmar un ticket QR requiere conexión.')
+          ? (context.l10n.confirmingQrTicketRequiresConnection)
           : '';
-      AppFeedback.showError(context, describeWithCode(error, isEn: isEn) + hint);
+      AppFeedback.showError(context, describeWithCode(error, context.l10n) + hint);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(expenseFormNotifierProvider);
-    final settings = ref.watch(settingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (state.isLoadingData) {
@@ -132,9 +130,8 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    final isEn = settings.language == 'en';
     if (state.status == ExpenseFormStatus.error) {
-      return LocalDataError(error: state.error!, isEn: isEn, onRetry: ref.read(expenseFormNotifierProvider.notifier).inicializar);
+      return LocalDataError(error: state.error!, onRetry: ref.read(expenseFormNotifierProvider.notifier).inicializar);
     }
 
     final categorias = state.categorias;
@@ -144,9 +141,9 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
     final totalFormateado = Money.format(state.totalCents, currency: cuenta?.currency ?? Currency.ars);
 
     final tituloModulo = widget.correction != null
-        ? (isEn ? 'Correct Expense' : 'Corregir Egreso')
-        : (isEn ? 'New Expense' : 'Nuevo Egreso');
-    final textoBoton = (isEn ? 'Register Expense ($totalFormateado)' : 'Registrar Gasto ($totalFormateado)');
+        ? (context.l10n.correctExpense)
+        : (context.l10n.newExpense);
+    final textoBoton = (context.l10n.registerExpense(totalFormateado));
 
     return Scaffold(
       appBar: AppBar(
@@ -154,7 +151,7 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.document_scanner_rounded),
-            tooltip: isEn ? 'Scan receipt' : 'Escanear ticket',
+            tooltip: context.l10n.scanReceipt,
             onPressed: () => _abrirCapturaTicket(context),
           ),
         ],
@@ -173,7 +170,6 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                   AccountPicker(
                     cuentas: state.cuentas,
                     selectedId: state.selectedCuentaId,
-                    isEn: isEn,
                     onSelect: (id) => ref.read(expenseFormNotifierProvider.notifier).setCuenta(id),
                   ),
                   const SizedBox(height: 18),
@@ -457,7 +453,7 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
 
                   // Aviso de fondos antes de guardar (saldo local, ya descuenta lo pendiente).
                   if (cuenta != null && state.fondosInsuficientes)
-                    FundsWarning(cuenta: cuenta, amountCents: state.totalCents, isEn: isEn),
+                    FundsWarning(cuenta: cuenta, amountCents: state.totalCents),
 
                   // 5. Botón Final
                   ElevatedButton(

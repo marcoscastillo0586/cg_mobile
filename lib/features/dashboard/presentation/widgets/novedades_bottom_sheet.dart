@@ -4,9 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../routes/app_routes.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../domain/entities/novedad_entity.dart';
 import '../providers/novedades_notifier.dart';
+import '../../../../l10n/l10n.dart';
 
 class NovedadesBottomSheet extends ConsumerWidget {
   const NovedadesBottomSheet({super.key});
@@ -20,20 +20,14 @@ class NovedadesBottomSheet extends ConsumerWidget {
     );
   }
 
-  String _obtenerTextoNovedad(NovedadEntity n, bool isEn) {
+  String _obtenerTextoNovedad(NovedadEntity n, AppLocalizations l) {
     switch (n.tipo) {
       case NovedadTipo.cerca:
-        return isEn
-            ? "Limit '${n.titulo}' near top (${n.porcentaje}%)"
-            : "Límite '${n.titulo}' cercano al tope (${n.porcentaje}%)";
+        return l.limitNearTop(n.titulo, n.porcentaje);
       case NovedadTipo.alcanzado:
-        return isEn
-            ? "Limit '${n.titulo}' reached (${n.porcentaje}%)"
-            : "Límite '${n.titulo}' alcanzado (${n.porcentaje}%)";
+        return l.limitReached(n.titulo, n.porcentaje);
       case NovedadTipo.vencido:
-        return isEn
-            ? "Limit '${n.titulo}' has finished and is expired"
-            : "El límite '${n.titulo}' ha finalizado y está vencido";
+        return l.limitHasFinishedExpired(n.titulo);
     }
   }
 
@@ -62,14 +56,12 @@ class NovedadesBottomSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(novedadesNotifierProvider);
-    final settings = ref.watch(settingsProvider);
-    final isEn = settings.language == 'en';
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final novedades = state.novedades;
 
-    final tituloPanel = isEn ? 'Notifications' : 'Novedades';
-    final sinNovedadesTexto = isEn ? 'No pending notifications' : 'Sin novedades pendientes';
+    final tituloPanel = context.l10n.notifications;
+    final sinNovedadesTexto = context.l10n.noPendingNotifications;
 
     return Container(
       constraints: BoxConstraints(
@@ -146,7 +138,7 @@ class NovedadesBottomSheet extends ConsumerWidget {
                       final item = novedades[index];
                       final color = _obtenerColorTipo(item.tipo);
                       final icon = _obtenerIconoTipo(item.tipo);
-                      final texto = _obtenerTextoNovedad(item, isEn);
+                      final texto = _obtenerTextoNovedad(item, context.l10n);
 
                       return Material(
                         color: Colors.transparent,

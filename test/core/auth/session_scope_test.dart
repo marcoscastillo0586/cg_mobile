@@ -13,6 +13,7 @@ import 'package:gastos_mobile/features/auth/presentation/providers/auth_notifier
 import 'package:gastos_mobile/features/auth/presentation/providers/auth_state.dart';
 
 class _FakeAuth implements AuthRepository {
+  // ignore: close_sinks — se cierra con addTearDown en cada test.
   final expired = StreamController<Object>.broadcast();
   int restores = 0;
   Exception? logoutError;
@@ -45,6 +46,7 @@ void main() {
 
   Future<void> pump(WidgetTester tester) async {
     auth = _FakeAuth();
+    addTearDown(auth.expired.close);
     await tester.pumpWidget(SessionScope(
       overrides: [authRepositoryProvider.overrideWithValue(auth)],
       child: Consumer(builder: (context, ref, _) {

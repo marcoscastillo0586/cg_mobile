@@ -22,6 +22,7 @@ import '../widgets/account_card.dart';
 import '../widgets/balance_card.dart';
 import '../widgets/notification_bell_widget.dart';
 import '../widgets/quick_actions_bar.dart';
+import '../../../../l10n/l10n.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -94,7 +95,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final dashboardState = ref.watch(dashboardNotifierProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isEn = ref.watch(settingsProvider).language == 'en';
 
     // La sincronización avisa si falla o si la base local no coincide con el servidor.
     ref.listen<SyncState>(syncControllerProvider, (prev, next) {
@@ -106,20 +106,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (next.status == SyncStatus.error && next.error != null) {
         AppFeedback.showError(
           context,
-          '${isEn ? 'Sync failed' : 'No se pudo sincronizar'}: ${ErrorMessages.describe(next.error!, isEn: isEn)}',
+          '${context.l10n.syncFailed2}: ${ErrorMessages.describe(next.error!, context.l10n)}',
         );
       } else if (next.status == SyncStatus.attention) {
         AppFeedback.showError(
           context,
-          isEn
-              ? '${next.needsAttention} operation(s) were not applied. See Settings → Pending and rejected.'
-              : '${next.needsAttention} operación(es) no se aplicaron. Ver Ajustes → Pendientes y rechazados.',
+          context.l10n.operationSWereNotApplied(next.needsAttention),
         );
       } else if (next.status == SyncStatus.mismatch) {
         AppFeedback.showError(
           context,
-          isEn ? 'Local data does not match the server; a full download will run next time.'
-               : 'Los datos locales no coinciden con el servidor; la próxima vez se descarga todo.',
+          context.l10n.localDataDoesNotMatch,
         );
       }
     });
@@ -184,7 +181,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       const Icon(Icons.cloud_off_rounded, size: 54, color: AppColors.rose),
                       const SizedBox(height: 16),
                       Text(
-                        ErrorMessages.describe(error, isEn: isEn) + (code != null ? '\n($code)' : ''),
+                        ErrorMessages.describe(error, context.l10n) + (code != null ? '\n($code)' : ''),
                         key: const ValueKey('dashboard-error'),
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -215,12 +212,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             } else if (rate.available) {
               // Última cotización recibida, con su fecha (no hay cotización fija).
               final cuando = AppDateUtils.formatDateTimeString(DateTime.parse(rate.receivedAt!).toLocal().toIso8601String());
-              cotizacion = '${isEn ? 'Last rate' : 'Última cotización'} ($cuando) ${rate.name}: ${Money.format(rate.sellCents)}';
+              cotizacion = '${context.l10n.lastRate} ($cuando) ${rate.name}: ${Money.format(rate.sellCents)}';
             } else {
               cotizacion = rateError == null || rateError is NetworkException
-                  ? (isEn ? 'Exchange rate: offline · USD not converted' : 'Cotización: sin conexión · USD sin convertir')
-                  : '${isEn ? 'Exchange rate unavailable · USD not converted' : 'Cotización no disponible · USD sin convertir'}: '
-                      '${ErrorMessages.describe(rateError, isEn: isEn)}';
+                  ? (context.l10n.exchangeRateOfflineUsdNot)
+                  : '${context.l10n.exchangeRateUnavailableUsdNot}: '
+                      '${ErrorMessages.describe(rateError, context.l10n)}';
             }
 
             return ListView(
@@ -230,8 +227,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(
-                      '${isEn ? 'Showing the last loaded data' : 'Se muestran los datos de la última carga'}: '
-                      '${ErrorMessages.describe(dashboardState.error!, isEn: isEn)}',
+                      '${context.l10n.showingLastLoadedData}: '
+                      '${ErrorMessages.describe(dashboardState.error!, context.l10n)}',
                       style: const TextStyle(color: AppColors.rose, fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -344,9 +341,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ...balances.accounts.map(
                   (cuenta) {
                     final isSelected = dashboardState.idsSeleccionados.contains(cuenta.id);
-                    return AccountCard(
-                      isEn: isEn,
-                      account: cuenta,
+                    return AccountCard(account: cuenta,
                       ocultarMontos: dashboardState.ocultarMontos,
                       isSelected: isSelected,
                       onToggleSelection: (_) {

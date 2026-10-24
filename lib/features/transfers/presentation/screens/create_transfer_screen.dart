@@ -10,9 +10,9 @@ import '../../../../core/sync/outbox_repository.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/account_picker.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/transfer_form_notifier.dart';
 import '../providers/transfer_form_state.dart';
+import '../../../../l10n/l10n.dart';
 
 class CreateTransferScreen extends ConsumerStatefulWidget {
   /// Alta rechazada a corregir (desde "Pendientes y rechazados").
@@ -64,18 +64,17 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
   }
 
   void _confirmarTransferencia() async {
-    final isEn = ref.read(settingsProvider).language == 'en';
     final notifier = ref.read(transferFormNotifierProvider.notifier);
     notifier.setConcepto(_conceptoController.text.trim());
 
     final ok = await notifier.realizarTransferencia();
     if (!mounted) return;
     if (ok) {
-      await afterLocalWrite(context, ref, isEn ? 'Transfer' : 'Transferencia', isEn: isEn);
+      await afterLocalWrite(context, ref, context.l10n.transfer);
       if (mounted) context.pop();
     } else {
       final error = ref.read(transferFormNotifierProvider).error;
-      if (error != null) AppFeedback.showError(context, describeWithCode(error, isEn: isEn));
+      if (error != null) AppFeedback.showError(context, describeWithCode(error, context.l10n));
     }
   }
 
@@ -87,15 +86,14 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
     final state = ref.watch(transferFormNotifierProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final formatoFecha = DateFormat('dd/MM/yyyy').format(state.fecha);
-    final isEn = ref.watch(settingsProvider).language == 'en';
     if (state.status == TransferFormStatus.error) {
-      return LocalDataError(error: state.error!, isEn: isEn, onRetry: ref.read(transferFormNotifierProvider.notifier).cargarCuentas);
+      return LocalDataError(error: state.error!, onRetry: ref.read(transferFormNotifierProvider.notifier).cargarCuentas);
     }
     final origen = state.origen;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.correction != null ? (isEn ? 'Correct Transfer' : 'Corregir Transferencia') : (isEn ? 'Transfer Money' : 'Transferir Dinero')),
+        title: Text(widget.correction != null ? (context.l10n.correctTransfer) : (context.l10n.transferMoney)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 14.0),
@@ -199,8 +197,8 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
                                   isExpanded: true,
                                   value: state.selectedDestinoId,
                                   hint: Text(origen != null && state.destinosValidos.isEmpty
-                                      ? (isEn ? 'No other account in ${origen.currency.code}' : 'No hay otra cuenta en ${origen.currency.code}')
-                                      : (isEn ? 'Select destination' : 'Seleccionar destino')),
+                                      ? (context.l10n.noOtherAccount(origen.currency.code))
+                                      : (context.l10n.selectDestination)),
                                   items: state.destinosValidos.map((lug) {
                                     return DropdownMenuItem<int>(
                                       value: lug.localId,
@@ -248,7 +246,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
                 prefixText: '${origen?.currency.symbol ?? r'$'} ',
                 prefixStyle: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.primary),
                 hintText: '0,00',
-                errorText: _montoInvalido ? (isEn ? 'Invalid amount (max. 2 decimals)' : 'Importe inválido (máx. 2 decimales)') : null,
+                errorText: _montoInvalido ? (context.l10n.invalidAmountMax2Decimals) : null,
               ),
             ),
             const SizedBox(height: 18),
@@ -311,7 +309,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
 
             // Aviso de fondos antes de guardar (saldo local del origen).
             if (origen != null && state.fondosInsuficientes)
-              FundsWarning(cuenta: origen, amountCents: state.montoCents, isEn: isEn, blocking: true),
+              FundsWarning(cuenta: origen, amountCents: state.montoCents, blocking: true),
 
             // 5. Botón Confirmar
             ElevatedButton(

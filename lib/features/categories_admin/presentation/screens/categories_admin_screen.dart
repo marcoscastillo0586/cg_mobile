@@ -4,11 +4,11 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/widgets/dialog_controllers.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../data/local_categories_repository.dart';
 import '../../domain/category_item.dart';
 import '../providers/categories_admin_notifier.dart';
 import '../providers/categories_admin_state.dart';
+import '../../../../l10n/l10n.dart';
 
 class CategoriesAdminScreen extends ConsumerStatefulWidget {
   const CategoriesAdminScreen({super.key});
@@ -27,7 +27,6 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(categoriesAdminNotifierProvider);
-    final isEn = ref.watch(settingsProvider).language == 'en';
     final notifier = ref.read(categoriesAdminNotifierProvider.notifier);
 
     Widget chip(String key, String label) => ChoiceChip(
@@ -38,14 +37,14 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEn ? 'Categories' : 'Rubros y Categorías'),
+        title: Text(context.l10n.categories),
         actions: [IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: notifier.cargarCategorias)],
       ),
       floatingActionButton: FloatingActionButton.extended(
         key: const ValueKey('nueva-categoria'),
-        onPressed: () => _nombre(context, null, isEn),
+        onPressed: () => _nombre(context, null),
         icon: const Icon(Icons.add_rounded),
-        label: Text(isEn ? 'New category' : 'Nueva categoría'),
+        label: Text(context.l10n.newCategory),
       ),
       body: RefreshIndicator(
         onRefresh: notifier.cargarCategorias,
@@ -55,7 +54,7 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: TextField(
                 decoration: InputDecoration(
-                  hintText: isEn ? 'Search category' : 'Buscar categoría',
+                  hintText: context.l10n.searchCategory,
                   prefixIcon: const Icon(Icons.search_rounded),
                 ),
                 onChanged: notifier.setBusqueda,
@@ -65,21 +64,21 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(children: [
-                chip('todas', '${isEn ? 'All' : 'Todas'} (${state.categorias.length})'),
+                chip('todas', '${context.l10n.all} (${state.categorias.length})'),
                 const SizedBox(width: 8),
-                chip('activas', '${isEn ? 'Active' : 'Activas'} (${state.activasCount})'),
+                chip('activas', '${context.l10n.active} (${state.activasCount})'),
                 const SizedBox(width: 8),
-                chip('inactivas', '${isEn ? 'Inactive' : 'Inactivas'} (${state.inactivasCount})'),
+                chip('inactivas', '${context.l10n.inactive2} (${state.inactivasCount})'),
               ]),
             ),
-            Expanded(child: _buildBody(state, isEn)),
+            Expanded(child: _buildBody(state)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBody(CategoriesAdminState state, bool isEn) {
+  Widget _buildBody(CategoriesAdminState state) {
     if (state.status == CategoriesAdminStatus.loading && state.categorias.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -91,7 +90,7 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
         const Icon(Icons.cloud_off_rounded, size: 54, color: AppColors.rose),
         const SizedBox(height: 12),
         Text(
-          ErrorMessages.describe(error, isEn: isEn) + (code != null ? '\n($code)' : ''),
+          ErrorMessages.describe(error, context.l10n) + (code != null ? '\n($code)' : ''),
           textAlign: TextAlign.center,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
@@ -99,7 +98,7 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
         Center(
           child: ElevatedButton(
             onPressed: ref.read(categoriesAdminNotifierProvider.notifier).cargarCategorias,
-            child: Text(isEn ? 'Retry' : 'Reintentar'),
+            child: Text(context.l10n.retry),
           ),
         ),
       ]);
@@ -108,73 +107,70 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
     if (lista.isEmpty) {
       return ListView(children: [
         const SizedBox(height: 80),
-        Center(child: Text(isEn ? 'No categories' : 'No hay categorías')),
+        Center(child: Text(context.l10n.noCategories)),
       ]);
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
       itemCount: lista.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, i) => _CategoryTile(item: lista[i], isEn: isEn, onAction: (a) => _accion(context, lista[i], a, isEn)),
+      itemBuilder: (_, i) => _CategoryTile(item: lista[i], onAction: (a) => _accion(context, lista[i], a)),
     );
   }
 
-  Future<void> _accion(BuildContext context, CategoryItem item, String accion, bool isEn) async {
+  Future<void> _accion(BuildContext context, CategoryItem item, String accion) async {
     final notifier = ref.read(categoriesAdminNotifierProvider.notifier);
     switch (accion) {
       case 'edit':
-        await _nombre(context, item, isEn);
+        await _nombre(context, item);
       case 'toggle':
         final error = await notifier.run((r) => r.setActive(item.id, !item.active));
         if (context.mounted) {
           await reportLocalAction(context, ref, error,
               ok: item.active
-                  ? (isEn ? 'Category deactivated.' : 'Categoría desactivada.')
-                  : (isEn ? 'Category activated.' : 'Categoría activada.'),
-              isEn: isEn);
+                  ? (context.l10n.categoryDeactivated)
+                  : (context.l10n.categoryActivated));
         }
       case 'delete':
         final ok = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: Text(isEn ? 'Delete category?' : '¿Eliminar la categoría?'),
-            content: Text(isEn
-                ? 'Without movements it is deleted; with movements it is deactivated.'
-                : 'Sin movimientos se elimina; con movimientos se desactiva.'),
+            title: Text(context.l10n.deleteCategory),
+            content: Text(context.l10n.withoutMovementsDeletedMovementsDeactivated),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
-              TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(isEn ? 'Delete' : 'Eliminar')),
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.l10n.cancel)),
+              TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(context.l10n.delete)),
             ],
           ),
         );
         if (ok != true) return;
         final error = await notifier.run((r) => r.delete(item.id));
         if (context.mounted) {
-          await reportLocalAction(context, ref, error, ok: isEn ? 'Category deleted.' : 'Categoría eliminada.', isEn: isEn);
+          await reportLocalAction(context, ref, error, ok: context.l10n.categoryDeleted);
         }
     }
   }
 
   /// Alta (item null) o renombrar.
-  Future<void> _nombre(BuildContext context, CategoryItem? item, bool isEn) async {
+  Future<void> _nombre(BuildContext context, CategoryItem? item) async {
     final texto = await showDialog<String>(
       context: context,
       builder: (ctx) => DialogControllers(
         initial: [item?.name ?? ''],
         builder: (ctx, c) => AlertDialog(
-          title: Text(item == null ? (isEn ? 'New category' : 'Nueva categoría') : (isEn ? 'Rename category' : 'Renombrar categoría')),
+          title: Text(item == null ? (context.l10n.newCategory) : (context.l10n.renameCategory)),
           content: TextField(
             key: const ValueKey('categoria-nombre'),
             controller: c[0],
             maxLength: categoryNameMax,
-            decoration: InputDecoration(labelText: isEn ? 'Name' : 'Nombre', counterText: ''),
+            decoration: InputDecoration(labelText: context.l10n.name, counterText: ''),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isEn ? 'Cancel' : 'Cancelar')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.l10n.cancel)),
             TextButton(
                 key: const ValueKey('categoria-guardar'),
                 onPressed: () => Navigator.pop(ctx, c[0].text),
-                child: Text(isEn ? 'Save' : 'Guardar')),
+                child: Text(context.l10n.save)),
           ],
         ),
       ),
@@ -184,17 +180,15 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
         await ref.read(categoriesAdminNotifierProvider.notifier).run((r) => item == null ? r.create(texto) : r.rename(item.id, texto));
     if (context.mounted) {
       await reportLocalAction(context, ref, error,
-          ok: item == null ? (isEn ? 'Category created.' : 'Categoría creada.') : (isEn ? 'Category renamed.' : 'Categoría renombrada.'),
-          isEn: isEn);
+          ok: item == null ? (context.l10n.categoryCreated) : (context.l10n.categoryRenamed));
     }
   }
 }
 
 class _CategoryTile extends StatelessWidget {
   final CategoryItem item;
-  final bool isEn;
   final ValueChanged<String> onAction;
-  const _CategoryTile({required this.item, required this.isEn, required this.onAction});
+  const _CategoryTile({required this.item, required this.onAction});
 
   @override
   Widget build(BuildContext context) {
@@ -212,24 +206,24 @@ class _CategoryTile extends StatelessWidget {
           title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w700)),
           subtitle: Text(
             [
-              '${item.movementsCount} ${isEn ? 'movements' : 'movimientos'}',
-              if (!item.active) (isEn ? 'inactive' : 'inactiva'),
-              if (item.isReserved) (isEn ? 'reserved' : 'reservada'),
+              '${item.movementsCount} ${context.l10n.movements2}',
+              if (!item.active) (context.l10n.inactive3),
+              if (item.isReserved) (context.l10n.reserved),
             ].join(' · '),
             style: const TextStyle(fontSize: 12),
           ),
           trailing: item.isReserved
-              ? Tooltip(message: isEn ? 'Reserved' : 'Reservada', child: const Icon(Icons.lock_outline_rounded, size: 20))
+              ? Tooltip(message: context.l10n.reserved2, child: const Icon(Icons.lock_outline_rounded, size: 20))
               : PopupMenuButton<String>(
                   key: ValueKey('menu-categoria-${item.name}'),
                   onSelected: onAction,
                   itemBuilder: (_) => [
-                    PopupMenuItem(value: 'edit', child: Text(isEn ? 'Rename' : 'Renombrar')),
+                    PopupMenuItem(value: 'edit', child: Text(context.l10n.rename)),
                     PopupMenuItem(
                       value: 'toggle',
-                      child: Text(item.active ? (isEn ? 'Deactivate' : 'Desactivar') : (isEn ? 'Activate' : 'Activar')),
+                      child: Text(item.active ? (context.l10n.deactivate) : (context.l10n.activate)),
                     ),
-                    PopupMenuItem(value: 'delete', child: Text(isEn ? 'Delete' : 'Eliminar')),
+                    PopupMenuItem(value: 'delete', child: Text(context.l10n.delete)),
                   ],
                 ),
         ),

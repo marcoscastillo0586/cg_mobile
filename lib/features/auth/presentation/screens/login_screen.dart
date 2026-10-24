@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/config/api_config.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/error_messages.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/auth_notifier.dart';
 import '../providers/auth_state.dart';
+import '../../../../l10n/l10n.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -20,7 +20,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passController = TextEditingController();
   bool _obscurePassword = true;
 
-  bool get _isEn => ref.read(settingsProvider).language == 'en';
 
   @override
   void dispose() {
@@ -42,7 +41,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     final error = ref.read(authNotifierProvider).error;
     if (error == null) return;
-    _showError(ErrorMessages.describe(error, isEn: _isEn), ErrorMessages.codeOf(error));
+    _showError(ErrorMessages.describe(error, context.l10n), ErrorMessages.codeOf(error));
   }
 
   void _showError(String message, String? code) {
@@ -54,7 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                code == null ? message : '$message\n${_isEn ? 'Code' : 'Código'}: $code',
+                code == null ? message : '$message\n${context.l10n.code}: $code',
                 style: const TextStyle(fontWeight: FontWeight.w500),
               ),
             ),
@@ -68,15 +67,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  String? _noticeText(AuthState state, bool isEn) {
+  String? _noticeText(AuthState state) {
     switch (state.notice) {
       case AuthNotice.sessionExpired:
-        return isEn ? 'Your session expired. Please sign in again.' : 'Tu sesión expiró. Iniciá sesión nuevamente.';
+        return context.l10n.sessionExpiredPleaseSignAgain;
       case AuthNotice.logoutNotRevoked:
-        final detail = state.noticeError == null ? '' : ' (${ErrorMessages.describe(state.noticeError!, isEn: isEn)})';
-        return isEn
-            ? 'Signed out on this device, but the server could not be notified$detail.'
-            : 'Se cerró la sesión en este celular, pero no se pudo avisar al servidor$detail.';
+        final detail = state.noticeError == null ? '' : ' (${ErrorMessages.describe(state.noticeError!, context.l10n)})';
+        return context.l10n.signedOutDeviceButServer(detail);
       case null:
         return null;
     }
@@ -85,9 +82,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
-    final isEn = ref.watch(settingsProvider).language == 'en';
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final notice = _noticeText(authState, isEn);
+    final notice = _noticeText(authState);
 
     return Scaffold(
       body: SafeArea(
@@ -128,7 +124,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       _Banner(
                         color: AppColors.rose,
                         icon: Icons.dns_outlined,
-                        text: ErrorMessages.forCode('CONFIG_MISSING', '', isEn: isEn),
+                        text: ErrorMessages.forCode('CONFIG_MISSING', '', context.l10n),
                       ),
                     if (notice != null)
                       _Banner(color: AppColors.amber, icon: Icons.info_outline_rounded, text: notice),
@@ -139,7 +135,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              isEn ? 'Sign in' : 'Iniciar sesión',
+                              context.l10n.sign,
                               style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 20),
@@ -152,20 +148,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               autocorrect: false,
                               textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
-                                hintText: isEn ? 'you@example.com' : 'tu@email.com',
+                                hintText: context.l10n.youExampleCom,
                                 prefixIcon: const Icon(Icons.alternate_email_rounded, size: 20),
                               ),
                               validator: (val) {
                                 final v = val?.trim() ?? '';
-                                if (v.isEmpty) return isEn ? 'Enter your email' : 'Ingresá tu email';
+                                if (v.isEmpty) return context.l10n.enterEmail;
                                 if (!v.contains('@') || !v.contains('.')) {
-                                  return isEn ? 'Invalid email' : 'Email inválido';
+                                  return context.l10n.invalidEmail;
                                 }
                                 return null;
                               },
                             ),
                             const SizedBox(height: 18),
-                            Text(isEn ? 'Password' : 'Contraseña',
+                            Text(context.l10n.password,
                                 style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                             const SizedBox(height: 6),
                             TextFormField(
@@ -187,7 +183,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                               validator: (val) {
                                 if (val == null || val.isEmpty) {
-                                  return isEn ? 'Enter your password' : 'Ingresá tu contraseña';
+                                  return context.l10n.enterPassword;
                                 }
                                 return null;
                               },
@@ -204,7 +200,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                       ),
                                     )
-                                  : Text(isEn ? 'Sign in' : 'Acceder'),
+                                  : Text(context.l10n.sign2),
                             ),
                           ],
                         ),

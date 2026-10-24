@@ -17,6 +17,7 @@ import 'package:gastos_mobile/features/accounts_admin/presentation/screens/accou
 import 'package:gastos_mobile/features/limits_admin/presentation/screens/limits_admin_screen.dart';
 import 'package:gastos_mobile/features/movements/presentation/screens/movements_screen.dart';
 import '../helpers/local_seed.dart';
+import 'package:gastos_mobile/l10n/app_localizations.dart';
 
 class _FakeApi implements HttpClientAdapter {
   final Map<String, Object> responses;
@@ -75,7 +76,12 @@ Future<void> _pump(WidgetTester tester, Widget screen, {SeededDb? db}) async {
       dioClientProvider.overrideWithValue(client),
       if (db != null) localDatabaseProvider.overrideWithValue(Future.value(db.db)),
     ],
-    child: MaterialApp(home: screen),
+    child: MaterialApp(
+      locale: const Locale('es'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: screen,
+    ),
   ));
   if (db == null) {
     await tester.pumpAndSettle();

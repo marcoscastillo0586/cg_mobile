@@ -6,10 +6,10 @@ import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../domain/entities/ticket_parse_result.dart';
 import '../../data/services/mlkit_ticket_reader.dart';
 import 'qr_scanner_screen.dart';
+import '../../../../l10n/l10n.dart';
 
 class TicketCaptureScreen extends ConsumerStatefulWidget {
   const TicketCaptureScreen({super.key});
@@ -108,13 +108,12 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
     }
   }
 
-  bool get _isEn => ref.read(settingsProvider).language == 'en';
 
   /// La lectura con IA (Gemini) está deshabilitada hasta que exista un endpoint en el servidor.
   void _avisarIaNoDisponible() {
     AppFeedback.showError(
       context,
-      _isEn ? 'Feature not available for now' : 'Función no disponible por ahora',
+      context.l10n.featureNotAvailableNow,
     );
   }
 
@@ -123,7 +122,7 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
     if (_imagePaths.isEmpty) {
       AppFeedback.showError(
         context,
-        _isEn ? 'Add at least one photo of the receipt' : 'Debes agregar al menos una foto del ticket',
+        context.l10n.addLeastOnePhotoReceipt,
       );
       return;
     }
@@ -140,16 +139,14 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
       if (result.items.isEmpty) {
         AppFeedback.showError(
           context,
-          _isEn ? 'No products were detected on the receipt.' : 'No se detectaron productos en el ticket.',
+          context.l10n.noProductsWereDetectedReceipt,
         );
         return;
       }
 
       AppFeedback.showSuccess(
         context,
-        _isEn
-            ? 'Receipt read on the device (${result.items.length} lines)'
-            : 'Ticket leído en el dispositivo (${result.items.length} renglones)',
+        context.l10n.receiptReadDeviceLines(result.items.length),
       );
       context.pop(result);
     } catch (e, st) {
@@ -158,7 +155,7 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
         setState(() => _isProcessing = false);
         AppFeedback.showError(
           context,
-          _isEn ? 'Could not read the receipt: $e' : 'No se pudo leer el ticket: $e',
+          context.l10n.couldNotReadReceipt(e),
         );
       }
     }
@@ -166,14 +163,10 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(settingsProvider);
-    final isEn = settings.language == 'en';
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final titulo = isEn ? 'Scan receipt' : 'Escanear ticket';
-    final instruccion = isEn
-        ? 'Scan the receipt using auto-crop, QR code or pick a photo from your gallery.'
-        : 'Escanéa el ticket con auto-recorte, lee el código QR o selecciona una foto desde tu galería.';
+    final titulo = context.l10n.scanReceipt;
+    final instruccion = context.l10n.scanReceiptUsingAutoCrop;
 
     return Scaffold(
       appBar: AppBar(
@@ -189,14 +182,12 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
                     const CircularProgressIndicator(strokeWidth: 3),
                     const SizedBox(height: 20),
                     Text(
-                      isEn
-                          ? 'Reading receipt on the device...'
-                          : 'Leyendo el ticket en el dispositivo...',
+                      context.l10n.readingReceiptDevice,
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      isEn ? 'Extracting products, net amounts and discounts...' : 'Extrayendo productos, montos netos y descuentos...',
+                      context.l10n.extractingProductsNetAmountsDiscounts,
                       style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 13),
                     ),
                   ],
@@ -249,12 +240,12 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                isEn ? 'No scans added yet' : 'Aún no agregaste escaneos',
+                                context.l10n.noScansAddedYet,
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                isEn ? 'Use Scan, Scan QR or Gallery below' : 'Usa el botón Escanear, Escanear QR o Galería inferior',
+                                context.l10n.useScanScanQrGallery,
                                 style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 12),
                               ),
                             ],
@@ -305,7 +296,7 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
-                                        isEn ? 'Scan #$numFoto' : 'Escaneo #$numFoto del ticket',
+                                        context.l10n.scan(numFoto),
                                         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                                       ),
                                     ),
@@ -342,7 +333,7 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
                               ),
                               icon: const Icon(Icons.document_scanner_rounded, size: 18),
                               label: Text(
-                                isEn ? 'Scan' : 'Escanear',
+                                context.l10n.scan2,
                                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -362,7 +353,7 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
                               ),
                               icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
                               label: Text(
-                                isEn ? 'Scan QR' : 'Escanear QR',
+                                context.l10n.scanQr,
                                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -381,7 +372,7 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
                         ),
                         icon: const Icon(Icons.photo_library_rounded, size: 18),
                         label: Text(
-                          isEn ? 'Gallery' : 'Galería',
+                          context.l10n.gallery,
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -399,7 +390,7 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
                           ),
                           icon: const Icon(Icons.check_circle_rounded, size: 20),
                           label: Text(
-                            isEn ? 'Finish loading' : 'Finalizar carga',
+                            context.l10n.finishLoading,
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -407,7 +398,7 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
                         TextButton.icon(
                           onPressed: _avisarIaNoDisponible,
                           icon: const Icon(Icons.auto_awesome_outlined, size: 18),
-                          label: Text(isEn ? 'Read with AI' : 'Leer con IA'),
+                          label: Text(context.l10n.readAi),
                         ),
                       ],
                     ],

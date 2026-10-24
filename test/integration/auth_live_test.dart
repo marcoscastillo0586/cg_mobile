@@ -18,6 +18,8 @@ import 'package:gastos_mobile/core/errors/exceptions.dart';
 import 'package:gastos_mobile/core/network/auth_interceptor.dart';
 import 'package:gastos_mobile/core/network/dio_client.dart';
 import '../core/auth/fake_auth_server.dart' show MemoryRefreshStorage;
+import 'package:flutter/widgets.dart';
+import 'package:gastos_mobile/l10n/app_localizations.dart';
 
 void main() {
   final env = Platform.environment;
@@ -49,7 +51,7 @@ void main() {
     } catch (e) {
       error = e;
     }
-    print('[LIVE] login incorrecto → ${ErrorMessages.codeOf(error!)} | "${ErrorMessages.describe(error, isEn: false)}"');
+    print('[LIVE] login incorrecto → ${ErrorMessages.codeOf(error!)} | "${ErrorMessages.describe(error, lookupAppLocalizations(const Locale('es')))}"');
     expect(ErrorMessages.codeOf(error), 'INVALID_CREDENTIALS');
   });
 

@@ -10,6 +10,7 @@ import '../../../../core/money/money.dart';
 import '../../data/reports_repository.dart';
 import '../../domain/entities/product_price_entity.dart';
 import '../providers/analytics_notifier.dart';
+import '../../../../l10n/l10n.dart';
 
 class ProductPriceTrackerView extends ConsumerStatefulWidget {
   const ProductPriceTrackerView({super.key});
@@ -386,7 +387,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                         child: Padding(
                           padding: const EdgeInsets.all(24),
                           child: Text(
-                            ErrorMessages.describe(_error!, isEn: false) +
+                            ErrorMessages.describe(_error!, context.l10n) +
                                 (ErrorMessages.codeOf(_error!) != null ? ' (${ErrorMessages.codeOf(_error!)})' : ''),
                             textAlign: TextAlign.center,
                           ),
@@ -687,7 +688,7 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
                           child: Padding(
                             padding: const EdgeInsets.all(24),
                             child: Text(
-                              ErrorMessages.describe(_compareError!, isEn: false) +
+                              ErrorMessages.describe(_compareError!, context.l10n) +
                                   (ErrorMessages.codeOf(_compareError!) != null ? ' (${ErrorMessages.codeOf(_compareError!)})' : ''),
                               textAlign: TextAlign.center,
                             ),

@@ -4,15 +4,15 @@ import '../database/local_catalog.dart';
 import '../money/money.dart';
 import '../utils/app_feedback.dart';
 import 'account_avatar.dart';
+import '../../l10n/l10n.dart';
 
 /// Selector horizontal de cuentas de la base local, con su saldo local (descuenta lo pendiente).
 class AccountPicker extends StatelessWidget {
   final List<LocalAccount> cuentas;
   final int? selectedId;
   final ValueChanged<int> onSelect;
-  final bool isEn;
 
-  const AccountPicker({super.key, required this.cuentas, required this.selectedId, required this.onSelect, this.isEn = false});
+  const AccountPicker({super.key, required this.cuentas, required this.selectedId, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
@@ -26,9 +26,7 @@ class AccountPicker extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
         ),
-        child: Text(isEn
-            ? 'No accounts on this phone. Sync while online.'
-            : 'No hay cuentas en el celular. Sincronizá con conexión.'),
+        child: Text(context.l10n.noAccountsPhoneSyncWhile),
       );
     }
 
@@ -110,11 +108,9 @@ class AccountPicker extends StatelessWidget {
 }
 
 /// Texto del aviso de saldo negativo (egresos): la cuenta queda en negativo y conviene registrar un ingreso.
-String negativeBalanceText(LocalAccount cuenta, int amountCents, {required bool isEn}) {
+String negativeBalanceText(LocalAccount cuenta, int amountCents, AppLocalizations l) {
   final queda = Money.format(cuenta.balanceCents - amountCents, currency: cuenta.currency);
-  return isEn
-      ? '${cuenta.name.toUpperCase()} will be at $queda. Record an income in that account.'
-      : 'La cuenta ${cuenta.name.toUpperCase()} queda en $queda. Registrá un ingreso en esa cuenta.';
+  return l.willRecordIncomeThatAccount(cuenta.name.toUpperCase(), queda);
 }
 
 /// Aviso de fondos ANTES de guardar.
@@ -123,9 +119,8 @@ String negativeBalanceText(LocalAccount cuenta, int amountCents, {required bool 
 class FundsWarning extends StatelessWidget {
   final LocalAccount cuenta;
   final int amountCents;
-  final bool isEn;
   final bool blocking;
-  const FundsWarning({super.key, required this.cuenta, required this.amountCents, this.isEn = false, this.blocking = false});
+  const FundsWarning({super.key, required this.cuenta, required this.amountCents, this.blocking = false});
 
   @override
   Widget build(BuildContext context) {
@@ -133,10 +128,8 @@ class FundsWarning extends StatelessWidget {
     final total = Money.format(amountCents, currency: cuenta.currency);
     final color = blocking ? AppColors.rose : AppColors.amberDark;
     final text = blocking
-        ? (isEn
-            ? 'Not enough balance to transfer $total from ${cuenta.name.toUpperCase()} (available $disponible). Record an income in the source account first.'
-            : 'No dispone del saldo solicitado a transferir ($total) en ${cuenta.name.toUpperCase()} (disponible $disponible). Realizá un ingreso en la cuenta de origen.')
-        : negativeBalanceText(cuenta, amountCents, isEn: isEn);
+        ? (context.l10n.notEnoughBalanceTransferAvailable(total, cuenta.name.toUpperCase(), disponible))
+        : negativeBalanceText(cuenta, amountCents, context.l10n);
     return Container(
       key: const ValueKey('aviso-fondos'),
       width: double.infinity,

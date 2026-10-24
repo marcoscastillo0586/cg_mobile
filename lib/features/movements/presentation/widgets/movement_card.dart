@@ -3,31 +3,30 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../../domain/movement_item.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Comprobante con sus renglones desplegables (F7.3).
 class MovementCard extends StatelessWidget {
   final MovementItem item;
-  final bool isEn;
   final VoidCallback onEditar;
   final VoidCallback onEliminar;
 
   const MovementCard({
     super.key,
     required this.item,
-    required this.isEn,
     required this.onEditar,
     required this.onEliminar,
   });
 
-  (IconData, Color, String) get _tipo => switch (item.type) {
-        MovementType.income => (Icons.arrow_downward_rounded, AppColors.emerald, isEn ? 'Income' : 'Ingreso'),
-        MovementType.expense => (Icons.arrow_upward_rounded, AppColors.rose, isEn ? 'Expense' : 'Egreso'),
-        MovementType.transfer => (Icons.swap_horiz_rounded, AppColors.primary, isEn ? 'Transfer' : 'Transferencia'),
+  (IconData, Color, String) _tipo(AppLocalizations l) => switch (item.type) {
+        MovementType.income => (Icons.arrow_downward_rounded, AppColors.emerald, l.income),
+        MovementType.expense => (Icons.arrow_upward_rounded, AppColors.rose, l.expense),
+        MovementType.transfer => (Icons.swap_horiz_rounded, AppColors.primary, l.transfer),
       };
 
   @override
   Widget build(BuildContext context) {
-    final (icon, color, label) = _tipo;
+    final (icon, color, label) = _tipo(context.l10n);
     final concepto = (item.generalConcept ?? '').trim();
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -56,25 +55,23 @@ class MovementCard extends StatelessWidget {
         ),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         children: [
-          ...item.details.map((d) => _DetailRow(detail: d, isEn: isEn)),
+          ...item.details.map((d) => _DetailRow(detail: d)),
           if (item.partialDetails)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                isEn
-                    ? 'Showing ${item.details.length} of ${item.detailsCount} lines (filter)'
-                    : 'Se muestran ${item.details.length} de ${item.detailsCount} renglones (filtro)',
+                context.l10n.showingLinesFilter(item.details.length, item.detailsCount),
                 style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
               ),
             ),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              TextButton.icon(onPressed: onEditar, icon: const Icon(Icons.edit_outlined, size: 18), label: Text(isEn ? 'Edit' : 'Editar')),
+              TextButton.icon(onPressed: onEditar, icon: const Icon(Icons.edit_outlined, size: 18), label: Text(context.l10n.edit)),
               TextButton.icon(
                 onPressed: onEliminar,
                 icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.rose),
-                label: Text(isEn ? 'Delete' : 'Eliminar', style: const TextStyle(color: AppColors.rose)),
+                label: Text(context.l10n.delete, style: const TextStyle(color: AppColors.rose)),
               ),
             ],
           ),
@@ -86,8 +83,7 @@ class MovementCard extends StatelessWidget {
 
 class _DetailRow extends StatelessWidget {
   final MovementDetailItem detail;
-  final bool isEn;
-  const _DetailRow({required this.detail, required this.isEn});
+  const _DetailRow({required this.detail});
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +91,7 @@ class _DetailRow extends StatelessWidget {
       if (detail.categoryName != null) detail.categoryName!,
       detail.accountName,
       if (detail.plu != null) 'PLU ${detail.plu}',
-      if (detail.unitPriceCents != null) '${isEn ? 'unit' : 'unit.'} ${Money.format(detail.unitPriceCents!, currency: detail.currency)}',
+      if (detail.unitPriceCents != null) '${context.l10n.unit} ${Money.format(detail.unitPriceCents!, currency: detail.currency)}',
     ].join(' · ');
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),

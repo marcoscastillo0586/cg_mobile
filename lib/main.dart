@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/auth/session_scope.dart';
 import 'core/theme/app_theme.dart';
+import 'l10n/l10n.dart';
 import 'features/settings/presentation/providers/settings_provider.dart';
 import 'routes/app_router.dart';
 
@@ -39,6 +40,7 @@ class GastosMobileApp extends ConsumerWidget {
         Locale('en'),
       ],
       localizationsDelegates: const [
+        AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,

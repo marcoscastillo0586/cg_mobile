@@ -6,13 +6,13 @@ import '../../../../core/errors/error_messages.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/analytics_notifier.dart';
 import '../providers/analytics_state.dart';
 import '../widgets/category_pie_chart.dart';
 import '../widgets/daily_line_chart.dart';
 import '../widgets/monthly_bar_chart.dart';
 import '../widgets/product_price_tracker_view.dart';
+import '../../../../l10n/l10n.dart';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
   const AnalyticsScreen({super.key});
@@ -65,7 +65,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
   }
 
   Widget _buildErrorBanner(Object error) {
-    final isEn = ref.read(settingsProvider).language == 'en';
     final code = ErrorMessages.codeOf(error);
     return Container(
       key: const ValueKey('reporte-error'),
@@ -77,7 +76,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
         border: Border.all(color: AppColors.rose.withValues(alpha: 0.4)),
       ),
       child: Text(
-        ErrorMessages.describe(error, isEn: isEn) + (code != null ? ' ($code)' : ''),
+        ErrorMessages.describe(error, context.l10n) + (code != null ? ' ($code)' : ''),
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
     );

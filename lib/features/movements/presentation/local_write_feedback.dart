@@ -9,16 +9,17 @@ import '../../../core/sync/sync_controller.dart';
 import '../../../core/utils/app_feedback.dart';
 import '../../dashboard/presentation/providers/dashboard_notifier.dart';
 import '../../dashboard/presentation/providers/novedades_notifier.dart';
+import '../../../l10n/l10n.dart';
 
 /// Texto traducido del error con su código, si lo tiene.
-String describeWithCode(Object error, {required bool isEn}) {
+String describeWithCode(Object error, AppLocalizations l) {
   final code = ErrorMessages.codeOf(error);
-  return ErrorMessages.describe(error, isEn: isEn) + (code != null && code != 'VALIDATION_ERROR' ? ' ($code)' : '');
+  return ErrorMessages.describe(error, l) + (code != null && code != 'VALIDATION_ERROR' ? ' ($code)' : '');
 }
 
 /// Después de guardar en el celular: refresca los saldos locales y avisa, sin decir que llegó
 /// al servidor (eso lo hace la sincronización).
-Future<void> afterLocalWrite(BuildContext context, WidgetRef ref, String what, {required bool isEn}) async {
+Future<void> afterLocalWrite(BuildContext context, WidgetRef ref, String what) async {
   int? pending;
   try {
     pending = await Outbox.pendingCount(await ref.read(localDatabaseProvider));
@@ -30,21 +31,18 @@ Future<void> afterLocalWrite(BuildContext context, WidgetRef ref, String what, {
   // Si hay red se envía ya; si no, queda en la cola (el resultado se ve en Ajustes).
   unawaited(ref.read(syncControllerProvider.notifier).sync());
   if (!context.mounted) return;
-  final suffix = pending == null ? '' : (isEn ? ' Pending: $pending.' : ' Pendientes: $pending.');
+  final suffix = pending == null ? '' : (context.l10n.pending(pending));
   AppFeedback.showSuccess(
     context,
-    isEn
-        ? '$what saved on this phone. It will be sent to the server when syncing.$suffix'
-        : '$what guardado en el celular. Se enviará al servidor al sincronizar.$suffix',
+    context.l10n.savedPhoneWillSentServer(what, suffix),
   );
 }
 
 /// Pantalla de error cuando el formulario no puede leer la base local.
 class LocalDataError extends StatelessWidget {
   final Object error;
-  final bool isEn;
   final VoidCallback onRetry;
-  const LocalDataError({super.key, required this.error, required this.isEn, required this.onRetry});
+  const LocalDataError({super.key, required this.error, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +57,12 @@ class LocalDataError extends StatelessWidget {
               const Icon(Icons.storage_rounded, size: 48, color: AppColors.rose),
               const SizedBox(height: 12),
               Text(
-                '${isEn ? 'Could not read the data on this phone' : 'No se pudieron leer los datos del celular'}:\n'
-                '${describeWithCode(error, isEn: isEn)}',
+                '${context.l10n.couldNotReadDataPhone}:\n'
+                '${describeWithCode(error, context.l10n)}',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              ElevatedButton(onPressed: onRetry, child: Text(isEn ? 'Retry' : 'Reintentar')),
+              ElevatedButton(onPressed: onRetry, child: Text(context.l10n.retry)),
             ],
           ),
         ),
@@ -75,16 +73,16 @@ class LocalDataError extends StatelessWidget {
 
 /// Resultado de una alta/baja/cambio local (cuentas, categorías, límites): muestra el error
 /// traducido, o avisa que quedó en el celular, refresca saldos y novedades y envía si hay red.
-Future<bool> reportLocalAction(BuildContext context, WidgetRef ref, Object? error, {required String ok, required bool isEn}) async {
+Future<bool> reportLocalAction(BuildContext context, WidgetRef ref, Object? error, {required String ok}) async {
   if (error != null) {
-    if (context.mounted) AppFeedback.showError(context, describeWithCode(error, isEn: isEn));
+    if (context.mounted) AppFeedback.showError(context, describeWithCode(error, context.l10n));
     return false;
   }
   unawaited(ref.read(dashboardNotifierProvider.notifier).cargarDashboard());
   unawaited(ref.read(novedadesNotifierProvider.notifier).calcularNovedades());
   unawaited(ref.read(syncControllerProvider.notifier).sync());
   if (context.mounted) {
-    AppFeedback.showSuccess(context, isEn ? '$ok Saved on this phone; sending…' : '$ok Guardado en el celular; enviando…');
+    AppFeedback.showSuccess(context, context.l10n.savedPhoneSending(ok));
   }
   return true;
 }

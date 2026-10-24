@@ -1,0 +1,387 @@
+{
+  "@@locale": "es",
+  "cannotReachServerCheckConnection": "No se pudo conectar con el servidor. Revisá tu conexión.",
+  "notSyncedSession": "Sin sincronizar en esta sesión",
+  "syncing": "Sincronizando…",
+  "completeMatchesServer": "Completa: coincide con el servidor",
+  "notEverythingWasAppliedSee": "No se aplicó todo: ver el detalle",
+  "doesNotMatchServer": "No coincide con el servidor",
+  "syncFailed": "Falló la sincronización",
+  "lastCompleteSync": "Última sincronización completa",
+  "phone": "En este celular",
+  "movements": "comprobantes",
+  "lines": "renglones",
+  "pendingSend": "Pendientes de enviar",
+  "rejected": "Rechazadas",
+  "conflict": "En conflicto",
+  "pendingRejected": "Pendientes y rechazados",
+  "syncNow": "Sincronizar ahora",
+  "noAccountsPhoneSyncWhile": "No hay cuentas en el celular. Sincronizá con conexión.",
+  "willRecordIncomeThatAccount": "La cuenta {name} queda en {queda}. Registrá un ingreso en esa cuenta.",
+  "@willRecordIncomeThatAccount": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      },
+      "queda": {
+        "type": "Object"
+      }
+    }
+  },
+  "notEnoughBalanceTransferAvailable": "No dispone del saldo solicitado a transferir ({total}) en {name} (disponible {disponible}). Realizá un ingreso en la cuenta de origen.",
+  "@notEnoughBalanceTransferAvailable": {
+    "placeholders": {
+      "total": {
+        "type": "Object"
+      },
+      "name": {
+        "type": "Object"
+      },
+      "disponible": {
+        "type": "Object"
+      }
+    }
+  },
+  "accounts": "Cuentas y Medios de Pago",
+  "newAccount": "Nueva cuenta",
+  "all": "Todas",
+  "active": "Activas",
+  "retry": "Reintentar",
+  "noAccounts": "No hay cuentas registradas",
+  "accountDeactivated": "Cuenta desactivada.",
+  "accountActivated": "Cuenta activada.",
+  "deleteAccount": "¿Eliminar la cuenta?",
+  "withoutMovementsDeletedMovementsDeactivated": "Sin movimientos se elimina; con movimientos se desactiva.",
+  "cancel": "Cancelar",
+  "delete": "Eliminar",
+  "accountDeleted": "Cuenta eliminada.",
+  "editAccount": "Editar cuenta",
+  "name": "Nombre",
+  "currency": "Moneda",
+  "currencyLockedAccountHasMovements": "La moneda no se cambia: la cuenta tiene movimientos.",
+  "icon": "Ícono",
+  "save": "Guardar",
+  "accountCreated": "Cuenta creada.",
+  "accountUpdated": "Cuenta actualizada.",
+  "inactive": "Inactiva",
+  "movements2": "movimientos",
+  "pendingSync": " · sin sincronizar",
+  "edit": "Editar",
+  "deactivate": "Desactivar",
+  "activate": "Activar",
+  "code": "Código",
+  "sessionExpiredPleaseSignAgain": "Tu sesión expiró. Iniciá sesión nuevamente.",
+  "signedOutDeviceButServer": "Se cerró la sesión en este celular, pero no se pudo avisar al servidor{detail}.",
+  "@signedOutDeviceButServer": {
+    "placeholders": {
+      "detail": {
+        "type": "Object"
+      }
+    }
+  },
+  "sign": "Iniciar sesión",
+  "youExampleCom": "tu@email.com",
+  "enterEmail": "Ingresá tu email",
+  "invalidEmail": "Email inválido",
+  "password": "Contraseña",
+  "enterPassword": "Ingresá tu contraseña",
+  "sign2": "Acceder",
+  "categories": "Rubros y Categorías",
+  "newCategory": "Nueva categoría",
+  "searchCategory": "Buscar categoría",
+  "inactive2": "Inactivas",
+  "noCategories": "No hay categorías",
+  "categoryDeactivated": "Categoría desactivada.",
+  "categoryActivated": "Categoría activada.",
+  "deleteCategory": "¿Eliminar la categoría?",
+  "categoryDeleted": "Categoría eliminada.",
+  "renameCategory": "Renombrar categoría",
+  "categoryCreated": "Categoría creada.",
+  "categoryRenamed": "Categoría renombrada.",
+  "inactive3": "inactiva",
+  "reserved": "reservada",
+  "reserved2": "Reservada",
+  "rename": "Renombrar",
+  "syncFailed2": "No se pudo sincronizar",
+  "operationSWereNotApplied": "{needsAttention} operación(es) no se aplicaron. Ver Ajustes → Pendientes y rechazados.",
+  "@operationSWereNotApplied": {
+    "placeholders": {
+      "needsAttention": {
+        "type": "Object"
+      }
+    }
+  },
+  "localDataDoesNotMatch": "Los datos locales no coinciden con el servidor; la próxima vez se descarga todo.",
+  "lastRate": "Última cotización",
+  "exchangeRateOfflineUsdNot": "Cotización: sin conexión · USD sin convertir",
+  "exchangeRateUnavailableUsdNot": "Cotización no disponible · USD sin convertir",
+  "showingLastLoadedData": "Se muestran los datos de la última carga",
+  "recordIncome": "Registrá un ingreso",
+  "noExchangeRate": "sin cotización",
+  "notifications": "Novedades",
+  "limitNearTop": "Límite '{titulo}' cercano al tope ({porcentaje}%)",
+  "@limitNearTop": {
+    "placeholders": {
+      "titulo": {
+        "type": "Object"
+      },
+      "porcentaje": {
+        "type": "Object"
+      }
+    }
+  },
+  "limitReached": "Límite '{titulo}' alcanzado ({porcentaje}%)",
+  "@limitReached": {
+    "placeholders": {
+      "titulo": {
+        "type": "Object"
+      },
+      "porcentaje": {
+        "type": "Object"
+      }
+    }
+  },
+  "limitHasFinishedExpired": "El límite '{titulo}' ha finalizado y está vencido",
+  "@limitHasFinishedExpired": {
+    "placeholders": {
+      "titulo": {
+        "type": "Object"
+      }
+    }
+  },
+  "noPendingNotifications": "Sin novedades pendientes",
+  "balanceWillNegative": "La cuenta queda en negativo",
+  "saveAnyway": "Guardar igual",
+  "ticketRecordedServer": "Ticket registrado en el servidor.",
+  "expense": "Egreso",
+  "confirmingQrTicketRequiresConnection": " Confirmar un ticket QR requiere conexión.",
+  "correctExpense": "Corregir Egreso",
+  "newExpense": "Nuevo Egreso",
+  "registerExpense": "Registrar Gasto ({totalFormateado})",
+  "@registerExpense": {
+    "placeholders": {
+      "totalFormateado": {
+        "type": "Object"
+      }
+    }
+  },
+  "scanReceipt": "Escanear ticket",
+  "scanTicketQr": "Escanear QR del Ticket",
+  "pointCameraReceiptQrCode": "Apuntá la cámara al código QR del ticket",
+  "ifMerchantNewPageText": "Si este comercio es nuevo, el texto de la página se enviará a un servicio externo para aprender sus reglas.",
+  "featureNotAvailableNow": "Función no disponible por ahora",
+  "addLeastOnePhotoReceipt": "Debes agregar al menos una foto del ticket",
+  "noProductsWereDetectedReceipt": "No se detectaron productos en el ticket.",
+  "receiptReadDeviceLines": "Ticket leído en el dispositivo ({items} renglones)",
+  "@receiptReadDeviceLines": {
+    "placeholders": {
+      "items": {
+        "type": "Object"
+      }
+    }
+  },
+  "couldNotReadReceipt": "No se pudo leer el ticket: {e}",
+  "@couldNotReadReceipt": {
+    "placeholders": {
+      "e": {
+        "type": "Object"
+      }
+    }
+  },
+  "scanReceiptUsingAutoCrop": "Escanéa el ticket con auto-recorte, lee el código QR o selecciona una foto desde tu galería.",
+  "readingReceiptDevice": "Leyendo el ticket en el dispositivo...",
+  "extractingProductsNetAmountsDiscounts": "Extrayendo productos, montos netos y descuentos...",
+  "noScansAddedYet": "Aún no agregaste escaneos",
+  "useScanScanQrGallery": "Usa el botón Escanear, Escanear QR o Galería inferior",
+  "scan": "Escaneo #{numFoto} del ticket",
+  "@scan": {
+    "placeholders": {
+      "numFoto": {
+        "type": "Object"
+      }
+    }
+  },
+  "scan2": "Escanear",
+  "scanQr": "Escanear QR",
+  "gallery": "Galería",
+  "finishLoading": "Finalizar carga",
+  "readAi": "Leer con IA",
+  "income": "Ingreso",
+  "correctIncome": "Corregir Ingreso",
+  "newIncome": "Nuevo Ingreso",
+  "invalidAmountMax2Decimals": "Importe inválido (máx. 2 decimales)",
+  "budgets": "Límites y Presupuestos",
+  "newBudget": "Nuevo límite",
+  "all2": "Todos",
+  "current": "En curso",
+  "due": "Vencidos",
+  "exceeded": "Excedidos",
+  "noBudgets": "No hay presupuestos",
+  "budgetRenewed": "Límite renovado.",
+  "deleteBudget": "¿Eliminar el límite?",
+  "budgetDeleted": "Límite eliminado.",
+  "editBudget": "Editar límite",
+  "from": "Desde",
+  "to": "Hasta",
+  "limit": "Límite de gasto",
+  "budgetUpdated": "Límite actualizado.",
+  "categories2": "Categorías",
+  "accounts2": "Cuentas",
+  "budgetCreated": "Límite creado.",
+  "currentBudgets": "Presupuestos vigentes",
+  "limits": "Total topes",
+  "spent": "Gastado",
+  "remaining": "Restante",
+  "excess": "Excedente",
+  "left": "Resta",
+  "renew": "Renovar",
+  "pending": " Pendientes: {pending}.",
+  "@pending": {
+    "placeholders": {
+      "pending": {
+        "type": "Object"
+      }
+    }
+  },
+  "savedPhoneWillSentServer": "{what} guardado en el celular. Se enviará al servidor al sincronizar.{suffix}",
+  "@savedPhoneWillSentServer": {
+    "placeholders": {
+      "what": {
+        "type": "Object"
+      },
+      "suffix": {
+        "type": "Object"
+      }
+    }
+  },
+  "couldNotReadDataPhone": "No se pudieron leer los datos del celular",
+  "savedPhoneSending": "{ok} Guardado en el celular; enviando…",
+  "@savedPhoneSending": {
+    "placeholders": {
+      "ok": {
+        "type": "Object"
+      }
+    }
+  },
+  "dateRange": "Rango de fechas",
+  "movements3": "Movimientos",
+  "searchTextAmount": "Buscar por texto o monto",
+  "results": "resultados",
+  "lastMovements": "Últimos {total} movimientos",
+  "@lastMovements": {
+    "placeholders": {
+      "total": {
+        "type": "Object"
+      }
+    }
+  },
+  "noMovements": "No hay movimientos",
+  "will": "queda en",
+  "recordIncomeThatAccount": "Registrá un ingreso en esa cuenta.",
+  "savedPhoneSending2": "Guardado en el celular; enviando…",
+  "completeSourceDestinationValidAmount": "Completá origen, destino y un monto válido",
+  "deleteMovement": "¿Eliminar el comprobante?",
+  "removedAllItsLines": "Se elimina con todos sus renglones.",
+  "editMovement": "Editar comprobante",
+  "movementNotPhoneWasDeleted": "El comprobante no está en el celular (o se eliminó). Sincronizá y volvé a intentar.",
+  "deleteMovement2": "Eliminar comprobante",
+  "header": "Encabezado",
+  "generalConcept": "Concepto general",
+  "accountAllLines": "Cuenta (todos los renglones)",
+  "saveHeader": "Guardar encabezado",
+  "lines2": "Renglones",
+  "notServerYetLinesCan": "Todavía no está en el servidor: los renglones se editan después de sincronizar.",
+  "transfer": "Transferencia",
+  "from2": "Desde (origen)",
+  "to2": "Hacia (destino)",
+  "amount": "Monto",
+  "saveTransfer": "Guardar transferencia",
+  "concept": "Concepto",
+  "category": "Categoría",
+  "deleteLine": "Borrar renglón",
+  "saveLine": "Guardar renglón",
+  "showingLinesFilter": "Se muestran {details} de {detailsCount} renglones (filtro)",
+  "@showingLinesFilter": {
+    "placeholders": {
+      "details": {
+        "type": "Object"
+      },
+      "detailsCount": {
+        "type": "Object"
+      }
+    }
+  },
+  "unit": "unit.",
+  "signOut": "¿Cerrar sesión?",
+  "allDataStoredPhoneWill": "Se borrarán todos los datos guardados en este celular. Lo que ya está en el servidor no se toca.",
+  "signOut2": "Cerrar sesión",
+  "session": "Sesión",
+  "offline": "sin conexión",
+  "deletesDataStoredPhoneSettings": "Borra los datos guardados en este celular. Se conservan los ajustes.",
+  "offlineData": "Datos sin conexión",
+  "server": "Servidor",
+  "apiAddress": "Dirección de la API",
+  "notConfiguredApiBaseUrl": "Sin configurar (API_BASE_URL)",
+  "discard": "¿Descartar?",
+  "serverVersionKeptChangeLost": "Queda la versión del servidor. Tu cambio se pierde.",
+  "removedPhoneLocalBalanceReverted": "Se quita del celular y el saldo local se revierte.",
+  "discard2": "Descartar",
+  "discarded": "Descartada",
+  "nothingPendingEverythingWasApplied": "Nada pendiente: todo se aplicó.",
+  "rejected2": "Rechazada",
+  "conflictServerVersionApplied": "Conflicto (se aplicó la del servidor)",
+  "pending2": "Pendiente",
+  "reason": "Motivo",
+  "attempts": "Intentos",
+  "correct": "Corregir",
+  "queuedAgainChanges": "Reencolada con tus cambios",
+  "retryMyChanges": "Reintentar con mis cambios",
+  "keepServerVersion": "Quedarme con la del servidor",
+  "correctTransfer": "Corregir Transferencia",
+  "transferMoney": "Transferir Dinero",
+  "noOtherAccount": "No hay otra cuenta en {currency}",
+  "@noOtherAccount": {
+    "placeholders": {
+      "currency": {
+        "type": "Object"
+      }
+    }
+  },
+  "selectDestination": "Seleccionar destino",
+  "errInvalidCredentials": "Email o contraseña incorrectos.",
+  "errAccountLocked": "Demasiados intentos fallidos. Probá de nuevo en 15 minutos.",
+  "errRateLimited": "Demasiadas solicitudes. Esperá un momento.",
+  "errInvalidRefresh": "Tu sesión expiró. Iniciá sesión nuevamente.",
+  "errInvalidToken": "Tu sesión expiró. Iniciá sesión nuevamente.",
+  "errUnauthorized": "Tenés que iniciar sesión.",
+  "errNotFound": "El servidor no tiene esta función o el dato no existe.",
+  "errDuplicate": "Ya existe un registro con esos datos.",
+  "errEmailTaken": "Ya existe una cuenta con ese email.",
+  "errInsufficientFunds": "No dispone del saldo a transferir. Realizá un ingreso en la cuenta de origen.",
+  "errReservedCategory": "Esa categoría está reservada por el sistema.",
+  "errSameAccount": "La cuenta de origen y la de destino no pueden ser iguales.",
+  "errCurrencyMismatch": "No se puede transferir entre cuentas de distinta moneda.",
+  "errAccountInactive": "La cuenta está inactiva.",
+  "errAccountHasFunds": "Esta cuenta tiene dinero, deje la cuenta vacía y vuelva a intentarlo.",
+  "errCurrencyLocked": "No se puede cambiar la moneda de una cuenta con movimientos.",
+  "errDuplicateName": "Ya existe otro registro con ese nombre.",
+  "errInvalidPeriod": "La fecha hasta no puede ser anterior a la fecha desde.",
+  "errLastDetail": "Es el único renglón del comprobante; eliminá el movimiento completo.",
+  "errTransferEdit": "Una transferencia se edita como par (origen, destino y monto).",
+  "errVersionConflict": "El registro cambió en el servidor.",
+  "errCategoryInactive": "La categoría está inactiva.",
+  "errCatalogNotSynced": "Faltan datos del servidor en el celular: sincronizá con conexión.",
+  "errInternalError": "Error interno del servidor.",
+  "errNotAvailable": "Función no disponible por ahora.",
+  "errConfigMissing": "La app no tiene configurada la dirección del servidor (API_BASE_URL).",
+  "errUnexpectedResponse": "El servidor respondió algo inesperado.",
+  "errInvalidData": "Datos inválidos: {message}",
+  "@errInvalidData": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "errNetwork": "No se pudo conectar con el servidor. Revisá tu conexión."
+}

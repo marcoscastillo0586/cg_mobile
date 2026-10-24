@@ -7,10 +7,10 @@ import '../../../../core/database/local_catalog.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/utils/app_feedback.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../data/local_movement_editor.dart';
 import '../../data/local_movement_writer.dart' show conceptMax;
 import '../local_write_feedback.dart';
+import '../../../../l10n/l10n.dart';
 
 /// Edición de un comprobante desde la base local (funciona sin conexión): encabezado, cada
 /// renglón (editar y borrar), transferencia como par y borrado del comprobante. Todo pasa por
@@ -43,7 +43,6 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
   int? _origen, _destino;
   final _montoTransfer = TextEditingController();
 
-  bool get _isEn => ref.read(settingsProvider).language == 'en';
 
   @override
   void initState() {
@@ -105,17 +104,17 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
       final a = _account(e.key);
       if (a == null || e.value >= 0) continue;
       final queda = a.balanceCents + e.value;
-      if (queda < 0) negativas.add('${a.name.toUpperCase()} ${_isEn ? 'will be at' : 'queda en'} ${Money.format(queda, currency: a.currency)}');
+      if (queda < 0) negativas.add('${a.name.toUpperCase()} ${context.l10n.will} ${Money.format(queda, currency: a.currency)}');
     }
     if (negativas.isEmpty) return true;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(_isEn ? 'Balance will be negative' : 'La cuenta queda en negativo'),
-        content: Text('${negativas.join('\n')}.\n${_isEn ? 'Record an income in that account.' : 'Registrá un ingreso en esa cuenta.'}'),
+        title: Text(context.l10n.balanceWillNegative),
+        content: Text('${negativas.join('\n')}.\n${context.l10n.recordIncomeThatAccount}'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(_isEn ? 'Cancel' : 'Cancelar')),
-          TextButton(key: const ValueKey('guardar-igual'), onPressed: () => Navigator.pop(ctx, true), child: Text(_isEn ? 'Save anyway' : 'Guardar igual')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.l10n.cancel)),
+          TextButton(key: const ValueKey('guardar-igual'), onPressed: () => Navigator.pop(ctx, true), child: Text(context.l10n.saveAnyway)),
         ],
       ),
     );
@@ -129,7 +128,7 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
     try {
       await action(await ref.read(localMovementEditorProvider));
       if (!mounted) return;
-      AppFeedback.showSuccess(context, _isEn ? 'Saved on this phone; sending…' : 'Guardado en el celular; enviando…');
+      AppFeedback.showSuccess(context, context.l10n.savedPhoneSending2);
       await ref.read(syncControllerProvider.notifier).sync();
       if (!mounted) return;
       if (close) {
@@ -139,7 +138,7 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
       }
     } catch (e) {
       debugPrint('[EDITAR] No se guardó: $e');
-      if (mounted) AppFeedback.showError(context, describeWithCode(e, isEn: _isEn));
+      if (mounted) AppFeedback.showError(context, describeWithCode(e, context.l10n));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -162,7 +161,7 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
   Future<void> _saveDetail(EditableDetail d, {required String concept, required int? category, required int? amount}) async {
     final m = _m!;
     if (amount == null) {
-      AppFeedback.showError(context, _isEn ? 'Invalid amount (max. 2 decimals)' : 'Importe inválido (máx. 2 decimales)');
+      AppFeedback.showError(context, context.l10n.invalidAmountMax2Decimals);
       return;
     }
     final signed = m.type == 2 ? -amount : amount;
@@ -179,7 +178,7 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
     final m = _m!;
     final amount = Money.parseInput(_montoTransfer.text);
     if (_origen == null || _destino == null || amount == null) {
-      AppFeedback.showError(context, _isEn ? 'Complete source, destination and a valid amount' : 'Completá origen, destino y un monto válido');
+      AppFeedback.showError(context, context.l10n.completeSourceDestinationValidAmount);
       return;
     }
     await _run((e) => e.updateTransfer(m.localId, fromLocalId: _origen!, toLocalId: _destino!, amountCents: amount));
@@ -194,11 +193,11 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(_isEn ? 'Delete movement?' : '¿Eliminar el comprobante?'),
-        content: Text(_isEn ? 'It is removed with all its lines.' : 'Se elimina con todos sus renglones.'),
+        title: Text(context.l10n.deleteMovement),
+        content: Text(context.l10n.removedAllItsLines),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(_isEn ? 'Cancel' : 'Cancelar')),
-          TextButton(key: const ValueKey('confirmar-eliminar'), onPressed: () => Navigator.pop(ctx, true), child: Text(_isEn ? 'Delete' : 'Eliminar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.l10n.cancel)),
+          TextButton(key: const ValueKey('confirmar-eliminar'), onPressed: () => Navigator.pop(ctx, true), child: Text(context.l10n.delete)),
         ],
       ),
     );
@@ -208,21 +207,18 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isEn = ref.watch(settingsProvider).language == 'en';
     final m = _m;
     return Scaffold(
-      appBar: AppBar(title: Text(isEn ? 'Edit movement' : 'Editar comprobante')),
+      appBar: AppBar(title: Text(context.l10n.editMovement)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(describeWithCode(_error!, isEn: isEn))))
+              ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(describeWithCode(_error!, context.l10n))))
               : m == null
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
-                        child: Text(isEn
-                            ? 'This movement is not on the phone (or was deleted). Sync and try again.'
-                            : 'El comprobante no está en el celular (o se eliminó). Sincronizá y volvé a intentar.'),
+                        child: Text(context.l10n.movementNotPhoneWasDeleted),
                       ),
                     )
                   : AbsorbPointer(
@@ -230,15 +226,15 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
                       child: ListView(
                         padding: const EdgeInsets.all(16),
                         children: [
-                          _headerCard(m, isEn),
+                          _headerCard(m),
                           const SizedBox(height: 12),
-                          if (m.isTransfer) _transferCard(m, isEn) else ..._detailCards(m, isEn),
+                          if (m.isTransfer) _transferCard(m) else ..._detailCards(m),
                           const SizedBox(height: 20),
                           OutlinedButton.icon(
                             key: const ValueKey('eliminar-comprobante'),
                             onPressed: _deleteMovement,
                             icon: const Icon(Icons.delete_outline_rounded, color: AppColors.rose),
-                            label: Text(isEn ? 'Delete movement' : 'Eliminar comprobante', style: const TextStyle(color: AppColors.rose)),
+                            label: Text(context.l10n.deleteMovement2, style: const TextStyle(color: AppColors.rose)),
                           ),
                         ],
                       ),
@@ -246,7 +242,7 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
     );
   }
 
-  Widget _headerCard(EditableMovement m, bool isEn) {
+  Widget _headerCard(EditableMovement m) {
     final currencies = m.details.map((d) => d.currency).toSet();
     final opciones = _cuentas.where((c) => currencies.isEmpty || currencies.contains(c.currency)).toList();
     return Card(
@@ -256,12 +252,12 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(isEn ? 'Header' : 'Encabezado', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(context.l10n.header, style: const TextStyle(fontWeight: FontWeight.bold)),
             TextField(
               key: const ValueKey('editar-concepto'),
               controller: _concepto,
               maxLength: conceptMax,
-              decoration: InputDecoration(labelText: isEn ? 'General concept' : 'Concepto general', counterText: ''),
+              decoration: InputDecoration(labelText: context.l10n.generalConcept, counterText: ''),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -283,7 +279,7 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
               DropdownButtonFormField<int>(
                 key: const ValueKey('editar-cuenta'),
                 initialValue: _cuenta,
-                decoration: InputDecoration(labelText: isEn ? 'Account (all lines)' : 'Cuenta (todos los renglones)'),
+                decoration: InputDecoration(labelText: context.l10n.accountAllLines),
                 items: [
                   for (final c in opciones)
                     DropdownMenuItem(value: c.localId, child: Text('${c.name.toUpperCase()} (${Money.format(c.balanceCents, currency: c.currency)})')),
@@ -295,7 +291,7 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
             ElevatedButton(
               key: const ValueKey('guardar-encabezado'),
               onPressed: _saveHeader,
-              child: Text(isEn ? 'Save header' : 'Guardar encabezado'),
+              child: Text(context.l10n.saveHeader),
             ),
           ],
         ),
@@ -303,15 +299,13 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
     );
   }
 
-  List<Widget> _detailCards(EditableMovement m, bool isEn) => [
-        Text('${isEn ? 'Lines' : 'Renglones'} (${m.details.length})', style: const TextStyle(fontWeight: FontWeight.bold)),
+  List<Widget> _detailCards(EditableMovement m) => [
+        Text('${context.l10n.lines2} (${m.details.length})', style: const TextStyle(fontWeight: FontWeight.bold)),
         if (!m.synced)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Text(
-              isEn
-                  ? 'Not on the server yet: lines can be edited after syncing.'
-                  : 'Todavía no está en el servidor: los renglones se editan después de sincronizar.',
+              context.l10n.notServerYetLinesCan,
               style: const TextStyle(fontSize: 12, color: AppColors.amberDark),
             ),
           ),
@@ -322,13 +316,12 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
             isIncome: m.type == 1,
             enabled: m.synced,
             categorias: _categorias,
-            isEn: isEn,
             onSave: (concept, category, amount) => _saveDetail(d, concept: concept, category: category, amount: amount),
             onDelete: () => _deleteDetail(d),
           ),
       ];
 
-  Widget _transferCard(EditableMovement m, bool isEn) {
+  Widget _transferCard(EditableMovement m) {
     final origen = _account(_origen);
     final destinos = _cuentas.where((c) => c.localId != _origen && (origen == null || c.currency == origen.currency)).toList();
     String label(LocalAccount c) => '${c.name.toUpperCase()} (${Money.format(c.balanceCents, currency: c.currency)})';
@@ -339,11 +332,11 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(isEn ? 'Transfer' : 'Transferencia', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(context.l10n.transfer, style: const TextStyle(fontWeight: FontWeight.bold)),
             DropdownButtonFormField<int>(
               key: const ValueKey('editar-origen'),
               initialValue: _cuentas.any((c) => c.localId == _origen) ? _origen : null,
-              decoration: InputDecoration(labelText: isEn ? 'From' : 'Desde (origen)'),
+              decoration: InputDecoration(labelText: context.l10n.from2),
               items: [for (final c in _cuentas) DropdownMenuItem(value: c.localId, child: Text(label(c)))],
               onChanged: (v) => setState(() {
                 _origen = v;
@@ -353,7 +346,7 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
             DropdownButtonFormField<int>(
               key: ValueKey('editar-destino-$_origen'),
               initialValue: destinos.any((c) => c.localId == _destino) ? _destino : null,
-              decoration: InputDecoration(labelText: isEn ? 'To' : 'Hacia (destino)'),
+              decoration: InputDecoration(labelText: context.l10n.to2),
               items: [for (final c in destinos) DropdownMenuItem(value: c.localId, child: Text(label(c)))],
               onChanged: (v) => setState(() => _destino = v),
             ),
@@ -361,13 +354,13 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
               key: const ValueKey('editar-monto-transferencia'),
               controller: _montoTransfer,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: isEn ? 'Amount' : 'Monto', prefixText: '${origen?.currency.symbol ?? r'$'} '),
+              decoration: InputDecoration(labelText: context.l10n.amount, prefixText: '${origen?.currency.symbol ?? r'$'} '),
             ),
             const SizedBox(height: 10),
             ElevatedButton(
               key: const ValueKey('guardar-transferencia'),
               onPressed: _saveTransfer,
-              child: Text(isEn ? 'Save transfer' : 'Guardar transferencia'),
+              child: Text(context.l10n.saveTransfer),
             ),
           ],
         ),
@@ -382,7 +375,6 @@ class _DetailEditor extends StatefulWidget {
   final bool isIncome;
   final bool enabled;
   final List<LocalCategory> categorias;
-  final bool isEn;
   final Future<void> Function(String concept, int? category, int? amountCents) onSave;
   final VoidCallback onDelete;
 
@@ -392,7 +384,6 @@ class _DetailEditor extends StatefulWidget {
     required this.isIncome,
     required this.enabled,
     required this.categorias,
-    required this.isEn,
     required this.onSave,
     required this.onDelete,
   });
@@ -416,7 +407,6 @@ class _DetailEditorState extends State<_DetailEditor> {
   @override
   Widget build(BuildContext context) {
     final d = widget.detail;
-    final isEn = widget.isEn;
     final hasCategory = widget.categorias.any((c) => c.localId == _category);
     return Card(
       elevation: 0,
@@ -432,26 +422,26 @@ class _DetailEditorState extends State<_DetailEditor> {
               controller: _concept,
               enabled: widget.enabled,
               maxLength: conceptMax,
-              decoration: InputDecoration(labelText: isEn ? 'Concept' : 'Concepto', counterText: ''),
+              decoration: InputDecoration(labelText: context.l10n.concept, counterText: ''),
             ),
             if (!widget.isIncome && hasCategory)
               DropdownButtonFormField<int>(
                 initialValue: _category,
-                decoration: InputDecoration(labelText: isEn ? 'Category' : 'Categoría'),
+                decoration: InputDecoration(labelText: context.l10n.category),
                 items: [for (final c in widget.categorias) DropdownMenuItem(value: c.localId, child: Text(c.name))],
                 onChanged: widget.enabled ? (v) => setState(() => _category = v) : null,
               )
             else if (d.categoryName != null)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text('${isEn ? 'Category' : 'Categoría'}: ${d.categoryName}', style: const TextStyle(fontSize: 12)),
+                child: Text('${context.l10n.category}: ${d.categoryName}', style: const TextStyle(fontSize: 12)),
               ),
             TextField(
               key: ValueKey('monto-renglon-${d.localId}'),
               controller: _amount,
               enabled: widget.enabled,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: isEn ? 'Amount' : 'Monto', prefixText: '${d.currency.symbol} '),
+              decoration: InputDecoration(labelText: context.l10n.amount, prefixText: '${d.currency.symbol} '),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -460,13 +450,13 @@ class _DetailEditorState extends State<_DetailEditor> {
                   key: ValueKey('borrar-renglon-${d.localId}'),
                   onPressed: widget.enabled ? widget.onDelete : null,
                   icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.rose),
-                  label: Text(isEn ? 'Delete line' : 'Borrar renglón', style: const TextStyle(color: AppColors.rose)),
+                  label: Text(context.l10n.deleteLine, style: const TextStyle(color: AppColors.rose)),
                 ),
                 TextButton.icon(
                   key: ValueKey('guardar-renglon-${d.localId}'),
                   onPressed: widget.enabled ? () => widget.onSave(_concept.text, widget.isIncome ? null : _category, Money.parseInput(_amount.text)) : null,
                   icon: const Icon(Icons.save_outlined, size: 18),
-                  label: Text(isEn ? 'Save line' : 'Guardar renglón'),
+                  label: Text(context.l10n.saveLine),
                 ),
               ],
             ),

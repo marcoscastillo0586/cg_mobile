@@ -9,7 +9,7 @@ import '../../../core/utils/app_feedback.dart';
 import '../../../routes/app_routes.dart';
 import '../../dashboard/presentation/providers/dashboard_notifier.dart';
 import '../../movements/presentation/local_write_feedback.dart';
-import '../../settings/presentation/providers/settings_provider.dart';
+import '../../../l10n/l10n.dart';
 
 final _unresolvedProvider = FutureProvider.autoDispose<List<OutboxEntry>>((ref) async {
   ref.watch(syncControllerProvider.select((s) => (s.status, s.pendingOps, s.rejectedOps, s.conflictOps)));
@@ -23,7 +23,6 @@ class PendingOperationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isEn = ref.watch(settingsProvider).language == 'en';
     final list = ref.watch(_unresolvedProvider);
     final syncing = ref.watch(syncControllerProvider.select((s) => s.status == SyncStatus.syncing));
 
@@ -36,7 +35,7 @@ class PendingOperationsScreen extends ConsumerWidget {
         if (context.mounted) AppFeedback.showSuccess(context, ok);
       } catch (e) {
         debugPrint('[PENDIENTES] Acción fallida: $e');
-        if (context.mounted) AppFeedback.showError(context, describeWithCode(e, isEn: isEn));
+        if (context.mounted) AppFeedback.showError(context, describeWithCode(e, context.l10n));
       }
     }
 
@@ -44,17 +43,17 @@ class PendingOperationsScreen extends ConsumerWidget {
       final yes = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(isEn ? 'Discard?' : '¿Descartar?'),
+          title: Text(context.l10n.discard),
           content: Text(e.status == 'conflict'
-              ? (isEn ? 'The server version is kept. Your change is lost.' : 'Queda la versión del servidor. Tu cambio se pierde.')
-              : (isEn ? 'It is removed from this phone and the local balance is reverted.' : 'Se quita del celular y el saldo local se revierte.')),
+              ? (context.l10n.serverVersionKeptChangeLost)
+              : (context.l10n.removedPhoneLocalBalanceReverted)),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(isEn ? 'Discard' : 'Descartar')),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.l10n.cancel)),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(context.l10n.discard2)),
           ],
         ),
       );
-      if (yes == true) await run((r) => r.discard(e.seq), isEn ? 'Discarded' : 'Descartada');
+      if (yes == true && context.mounted) await run((r) => r.discard(e.seq), context.l10n.discarded);
     }
 
     Future<void> correct(OutboxEntry e) async {
@@ -66,16 +65,16 @@ class PendingOperationsScreen extends ConsumerWidget {
         ref.invalidate(_unresolvedProvider);
       } catch (err) {
         debugPrint('[PENDIENTES] No se pudo abrir la corrección: $err');
-        if (context.mounted) AppFeedback.showError(context, describeWithCode(err, isEn: isEn));
+        if (context.mounted) AppFeedback.showError(context, describeWithCode(err, context.l10n));
       }
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEn ? 'Pending and rejected' : 'Pendientes y rechazados'),
+        title: Text(context.l10n.pendingRejected),
         actions: [
           IconButton(
-            tooltip: isEn ? 'Sync now' : 'Sincronizar ahora',
+            tooltip: context.l10n.syncNow,
             onPressed: syncing ? null : () => ref.read(syncControllerProvider.notifier).sync(),
             icon: const Icon(Icons.sync_rounded),
           ),
@@ -83,9 +82,9 @@ class PendingOperationsScreen extends ConsumerWidget {
       ),
       body: list.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(describeWithCode(e, isEn: isEn)))),
+        error: (e, _) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(describeWithCode(e, context.l10n)))),
         data: (items) => items.isEmpty
-            ? Center(child: Text(isEn ? 'Nothing pending: everything was applied.' : 'Nada pendiente: todo se aplicó.'))
+            ? Center(child: Text(context.l10n.nothingPendingEverythingWasApplied))
             : ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: items.length,
@@ -93,11 +92,11 @@ class PendingOperationsScreen extends ConsumerWidget {
                 itemBuilder: (context, i) {
                   final e = items[i];
                   final (label, color) = switch (e.status) {
-                    'rejected' => (isEn ? 'Rejected' : 'Rechazada', AppColors.rose),
-                    'conflict' => (isEn ? 'Conflict (server version applied)' : 'Conflicto (se aplicó la del servidor)', AppColors.amberDark),
-                    _ => (isEn ? 'Pending' : 'Pendiente', AppColors.primary),
+                    'rejected' => (context.l10n.rejected2, AppColors.rose),
+                    'conflict' => (context.l10n.conflictServerVersionApplied, AppColors.amberDark),
+                    _ => (context.l10n.pending2, AppColors.primary),
                   };
-                  final motivo = e.errorCode == null ? null : ErrorMessages.forCode(e.errorCode, e.errorMessage ?? '', isEn: isEn);
+                  final motivo = e.errorCode == null ? null : ErrorMessages.forCode(e.errorCode, e.errorMessage ?? '', context.l10n);
                   return Card(
                     key: ValueKey('op-${e.seq}'),
                     elevation: 0,
@@ -113,28 +112,28 @@ class PendingOperationsScreen extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Text(
                               // forCode ya agrega el código cuando no tiene traducción: no repetirlo.
-                              '${isEn ? 'Reason' : 'Motivo'}: $motivo'
+                              '${context.l10n.reason}: $motivo'
                               '${e.errorCode == 'VALIDATION_ERROR' || motivo.contains('(${e.errorCode})') ? '' : ' (${e.errorCode})'}',
                               style: TextStyle(fontSize: 12, color: color),
                             ),
                           ],
-                          Text('${isEn ? 'Attempts' : 'Intentos'}: ${e.attempts}', style: const TextStyle(fontSize: 11)),
+                          Text('${context.l10n.attempts}: ${e.attempts}', style: const TextStyle(fontSize: 11)),
                           Wrap(
                             spacing: 8,
                             children: [
                               if (e.canCorrect)
-                                TextButton(onPressed: () => correct(e), child: Text(isEn ? 'Correct' : 'Corregir')),
+                                TextButton(onPressed: () => correct(e), child: Text(context.l10n.correct)),
                               if (e.canRetryMine)
                                 TextButton(
-                                  onPressed: () => run((r) => r.retryMine(e.seq), isEn ? 'Queued again with your changes' : 'Reencolada con tus cambios'),
-                                  child: Text(isEn ? 'Retry with my changes' : 'Reintentar con mis cambios'),
+                                  onPressed: () => run((r) => r.retryMine(e.seq), context.l10n.queuedAgainChanges),
+                                  child: Text(context.l10n.retryMyChanges),
                                 ),
                               if (e.canDiscard)
                                 TextButton(
                                   onPressed: () => confirmDiscard(e),
                                   child: Text(e.status == 'conflict'
-                                      ? (isEn ? 'Keep server version' : 'Quedarme con la del servidor')
-                                      : (isEn ? 'Discard' : 'Descartar')),
+                                      ? (context.l10n.keepServerVersion)
+                                      : (context.l10n.discard2)),
                                 ),
                             ],
                           ),

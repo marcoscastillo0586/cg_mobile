@@ -12,6 +12,7 @@ import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/income_form_notifier.dart';
 import '../providers/income_form_state.dart';
 import '../../../movements/data/local_movement_writer.dart' show conceptMax;
+import '../../../../l10n/l10n.dart';
 
 class CreateIncomeScreen extends ConsumerStatefulWidget {
   /// Alta rechazada a corregir (desde "Pendientes y rechazados").
@@ -64,7 +65,6 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
   }
 
   void _guardarIngreso() async {
-    final isEn = ref.read(settingsProvider).language == 'en';
     final notifier = ref.read(incomeFormNotifierProvider.notifier);
     notifier.setMonto(Money.parseInput(_montoController.text) ?? 0);
     notifier.setConcepto(_conceptoController.text.trim());
@@ -72,11 +72,11 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
     final ok = await notifier.guardarIngreso();
     if (!mounted) return;
     if (ok) {
-      await afterLocalWrite(context, ref, isEn ? 'Income' : 'Ingreso', isEn: isEn);
+      await afterLocalWrite(context, ref, context.l10n.income);
       if (mounted) context.pop();
     } else {
       final error = ref.read(incomeFormNotifierProvider).error;
-      if (error != null) AppFeedback.showError(context, describeWithCode(error, isEn: isEn));
+      if (error != null) AppFeedback.showError(context, describeWithCode(error, context.l10n));
     }
   }
 
@@ -87,13 +87,12 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final formatoFecha = DateFormat('dd/MM/yyyy').format(state.fecha);
 
-    final isEn = settings.language == 'en';
     if (state.status == IncomeFormStatus.error) {
-      return LocalDataError(error: state.error!, isEn: isEn, onRetry: ref.read(incomeFormNotifierProvider.notifier).cargarCuentas);
+      return LocalDataError(error: state.error!, onRetry: ref.read(incomeFormNotifierProvider.notifier).cargarCuentas);
     }
     final tituloModulo = widget.correction != null
-        ? (isEn ? 'Correct Income' : 'Corregir Ingreso')
-        : (isEn ? 'New Income' : 'Nuevo Ingreso');
+        ? (context.l10n.correctIncome)
+        : (context.l10n.newIncome);
     final labelCuenta = settings.language == 'en' ? 'Destination account.' : 'Cuenta de destino.';
 
     return Scaffold(
@@ -114,7 +113,6 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
             AccountPicker(
               cuentas: state.cuentas,
               selectedId: state.selectedCuentaId,
-              isEn: isEn,
               onSelect: (id) => ref.read(incomeFormNotifierProvider.notifier).setCuenta(id),
             ),
             const SizedBox(height: 20),
@@ -134,7 +132,7 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
                 prefixText: '${state.cuentaSeleccionada?.currency.symbol ?? r'$'} ',
                 prefixStyle: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.emerald),
                 hintText: '0,00',
-                errorText: _montoInvalido ? (isEn ? 'Invalid amount (max. 2 decimals)' : 'Importe inválido (máx. 2 decimales)') : null,
+                errorText: _montoInvalido ? (context.l10n.invalidAmountMax2Decimals) : null,
               ),
             ),
             const SizedBox(height: 18),

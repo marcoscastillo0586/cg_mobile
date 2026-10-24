@@ -13,6 +13,7 @@ import '../../../../core/utils/app_feedback.dart';
 import 'package:gastos_mobile/routes/app_routes.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
 import '../providers/settings_provider.dart';
+import '../../../../l10n/l10n.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -29,6 +30,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final session = ref.read(sessionManagerProvider);
     final client = ref.read(dioClientProvider);
     final antes = session.refreshRequests;
+    final l = context.l10n;
     setState(() => _diagnostico = 'Probando…');
     try {
       final r = await Future.wait([client.get(ApiEndpoints.me), client.get(ApiEndpoints.me)]);
@@ -37,27 +39,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       debugPrint('[DIAG] $msg');
       setState(() => _diagnostico = msg);
     } catch (e) {
-      final msg = 'Error: ${ErrorMessages.describe(e, isEn: false)} (${ErrorMessages.codeOf(e) ?? '-'})';
+      final msg = 'Error: ${ErrorMessages.describe(e, l)} (${ErrorMessages.codeOf(e) ?? '-'})';
       debugPrint('[DIAG] $msg');
       setState(() => _diagnostico = msg);
     }
   }
 
-  Future<void> _confirmarCerrarSesion(bool isEn) async {
+  Future<void> _confirmarCerrarSesion() async {
     final confirmado = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(isEn ? 'Sign out?' : '¿Cerrar sesión?'),
+        title: Text(context.l10n.signOut),
         content: Text(
-          isEn
-              ? 'All data stored on this phone will be deleted. Data already on the server is not affected.'
-              : 'Se borrarán todos los datos guardados en este celular. Lo que ya está en el servidor no se toca.',
+          context.l10n.allDataStoredPhoneWill,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(context.l10n.cancel)),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(isEn ? 'Sign out' : 'Cerrar sesión', style: const TextStyle(color: AppColors.rose)),
+            child: Text(context.l10n.signOut2, style: const TextStyle(color: AppColors.rose)),
           ),
         ],
       ),
@@ -71,7 +71,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final settingsState = ref.watch(settingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isEn = settingsState.language == 'en';
     final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(
@@ -148,7 +147,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 20),
 
           // 1. Sección: Sesión
-          _buildSectionHeader(isEn ? 'Session' : 'Sesión'),
+          _buildSectionHeader(context.l10n.session),
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -162,7 +161,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: Text(authState.user?.nombreUsuario ?? ''),
                   subtitle: Text(
                     authState.offline
-                        ? '${authState.user?.email ?? ''} · ${isEn ? 'offline' : 'sin conexión'}'
+                        ? '${authState.user?.email ?? ''} · ${context.l10n.offline}'
                         : authState.user?.email ?? '',
                     style: const TextStyle(fontSize: 12),
                   ),
@@ -171,16 +170,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ListTile(
                   leading: const Icon(Icons.logout_rounded, color: AppColors.rose),
                   title: Text(
-                    isEn ? 'Sign out' : 'Cerrar sesión',
+                    context.l10n.signOut2,
                     style: const TextStyle(color: AppColors.rose, fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    isEn
-                        ? 'Deletes the data stored on this phone. Settings are kept.'
-                        : 'Borra los datos guardados en este celular. Se conservan los ajustes.',
+                    context.l10n.deletesDataStoredPhoneSettings,
                     style: const TextStyle(fontSize: 12),
                   ),
-                  onTap: () => _confirmarCerrarSesion(isEn),
+                  onTap: () => _confirmarCerrarSesion(),
                 ),
               ],
             ),
@@ -188,8 +185,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 20),
 
           // Datos guardados en el celular y sincronización.
-          _buildSectionHeader(isEn ? 'Offline data' : 'Datos sin conexión'),
-          SyncStatusCard(isEn: isEn),
+          _buildSectionHeader(context.l10n.offlineData),
+          const SyncStatusCard(),
           const SizedBox(height: 20),
 
           // Solo en debug: diagnóstico de la sesión (verificación de la etapa 1).
@@ -211,7 +208,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
 
           // 3. Sección: Servidor (solo lectura; se fija al compilar)
-          _buildSectionHeader(isEn ? 'Server' : 'Servidor'),
+          _buildSectionHeader(context.l10n.server),
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -220,11 +217,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             child: ListTile(
               leading: const Icon(Icons.dns_rounded),
-              title: Text(isEn ? 'API address' : 'Dirección de la API'),
+              title: Text(context.l10n.apiAddress),
               subtitle: Text(
                 ApiConfig.isConfigured
                     ? ApiConfig.baseUrl
-                    : (isEn ? 'Not configured (API_BASE_URL)' : 'Sin configurar (API_BASE_URL)'),
+                    : (context.l10n.notConfiguredApiBaseUrl),
                 style: const TextStyle(fontSize: 12),
               ),
             ),
