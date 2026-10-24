@@ -72,3 +72,19 @@ class LocalDataError extends StatelessWidget {
     );
   }
 }
+
+/// Resultado de una alta/baja/cambio local (cuentas, categorías, límites): muestra el error
+/// traducido, o avisa que quedó en el celular, refresca saldos y novedades y envía si hay red.
+Future<bool> reportLocalAction(BuildContext context, WidgetRef ref, Object? error, {required String ok, required bool isEn}) async {
+  if (error != null) {
+    if (context.mounted) AppFeedback.showError(context, describeWithCode(error, isEn: isEn));
+    return false;
+  }
+  unawaited(ref.read(dashboardNotifierProvider.notifier).cargarDashboard());
+  unawaited(ref.read(novedadesNotifierProvider.notifier).calcularNovedades());
+  unawaited(ref.read(syncControllerProvider.notifier).sync());
+  if (context.mounted) {
+    AppFeedback.showSuccess(context, isEn ? '$ok Saved on this phone; sending…' : '$ok Guardado en el celular; enviando…');
+  }
+  return true;
+}

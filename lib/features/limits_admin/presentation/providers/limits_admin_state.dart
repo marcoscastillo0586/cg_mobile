@@ -30,7 +30,7 @@ class LimitsAdminState extends Equatable {
 
   Iterable<Budget> get _vigentes => limits.where((l) => !l.dueForRenewal);
 
-  /// Totales de los presupuestos vigentes, sumando los valores del servidor (centavos).
+  /// Totales de los presupuestos vigentes (centavos).
   int get totalPresupuestadoCents => _vigentes.fold(0, (a, l) => a + l.limitCents);
   int get totalConsumidoCents => _vigentes.fold(0, (a, l) => a + l.consumedCents);
   int get totalRestoCents => _vigentes.fold(0, (a, l) => a + l.remainingCents);

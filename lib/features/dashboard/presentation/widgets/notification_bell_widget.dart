@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../settings/presentation/providers/settings_provider.dart';
 import '../providers/novedades_notifier.dart';
 import 'novedades_bottom_sheet.dart';
 
@@ -12,6 +13,7 @@ class NotificationBellWidget extends ConsumerWidget {
     final state = ref.watch(novedadesNotifierProvider);
     final hasUnread = state.hasUnread;
     final dotColor = state.gravedadMaxColor;
+    final isEn = ref.watch(settingsProvider).language == 'en';
 
     return Stack(
       alignment: Alignment.center,
@@ -21,7 +23,7 @@ class NotificationBellWidget extends ConsumerWidget {
             hasUnread ? Icons.notifications_active_outlined : Icons.notifications_outlined,
             color: hasUnread ? null : Colors.grey,
           ),
-          tooltip: 'Novedades',
+          tooltip: isEn ? 'Notifications' : 'Novedades',
           onPressed: () {
             AppFeedback.light();
             NovedadesBottomSheet.show(context);

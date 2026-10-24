@@ -106,9 +106,3 @@ class AppFeedback {
     );
   }
 }
-
-/// Acción que todavía no existe con la API nueva (se habilita en una etapa posterior).
-/// Se avisa en lugar de simular un éxito.
-void showNotAvailable(BuildContext context, {required bool isEn}) {
-  AppFeedback.showError(context, isEn ? 'Feature not available for now' : 'Función no disponible por ahora');
-}

@@ -3,9 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/money/money.dart';
-import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/account_avatar.dart';
+import '../../../movements/presentation/local_write_feedback.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
+import '../../data/local_accounts_repository.dart';
 import '../../domain/account_item.dart';
 import '../providers/accounts_admin_notifier.dart';
 import '../providers/accounts_admin_state.dart';
@@ -38,7 +39,8 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showNotAvailable(context, isEn: isEn),
+        key: const ValueKey('nueva-cuenta'),
+        onPressed: () => _editar(context, null, isEn),
         icon: const Icon(Icons.add_rounded),
         label: Text(isEn ? 'New account' : 'Nueva cuenta'),
       ),
@@ -113,16 +115,124 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
       itemCount: cuentas.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => _AccountTile(item: cuentas[i], isEn: isEn),
+      itemBuilder: (_, i) => _AccountTile(item: cuentas[i], isEn: isEn, onAction: (a) => _accion(context, cuentas[i], a, isEn)),
     );
+  }
+
+  Future<void> _accion(BuildContext context, AccountItem item, String accion, bool isEn) async {
+    final notifier = ref.read(accountsAdminNotifierProvider.notifier);
+    switch (accion) {
+      case 'edit':
+        await _editar(context, item, isEn);
+      case 'toggle':
+        final error = await notifier.run((r) => r.setActive(item.id, !item.active));
+        if (context.mounted) {
+          await reportLocalAction(context, ref, error,
+              ok: item.active ? (isEn ? 'Account deactivated.' : 'Cuenta desactivada.') : (isEn ? 'Account activated.' : 'Cuenta activada.'),
+              isEn: isEn);
+        }
+      case 'delete':
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(isEn ? 'Delete account?' : '¿Eliminar la cuenta?'),
+            content: Text(isEn
+                ? 'Without movements it is deleted; with movements it is deactivated.'
+                : 'Sin movimientos se elimina; con movimientos se desactiva.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
+              TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(isEn ? 'Delete' : 'Eliminar')),
+            ],
+          ),
+        );
+        if (ok != true) return;
+        final error = await notifier.run((r) => r.delete(item.id));
+        if (context.mounted) await reportLocalAction(context, ref, error, ok: isEn ? 'Account deleted.' : 'Cuenta eliminada.', isEn: isEn);
+    }
+  }
+
+  /// Alta (item null) o edición de nombre/moneda. El ícono se elige al crear (la API de
+  /// sincronización no lo cambia después).
+  Future<void> _editar(BuildContext context, AccountItem? item, bool isEn) async {
+    final nombre = TextEditingController(text: item?.name ?? '');
+    var moneda = item?.currency ?? Currency.ars;
+    String? icono;
+    final guardar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text(item == null ? (isEn ? 'New account' : 'Nueva cuenta') : (isEn ? 'Edit account' : 'Editar cuenta')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  key: const ValueKey('cuenta-nombre'),
+                  controller: nombre,
+                  maxLength: accountNameMax,
+                  decoration: InputDecoration(labelText: isEn ? 'Name' : 'Nombre'),
+                ),
+                DropdownButtonFormField<Currency>(
+                  initialValue: moneda,
+                  decoration: InputDecoration(labelText: isEn ? 'Currency' : 'Moneda'),
+                  items: [for (final c in Currency.values) DropdownMenuItem(value: c, child: Text(c.code))],
+                  onChanged: item != null && item.movementsCount > 0 ? null : (v) => setLocal(() => moneda = v ?? moneda),
+                ),
+                if (item != null && item.movementsCount > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      isEn ? 'Currency is locked: the account has movements.' : 'La moneda no se cambia: la cuenta tiene movimientos.',
+                      style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
+                    ),
+                  ),
+                if (item == null) ...[
+                  const SizedBox(height: 12),
+                  Text(isEn ? 'Icon' : 'Ícono', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      for (final e in AccountIcons.byKey.entries)
+                        ChoiceChip(
+                          key: ValueKey('icono-${e.key}'),
+                          label: Icon(e.value, size: 20),
+                          selected: icono == e.key,
+                          onSelected: (_) => setLocal(() => icono = icono == e.key ? null : e.key),
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
+            TextButton(key: const ValueKey('cuenta-guardar'), onPressed: () => Navigator.pop(ctx, true), child: Text(isEn ? 'Save' : 'Guardar')),
+          ],
+        ),
+      ),
+    );
+    final texto = nombre.text;
+    nombre.dispose();
+    if (guardar != true || !context.mounted) return;
+    final notifier = ref.read(accountsAdminNotifierProvider.notifier);
+    final error = await notifier.run((r) => item == null
+        ? r.create(name: texto, currency: moneda, iconRef: icono)
+        : r.update(item.id, name: texto, currency: item.movementsCount > 0 ? null : moneda));
+    if (context.mounted) {
+      await reportLocalAction(context, ref, error,
+          ok: item == null ? (isEn ? 'Account created.' : 'Cuenta creada.') : (isEn ? 'Account updated.' : 'Cuenta actualizada.'), isEn: isEn);
+    }
   }
 }
 
 class _AccountTile extends StatelessWidget {
   final AccountItem item;
   final bool isEn;
+  final ValueChanged<String> onAction;
 
-  const _AccountTile({required this.item, required this.isEn});
+  const _AccountTile({required this.item, required this.isEn, required this.onAction});
 
   @override
   Widget build(BuildContext context) {
@@ -156,7 +266,7 @@ class _AccountTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${item.movementsCount} ${isEn ? 'movements' : 'movimientos'}',
+                      '${item.movementsCount} ${isEn ? 'movements' : 'movimientos'}${item.serverId == null ? (isEn ? ' · pending sync' : ' · sin sincronizar') : ''}',
                       style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
                     ),
                   ],
@@ -174,7 +284,8 @@ class _AccountTile extends StatelessWidget {
                 ),
               ),
               PopupMenuButton<String>(
-                onSelected: (_) => showNotAvailable(context, isEn: isEn),
+                key: ValueKey('menu-cuenta-${item.name}'),
+                onSelected: onAction,
                 itemBuilder: (_) => [
                   PopupMenuItem(value: 'edit', child: Text(isEn ? 'Edit' : 'Editar')),
                   PopupMenuItem(

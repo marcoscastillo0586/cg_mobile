@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/money/money.dart';
-import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/date_utils.dart';
+import '../../../../core/database/local_catalog.dart';
+import '../../../../core/sync/local_ops.dart';
+import '../../../movements/presentation/local_write_feedback.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
+import '../../data/local_budgets_repository.dart';
 import '../../domain/budget.dart';
 import '../providers/limits_admin_notifier.dart';
 import '../providers/limits_admin_state.dart';
@@ -42,7 +45,8 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
         actions: [IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: notifier.cargarLimites)],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showNotAvailable(context, isEn: isEn),
+        key: const ValueKey('nuevo-limite'),
+        onPressed: () => _crear(context, isEn),
         icon: const Icon(Icons.add_rounded),
         label: Text(isEn ? 'New budget' : 'Nuevo límite'),
       ),
@@ -103,9 +107,163 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
             padding: const EdgeInsets.only(top: 40),
             child: Center(child: Text(isEn ? 'No budgets' : 'No hay presupuestos')),
           ),
-        ...lista.map((b) => _BudgetCard(budget: b, isEn: isEn)),
+        ...lista.map((b) => _BudgetCard(budget: b, isEn: isEn, onAction: (a) => _accion(context, b, a, isEn))),
       ],
     );
+  }
+
+  Future<void> _accion(BuildContext context, Budget b, String accion, bool isEn) async {
+    final notifier = ref.read(limitsAdminNotifierProvider.notifier);
+    switch (accion) {
+      case 'edit':
+        await _editar(context, b, isEn);
+      case 'renew':
+        final error = await notifier.run((r) => r.renew(b.id));
+        if (context.mounted) await reportLocalAction(context, ref, error, ok: isEn ? 'Budget renewed.' : 'Límite renovado.', isEn: isEn);
+      case 'delete':
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(isEn ? 'Delete budget?' : '¿Eliminar el límite?'),
+            content: Text(b.title),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
+              TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(isEn ? 'Delete' : 'Eliminar')),
+            ],
+          ),
+        );
+        if (ok != true) return;
+        final error = await notifier.run((r) => r.delete(b.id));
+        if (context.mounted) await reportLocalAction(context, ref, error, ok: isEn ? 'Budget deleted.' : 'Límite eliminado.', isEn: isEn);
+    }
+  }
+
+  static String _iso(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  Future<String?> _pickDate(BuildContext context, String current) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.tryParse(current) ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    return picked == null ? null : _iso(picked);
+  }
+
+  /// Edición de fechas y monto (la sincronización no cambia categorías ni cuentas de un límite).
+  Future<void> _editar(BuildContext context, Budget b, bool isEn) async {
+    var desde = b.startDate, hasta = b.endDate;
+    final monto = TextEditingController(text: Money.toApiDecimal(b.limitCents).replaceAll('.', ','));
+    final guardar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text(isEn ? 'Edit budget' : 'Editar límite'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(b.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+            _fecha(ctx, isEn ? 'From' : 'Desde', desde, (v) => setLocal(() => desde = v)),
+            _fecha(ctx, isEn ? 'To' : 'Hasta', hasta, (v) => setLocal(() => hasta = v)),
+            TextField(
+              key: const ValueKey('limite-monto'),
+              controller: monto,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(labelText: isEn ? 'Limit' : 'Límite de gasto', prefixText: r'$ '),
+            ),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
+            TextButton(key: const ValueKey('limite-guardar'), onPressed: () => Navigator.pop(ctx, true), child: Text(isEn ? 'Save' : 'Guardar')),
+          ],
+        ),
+      ),
+    );
+    final cents = Money.parseInput(monto.text);
+    monto.dispose();
+    if (guardar != true || !context.mounted) return;
+    final error = cents == null
+        ? LocalOps.invalid(isEn ? 'Invalid amount (max. 2 decimals)' : 'Importe inválido (máx. 2 decimales)')
+        : await ref.read(limitsAdminNotifierProvider.notifier).run((r) => r.update(b.id, startDate: desde, endDate: hasta, limitCents: cents));
+    if (context.mounted) await reportLocalAction(context, ref, error, ok: isEn ? 'Budget updated.' : 'Límite actualizado.', isEn: isEn);
+  }
+
+  Widget _fecha(BuildContext ctx, String label, String value, ValueChanged<String> onChanged) => Row(children: [
+        Expanded(child: Text(label)),
+        TextButton(
+          key: ValueKey('limite-$label'),
+          onPressed: () async {
+            final v = await _pickDate(ctx, value);
+            if (v != null) onChanged(v);
+          },
+          child: Text(AppDateUtils.formatDateString(value)),
+        ),
+      ]);
+
+  /// Alta: período (por defecto el mes en curso), monto, hasta 5 categorías y una o más cuentas.
+  Future<void> _crear(BuildContext context, bool isEn) async {
+    final catalog = await ref.read(localCatalogProvider);
+    final categorias = await catalog.expenseCategories();
+    final cuentas = await catalog.activeAccounts();
+    if (!context.mounted) return;
+    final hoy = LocalOps.todayAr();
+    var desde = '${hoy.substring(0, 8)}01';
+    var hasta = LocalBudgetsRepository.lastDayOfMonth(hoy);
+    final monto = TextEditingController();
+    final cats = <int>{}, accs = <int>{};
+    final guardar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text(isEn ? 'New budget' : 'Nuevo límite'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _fecha(ctx, isEn ? 'From' : 'Desde', desde, (v) => setLocal(() => desde = v)),
+              _fecha(ctx, isEn ? 'To' : 'Hasta', hasta, (v) => setLocal(() => hasta = v)),
+              TextField(
+                key: const ValueKey('limite-monto'),
+                controller: monto,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(labelText: isEn ? 'Limit' : 'Límite de gasto', prefixText: r'$ '),
+              ),
+              const SizedBox(height: 10),
+              Text('${isEn ? 'Categories' : 'Categorías'} (${cats.length}/$budgetMaxCategories)', style: const TextStyle(fontWeight: FontWeight.w600)),
+              Wrap(spacing: 6, children: [
+                for (final c in categorias)
+                  FilterChip(
+                    key: ValueKey('limite-cat-${c.name}'),
+                    label: Text(c.name),
+                    selected: cats.contains(c.localId),
+                    onSelected: (sel) => setLocal(() => sel && cats.length < budgetMaxCategories ? cats.add(c.localId) : cats.remove(c.localId)),
+                  ),
+              ]),
+              const SizedBox(height: 10),
+              Text(isEn ? 'Accounts' : 'Cuentas', style: const TextStyle(fontWeight: FontWeight.w600)),
+              Wrap(spacing: 6, children: [
+                for (final a in cuentas)
+                  FilterChip(
+                    key: ValueKey('limite-cuenta-${a.name}'),
+                    label: Text(a.name.toUpperCase()),
+                    selected: accs.contains(a.localId),
+                    onSelected: (sel) => setLocal(() => sel ? accs.add(a.localId) : accs.remove(a.localId)),
+                  ),
+              ]),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
+            TextButton(key: const ValueKey('limite-guardar'), onPressed: () => Navigator.pop(ctx, true), child: Text(isEn ? 'Save' : 'Guardar')),
+          ],
+        ),
+      ),
+    );
+    final cents = Money.parseInput(monto.text);
+    monto.dispose();
+    if (guardar != true || !context.mounted) return;
+    final error = cents == null
+        ? LocalOps.invalid(isEn ? 'Invalid amount (max. 2 decimals)' : 'Importe inválido (máx. 2 decimales)')
+        : await ref.read(limitsAdminNotifierProvider.notifier).run((r) => r.create(
+              startDate: desde, endDate: hasta, limitCents: cents, categoryIds: cats.toList(), accountIds: accs.toList()));
+    if (context.mounted) await reportLocalAction(context, ref, error, ok: isEn ? 'Budget created.' : 'Límite creado.', isEn: isEn);
   }
 }
 
@@ -149,7 +307,8 @@ class _Resumen extends StatelessWidget {
 class _BudgetCard extends StatelessWidget {
   final Budget budget;
   final bool isEn;
-  const _BudgetCard({required this.budget, required this.isEn});
+  final ValueChanged<String> onAction;
+  const _BudgetCard({required this.budget, required this.isEn, required this.onAction});
 
   /// Umbrales de la web (F6.8): ≤25 info, <50 éxito, <90 advertencia, resto peligro.
   static Color colorFor(num? percent) {
@@ -181,7 +340,8 @@ class _BudgetCard extends StatelessWidget {
                 key: ValueKey('presupuesto-porcentaje-${budget.id}'),
                 style: TextStyle(fontWeight: FontWeight.w800, color: color)),
             PopupMenuButton<String>(
-              onSelected: (_) => showNotAvailable(context, isEn: isEn),
+              key: ValueKey('menu-limite-${budget.id}'),
+              onSelected: onAction,
               itemBuilder: (_) => [
                 PopupMenuItem(value: 'edit', child: Text(isEn ? 'Edit' : 'Editar')),
                 PopupMenuItem(value: 'delete', child: Text(isEn ? 'Delete' : 'Eliminar')),
@@ -215,7 +375,8 @@ class _BudgetCard extends StatelessWidget {
           if (budget.dueForRenewal) ...[
             const SizedBox(height: 8),
             OutlinedButton.icon(
-              onPressed: () => showNotAvailable(context, isEn: isEn),
+              key: ValueKey('renovar-${budget.id}'),
+              onPressed: () => onAction('renew'),
               icon: const Icon(Icons.autorenew_rounded, size: 18),
               label: Text(isEn ? 'Renew' : 'Renovar'),
             ),

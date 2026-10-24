@@ -1,6 +1,6 @@
-// Pantallas reales alimentadas con JSON SIMULADO con la forma de la API: verifica que lo
-// que muestra cada pantalla sea exactamente lo que dice el JSON (saldos, totales, %).
-// La comparación contra la API real y el celular la hace tools/verify_screens.mjs.
+// Pantallas reales. Movimientos se alimenta con JSON SIMULADO con la forma de la API; cuentas
+// y límites leen la base local (SQLite REAL, ffi) y deben mostrar exactamente lo que calcula
+// su repositorio. La comparación contra la API real la hacen tools/verify_*.mjs en el celular.
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
@@ -9,10 +9,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gastos_mobile/core/money/money.dart';
+import 'package:gastos_mobile/core/database/local_database.dart';
 import 'package:gastos_mobile/core/network/dio_client.dart';
+import 'package:gastos_mobile/features/accounts_admin/data/local_accounts_repository.dart';
+import 'package:gastos_mobile/features/limits_admin/data/local_budgets_repository.dart';
 import 'package:gastos_mobile/features/accounts_admin/presentation/screens/accounts_admin_screen.dart';
 import 'package:gastos_mobile/features/limits_admin/presentation/screens/limits_admin_screen.dart';
 import 'package:gastos_mobile/features/movements/presentation/screens/movements_screen.dart';
+import '../helpers/local_seed.dart';
 
 class _FakeApi implements HttpClientAdapter {
   final Map<String, Object> responses;
@@ -32,39 +36,6 @@ class _FakeApi implements HttpClientAdapter {
   @override
   void close({bool force = false}) {}
 }
-
-final accounts = [
-  {'id': 1, 'name': 'Banco', 'currency': 'ARS', 'active': true, 'imageUrl': null, 'iconRef': 'banco', 'balanceCents': 444727036, 'movementsCount': 812},
-  {'id': 2, 'name': 'Dolar', 'currency': 'USD', 'active': true, 'imageUrl': null, 'iconRef': null, 'balanceCents': 1877000, 'movementsCount': 9},
-  {'id': 3, 'name': 'Vieja', 'currency': 'ARS', 'active': false, 'imageUrl': null, 'iconRef': null, 'balanceCents': -1050, 'movementsCount': 1},
-];
-
-final budgets = [
-  {
-    'id': 10,
-    'startDate': '2026-10-01',
-    'endDate': '2026-10-31',
-    'limitCents': 15000000,
-    'consumedCents': 16015075,
-    'remainingCents': -1015075,
-    'percent': 106.76,
-    'dueForRenewal': false,
-    'categories': [{'id': 7, 'name': 'Comida'}],
-    'accounts': [{'id': 1, 'name': 'Banco'}],
-  },
-  {
-    'id': 11,
-    'startDate': '2026-09-01',
-    'endDate': '2026-09-30',
-    'limitCents': 5000000,
-    'consumedCents': 1234567,
-    'remainingCents': 3765433,
-    'percent': 24.69,
-    'dueForRenewal': true,
-    'categories': [{'id': 8, 'name': 'Auto'}],
-    'accounts': [{'id': 1, 'name': 'Banco'}],
-  },
-];
 
 final movements = {
   'items': [
@@ -95,42 +66,66 @@ final movements = {
   'filteredTotalCents': 2534099,
 };
 
-Future<void> _pump(WidgetTester tester, Widget screen) async {
+Future<void> _pump(WidgetTester tester, Widget screen, {SeededDb? db}) async {
   FlutterSecureStorage.setMockInitialValues({'is_first_launch_done': 'true'});
-  final api = _FakeApi({'/accounts': accounts, '/budgets': budgets, '/movements': movements});
+  final api = _FakeApi({'/movements': movements});
   final client = DioClient(adapter: api)..dio.options.baseUrl = 'http://api.fake/api/v1';
   await tester.pumpWidget(ProviderScope(
-    overrides: [dioClientProvider.overrideWithValue(client)],
+    overrides: [
+      dioClientProvider.overrideWithValue(client),
+      if (db != null) localDatabaseProvider.overrideWithValue(Future.value(db.db)),
+    ],
     child: MaterialApp(home: screen),
   ));
-  await tester.pumpAndSettle();
+  if (db == null) {
+    await tester.pumpAndSettle();
+    return;
+  }
+  // Base real: la E/S de SQLite no avanza con el reloj simulado; se la deja correr y se repinta.
+  for (var i = 0; i < 5; i++) {
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+    await tester.pump();
+  }
 }
 
 void main() {
-  testWidgets('Cuentas: cada saldo coincide con balanceCents del JSON', (tester) async {
-    await _pump(tester, const AccountsAdminScreen());
-    for (final a in accounts) {
-      final expected = Money.format(a['balanceCents']! as int, currency: Currency.parse(a['currency']));
-      expect(tester.widget<Text>(find.byKey(ValueKey('saldo-cuenta-${a['id']}'))).data, expected, reason: '${a['name']}');
+  testWidgets('Cuentas: cada saldo coincide con el de la base local', (tester) async {
+    final s = (await tester.runAsync(seededDb))!;
+    final cuentas = (await tester.runAsync(() => LocalAccountsRepository(s.db).list()))!;
+    await _pump(tester, const AccountsAdminScreen(), db: s);
+    expect(cuentas, hasLength(4));
+    for (final a in cuentas) {
+      expect(tester.widget<Text>(find.byKey(ValueKey('saldo-cuenta-${a.id}'))).data, Money.format(a.balanceCents, currency: a.currency),
+          reason: a.name);
     }
     expect(find.text('Inactiva'), findsOneWidget);
+    await tester.runAsync(s.db.close);
   });
 
-  testWidgets('Presupuestos: % , consumo, resto y totales vigentes iguales al JSON', (tester) async {
-    await _pump(tester, const LimitsAdminScreen());
-    for (final b in budgets) {
-      final id = b['id'];
-      expect(tester.widget<Text>(find.byKey(ValueKey('presupuesto-porcentaje-$id'))).data, Money.percent(b['percent']! as num));
-      expect(
-        tester.widget<Text>(find.byKey(ValueKey('presupuesto-consumo-$id'))).data,
-        '${Money.format(b['consumedCents']! as int)} / ${Money.format(b['limitCents']! as int)}',
-      );
+  testWidgets('Presupuestos: %, consumo y totales vigentes iguales a los calculados en la base local', (tester) async {
+    final s = (await tester.runAsync(seededDb))!;
+    final repo = LocalBudgetsRepository(s.db);
+    await tester.runAsync(() async {
+      // Un egreso de $ 1.067,51 en Banco/Comida y dos límites: uno vigente y excedido, otro vencido.
+      final h = await s.db.insert('movement_headers', {'server_id': 900, 'type': 2, 'occurred_at': '2026-10-10 10:00:00', 'updated_at': 'x'});
+      await s.db.insert('movement_details',
+          {'server_id': 900, 'header_local_id': h, 'account_local_id': s.accounts['Banco'], 'category_local_id': s.categories['Comida'], 'amount_cents': -106751, 'updated_at': 'x'});
+      await repo.create(startDate: '2026-10-01', endDate: '2099-12-31', limitCents: 100000, categoryIds: [s.categories['Comida']!], accountIds: [s.accounts['Banco']!]);
+      await repo.create(startDate: '2020-01-01', endDate: '2020-01-31', limitCents: 5000, categoryIds: [s.categories['Super']!], accountIds: [s.accounts['Banco']!]);
+    });
+    final limites = (await tester.runAsync(repo.list))!;
+    await _pump(tester, const LimitsAdminScreen(), db: s);
+    for (final b in limites) {
+      expect(tester.widget<Text>(find.byKey(ValueKey('presupuesto-porcentaje-${b.id}'))).data, Money.percent(b.percent!));
+      expect(tester.widget<Text>(find.byKey(ValueKey('presupuesto-consumo-${b.id}'))).data,
+          '${Money.format(b.consumedCents)} / ${Money.format(b.limitCents)}');
     }
-    // Vigentes = solo el id 10 (el 11 está vencido).
-    expect(tester.widget<Text>(find.byKey(const ValueKey('total-topes'))).data, Money.format(15000000));
-    expect(tester.widget<Text>(find.byKey(const ValueKey('total-gastado'))).data, Money.format(16015075));
-    expect(tester.widget<Text>(find.byKey(const ValueKey('total-restante'))).data, Money.format(-1015075));
+    expect(limites.first.percentHundredths, 10675); // 106,751 % truncado
+    expect(tester.widget<Text>(find.byKey(const ValueKey('total-topes'))).data, Money.format(100000));
+    expect(tester.widget<Text>(find.byKey(const ValueKey('total-gastado'))).data, Money.format(106751));
+    expect(tester.widget<Text>(find.byKey(const ValueKey('total-restante'))).data, Money.format(-6751));
     expect(find.text('Renovar'), findsOneWidget);
+    await tester.runAsync(s.db.close);
   });
 
   testWidgets('Movimientos: importe y renglón iguales al JSON', (tester) async {

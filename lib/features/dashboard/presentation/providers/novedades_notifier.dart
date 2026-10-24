@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
-import '../../../limits_admin/data/budgets_repository.dart';
+import '../../../../core/sync/local_ops.dart';
+import '../../../limits_admin/data/local_budgets_repository.dart';
 import '../../../limits_admin/domain/budget.dart';
 import '../../domain/entities/novedad_entity.dart';
 
@@ -38,22 +39,23 @@ class NovedadesState {
 }
 
 final novedadesNotifierProvider = StateNotifierProvider<NovedadesNotifier, NovedadesState>((ref) {
-  return NovedadesNotifier(ref.watch(budgetsRepositoryProvider), ref.watch(secureStorageServiceProvider), ref);
+  return NovedadesNotifier(ref.watch(localBudgetsRepositoryProvider), ref.watch(secureStorageServiceProvider), ref);
 });
 
-/// Tipo de novedad de un presupuesto según los valores del servidor (sin recalcular):
-/// vencido si `dueForRenewal`; alcanzado si percent ≥ 100; cerca si percent ≥ 75.
+/// Tipo de novedad de un presupuesto, derivado de percent y dueForRenewal (misma regla que
+/// el servidor, calculados en la base local): vencido si `dueForRenewal`; alcanzado si
+/// percent ≥ 100; cerca si percent ≥ 75. Sin fechas inventadas.
 NovedadTipo? tipoNovedad(Budget b) {
   if (b.dueForRenewal) return NovedadTipo.vencido;
-  final p = b.percent;
+  final p = b.percentHundredths;
   if (p == null) return null;
-  if (p >= 100) return NovedadTipo.alcanzado;
-  if (p >= 75) return NovedadTipo.cerca;
+  if (p >= 10000) return NovedadTipo.alcanzado;
+  if (p >= 7500) return NovedadTipo.cerca;
   return null;
 }
 
 class NovedadesNotifier extends StateNotifier<NovedadesState> {
-  final BudgetsRepository _budgets;
+  final Future<LocalBudgetsRepository> _budgets;
   final SecureStorageService _storage;
   final Ref _ref;
 
@@ -71,22 +73,23 @@ class NovedadesNotifier extends StateNotifier<NovedadesState> {
     }
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final budgets = await _budgets.getBudgets();
-      final hoy = _hoy();
+      final budgets = await (await _budgets).list();
+      final hoy = LocalOps.todayAr();
       final candidatas = <NovedadEntity>[];
       final keys = <String>{};
       for (final b in budgets) {
         if (b.startDate.compareTo(hoy) > 0) continue; // presupuestos futuros
         final tipo = tipoNovedad(b);
         if (tipo == null) continue;
-        final key = 'alerta_vista_${userId}_${b.id}_${tipo.name}_${b.startDate}_${b.endDate}';
+        // Clave estable: id del servidor (o el local si el límite todavía no se sincronizó).
+        final key = 'alerta_vista_${userId}_${b.serverId ?? 'l${b.id}'}_${tipo.name}_${b.startDate}_${b.endDate}';
         keys.add(key);
         candidatas.add(NovedadEntity(
           idKey: key,
           idLimiteGasto: b.id,
           titulo: b.title,
           tipo: tipo,
-          porcentaje: (b.percent ?? 0).floor(),
+          porcentaje: (b.percentHundredths ?? 0) ~/ 100,
           desde: DateTime.parse(b.startDate),
           hasta: DateTime.parse(b.endDate),
           vista: await _storage.readValue(key) == '1',
@@ -125,10 +128,5 @@ class NovedadesNotifier extends StateNotifier<NovedadesState> {
     for (final key in todas.keys) {
       if (key.startsWith(prefix) && !validas.contains(key)) await _storage.deleteValue(key);
     }
-  }
-
-  static String _hoy() {
-    final n = DateTime.now();
-    return '${n.year.toString().padLeft(4, '0')}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
   }
 }

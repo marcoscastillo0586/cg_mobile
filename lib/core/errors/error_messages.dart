@@ -35,6 +35,16 @@ class ErrorMessages {
       'Cannot transfer between accounts in different currencies.'
     ),
     'ACCOUNT_INACTIVE': ('La cuenta está inactiva.', 'The account is inactive.'),
+    'ACCOUNT_HAS_FUNDS': (
+      'Esta cuenta tiene dinero, deje la cuenta vacía y vuelva a intentarlo.',
+      'This account has money; empty it and try again.'
+    ),
+    'CURRENCY_LOCKED': ('No se puede cambiar la moneda de una cuenta con movimientos.', 'The currency of an account with movements cannot change.'),
+    'DUPLICATE_NAME': ('Ya existe otro registro con ese nombre.', 'Another record already has that name.'),
+    'INVALID_PERIOD': ('La fecha hasta no puede ser anterior a la fecha desde.', 'The end date cannot be before the start date.'),
+    'LAST_DETAIL': ('Es el único renglón del comprobante; eliminá el movimiento completo.', 'It is the only line; delete the whole movement.'),
+    'TRANSFER_EDIT': ('Una transferencia se edita como par (origen, destino y monto).', 'A transfer is edited as a pair (source, destination, amount).'),
+    'VERSION_CONFLICT': ('El registro cambió en el servidor.', 'The record changed on the server.'),
     'CATEGORY_INACTIVE': ('La categoría está inactiva.', 'The category is inactive.'),
     'CATALOG_NOT_SYNCED': (
       'Faltan datos del servidor en el celular: sincronizá con conexión.',
