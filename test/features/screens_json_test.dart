@@ -102,6 +102,23 @@ void main() {
     await tester.runAsync(s.db.close);
   });
 
+  testWidgets('Alta de cuenta desde el diálogo: se guarda y el cierre del diálogo no rompe (controladores)', (tester) async {
+    final s = (await tester.runAsync(seededDb))!;
+    await _pump(tester, const AccountsAdminScreen(), db: s);
+    await tester.tap(find.byKey(const ValueKey('nueva-cuenta')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('cuenta-nombre')), 'Billetera nueva');
+    await tester.tap(find.byKey(const ValueKey('cuenta-guardar')));
+    // Animación de cierre completa: antes, liberar el controlador acá rompía con `_dependents.isEmpty`.
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+    }
+    expect(tester.takeException(), isNull);
+    expect(await tester.runAsync(() => s.count('accounts', "name = 'Billetera nueva' AND server_id IS NULL")), 1);
+    await tester.runAsync(s.db.close);
+  });
+
   testWidgets('Presupuestos: %, consumo y totales vigentes iguales a los calculados en la base local', (tester) async {
     final s = (await tester.runAsync(seededDb))!;
     final repo = LocalBudgetsRepository(s.db);

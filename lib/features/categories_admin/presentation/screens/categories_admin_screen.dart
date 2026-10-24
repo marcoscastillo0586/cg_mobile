@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/error_messages.dart';
+import '../../../../core/widgets/dialog_controllers.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../data/local_categories_repository.dart';
@@ -127,7 +128,9 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
         final error = await notifier.run((r) => r.setActive(item.id, !item.active));
         if (context.mounted) {
           await reportLocalAction(context, ref, error,
-              ok: item.active ? (isEn ? 'Category deactivated.' : 'Categoría desactivada.') : (isEn ? 'Category activated.' : 'Categoría activada.'),
+              ok: item.active
+                  ? (isEn ? 'Category deactivated.' : 'Categoría desactivada.')
+                  : (isEn ? 'Category activated.' : 'Categoría activada.'),
               isEn: isEn);
         }
       case 'delete':
@@ -146,36 +149,43 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
         );
         if (ok != true) return;
         final error = await notifier.run((r) => r.delete(item.id));
-        if (context.mounted) await reportLocalAction(context, ref, error, ok: isEn ? 'Category deleted.' : 'Categoría eliminada.', isEn: isEn);
+        if (context.mounted) {
+          await reportLocalAction(context, ref, error, ok: isEn ? 'Category deleted.' : 'Categoría eliminada.', isEn: isEn);
+        }
     }
   }
 
   /// Alta (item null) o renombrar.
   Future<void> _nombre(BuildContext context, CategoryItem? item, bool isEn) async {
-    final ctrl = TextEditingController(text: item?.name ?? '');
-    final guardar = await showDialog<bool>(
+    final texto = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(item == null ? (isEn ? 'New category' : 'Nueva categoría') : (isEn ? 'Rename category' : 'Renombrar categoría')),
-        content: TextField(
-          key: const ValueKey('categoria-nombre'),
-          controller: ctrl,
-          maxLength: categoryNameMax,
-          decoration: InputDecoration(labelText: isEn ? 'Name' : 'Nombre', counterText: ''),
+      builder: (ctx) => DialogControllers(
+        initial: [item?.name ?? ''],
+        builder: (ctx, c) => AlertDialog(
+          title: Text(item == null ? (isEn ? 'New category' : 'Nueva categoría') : (isEn ? 'Rename category' : 'Renombrar categoría')),
+          content: TextField(
+            key: const ValueKey('categoria-nombre'),
+            controller: c[0],
+            maxLength: categoryNameMax,
+            decoration: InputDecoration(labelText: isEn ? 'Name' : 'Nombre', counterText: ''),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isEn ? 'Cancel' : 'Cancelar')),
+            TextButton(
+                key: const ValueKey('categoria-guardar'),
+                onPressed: () => Navigator.pop(ctx, c[0].text),
+                child: Text(isEn ? 'Save' : 'Guardar')),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
-          TextButton(key: const ValueKey('categoria-guardar'), onPressed: () => Navigator.pop(ctx, true), child: Text(isEn ? 'Save' : 'Guardar')),
-        ],
       ),
     );
-    final texto = ctrl.text;
-    ctrl.dispose();
-    if (guardar != true || !context.mounted) return;
-    final error = await ref.read(categoriesAdminNotifierProvider.notifier).run((r) => item == null ? r.create(texto) : r.rename(item.id, texto));
+    if (texto == null || !context.mounted) return;
+    final error =
+        await ref.read(categoriesAdminNotifierProvider.notifier).run((r) => item == null ? r.create(texto) : r.rename(item.id, texto));
     if (context.mounted) {
       await reportLocalAction(context, ref, error,
-          ok: item == null ? (isEn ? 'Category created.' : 'Categoría creada.') : (isEn ? 'Category renamed.' : 'Categoría renombrada.'), isEn: isEn);
+          ok: item == null ? (isEn ? 'Category created.' : 'Categoría creada.') : (isEn ? 'Category renamed.' : 'Categoría renombrada.'),
+          isEn: isEn);
     }
   }
 }

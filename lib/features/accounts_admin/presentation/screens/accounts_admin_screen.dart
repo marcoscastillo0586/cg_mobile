@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/widgets/account_avatar.dart';
+import '../../../../core/widgets/dialog_controllers.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../data/local_accounts_repository.dart';
@@ -128,7 +129,9 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
         final error = await notifier.run((r) => r.setActive(item.id, !item.active));
         if (context.mounted) {
           await reportLocalAction(context, ref, error,
-              ok: item.active ? (isEn ? 'Account deactivated.' : 'Cuenta desactivada.') : (isEn ? 'Account activated.' : 'Cuenta activada.'),
+              ok: item.active
+                  ? (isEn ? 'Account deactivated.' : 'Cuenta desactivada.')
+                  : (isEn ? 'Account activated.' : 'Cuenta activada.'),
               isEn: isEn);
         }
       case 'delete':
@@ -154,75 +157,79 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
   /// Alta (item null) o edición de nombre/moneda. El ícono se elige al crear (la API de
   /// sincronización no lo cambia después).
   Future<void> _editar(BuildContext context, AccountItem? item, bool isEn) async {
-    final nombre = TextEditingController(text: item?.name ?? '');
     var moneda = item?.currency ?? Currency.ars;
     String? icono;
-    final guardar = await showDialog<bool>(
+    final texto = await showDialog<String>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          title: Text(item == null ? (isEn ? 'New account' : 'Nueva cuenta') : (isEn ? 'Edit account' : 'Editar cuenta')),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  key: const ValueKey('cuenta-nombre'),
-                  controller: nombre,
-                  maxLength: accountNameMax,
-                  decoration: InputDecoration(labelText: isEn ? 'Name' : 'Nombre'),
-                ),
-                DropdownButtonFormField<Currency>(
-                  initialValue: moneda,
-                  decoration: InputDecoration(labelText: isEn ? 'Currency' : 'Moneda'),
-                  items: [for (final c in Currency.values) DropdownMenuItem(value: c, child: Text(c.code))],
-                  onChanged: item != null && item.movementsCount > 0 ? null : (v) => setLocal(() => moneda = v ?? moneda),
-                ),
-                if (item != null && item.movementsCount > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      isEn ? 'Currency is locked: the account has movements.' : 'La moneda no se cambia: la cuenta tiene movimientos.',
-                      style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
+      builder: (ctx) => DialogControllers(
+        initial: [item?.name ?? ''],
+        builder: (ctx, c) => StatefulBuilder(
+          builder: (ctx, setLocal) => AlertDialog(
+            title: Text(item == null ? (isEn ? 'New account' : 'Nueva cuenta') : (isEn ? 'Edit account' : 'Editar cuenta')),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    key: const ValueKey('cuenta-nombre'),
+                    controller: c[0],
+                    maxLength: accountNameMax,
+                    decoration: InputDecoration(labelText: isEn ? 'Name' : 'Nombre'),
+                  ),
+                  DropdownButtonFormField<Currency>(
+                    initialValue: moneda,
+                    decoration: InputDecoration(labelText: isEn ? 'Currency' : 'Moneda'),
+                    items: [for (final c in Currency.values) DropdownMenuItem(value: c, child: Text(c.code))],
+                    onChanged: item != null && item.movementsCount > 0 ? null : (v) => setLocal(() => moneda = v ?? moneda),
+                  ),
+                  if (item != null && item.movementsCount > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        isEn ? 'Currency is locked: the account has movements.' : 'La moneda no se cambia: la cuenta tiene movimientos.',
+                        style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
+                      ),
                     ),
-                  ),
-                if (item == null) ...[
-                  const SizedBox(height: 12),
-                  Text(isEn ? 'Icon' : 'Ícono', style: const TextStyle(fontWeight: FontWeight.w600)),
-                  Wrap(
-                    spacing: 6,
-                    children: [
-                      for (final e in AccountIcons.byKey.entries)
-                        ChoiceChip(
-                          key: ValueKey('icono-${e.key}'),
-                          label: Icon(e.value, size: 20),
-                          selected: icono == e.key,
-                          onSelected: (_) => setLocal(() => icono = icono == e.key ? null : e.key),
-                        ),
-                    ],
-                  ),
+                  if (item == null) ...[
+                    const SizedBox(height: 12),
+                    Text(isEn ? 'Icon' : 'Ícono', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        for (final e in AccountIcons.byKey.entries)
+                          ChoiceChip(
+                            key: ValueKey('icono-${e.key}'),
+                            label: Icon(e.value, size: 20),
+                            selected: icono == e.key,
+                            onSelected: (_) => setLocal(() => icono = icono == e.key ? null : e.key),
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isEn ? 'Cancel' : 'Cancelar')),
+              TextButton(
+                  key: const ValueKey('cuenta-guardar'),
+                  onPressed: () => Navigator.pop(ctx, c[0].text),
+                  child: Text(isEn ? 'Save' : 'Guardar')),
+            ],
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isEn ? 'Cancel' : 'Cancelar')),
-            TextButton(key: const ValueKey('cuenta-guardar'), onPressed: () => Navigator.pop(ctx, true), child: Text(isEn ? 'Save' : 'Guardar')),
-          ],
         ),
       ),
     );
-    final texto = nombre.text;
-    nombre.dispose();
-    if (guardar != true || !context.mounted) return;
+    if (texto == null || !context.mounted) return;
     final notifier = ref.read(accountsAdminNotifierProvider.notifier);
     final error = await notifier.run((r) => item == null
         ? r.create(name: texto, currency: moneda, iconRef: icono)
         : r.update(item.id, name: texto, currency: item.movementsCount > 0 ? null : moneda));
     if (context.mounted) {
       await reportLocalAction(context, ref, error,
-          ok: item == null ? (isEn ? 'Account created.' : 'Cuenta creada.') : (isEn ? 'Account updated.' : 'Cuenta actualizada.'), isEn: isEn);
+          ok: item == null ? (isEn ? 'Account created.' : 'Cuenta creada.') : (isEn ? 'Account updated.' : 'Cuenta actualizada.'),
+          isEn: isEn);
     }
   }
 }
