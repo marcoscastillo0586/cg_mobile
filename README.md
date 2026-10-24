@@ -126,6 +126,12 @@ CG_LIVE_API=http://192.168.0.50:3000/api/v1 CG_LIVE_TTL=20 CG_LIVE_EMAIL=... CG_
   guardar. Cuentas, categorías y sugerencias salen de SQLite.
 - Dashboard: saldos calculados de la base local con la regla de `GET /accounts/balances`; solo la cotización
   viene del servidor (sin conexión: 1,00, indicado en pantalla).
+- Edición y borrado (`lib/features/movements/data/local_movement_editor.dart`, pantalla "Editar comprobante"):
+  encabezado (concepto, fecha, cuenta), cada renglón (concepto, categoría, monto; por `serverId`, sin `baseVersion`),
+  transferencia como par, borrar renglón (solo si hay más de uno y no es transferencia: `LAST_DETAIL`/`TRANSFER_EDIT`)
+  y borrar comprobante. Todo sin conexión por la outbox, con "deshacer" para rechazos y descartes. Saldo: editar
+  egresos/ingresos puede dejar una cuenta en negativo (aviso y confirmación); editar una transferencia no puede
+  dejar el origen en negativo (`INSUFFICIENT_FUNDS`).
 - Envío (`lib/core/sync/push_service.dart`): `POST /sync/push` en orden, con `opId` y `clientId` estables
   (un reintento reenvía lo mismo y el servidor responde `duplicate`). `applied`/`duplicate` remapean
   clientId → serverId; `rejected` revierte el cambio local; `TEMPORARY_ERROR` queda pendiente; `conflict`
