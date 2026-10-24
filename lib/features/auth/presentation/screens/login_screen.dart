@@ -6,6 +6,7 @@ import '../../../../core/errors/error_messages.dart';
 import '../providers/auth_notifier.dart';
 import '../providers/auth_state.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../../core/constants/app_info.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -112,7 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'control_gastos',
+                      appName,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                             fontWeight: FontWeight.w800,

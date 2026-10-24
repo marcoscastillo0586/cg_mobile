@@ -1354,7 +1354,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get welcomePleaseChooseInitialPreferences =>
-      '¡Bienvenido a Gastos 2.0! Por favor, selecciona tus preferencias iniciales para configurar la aplicación:';
+      '¡Bienvenido! Elegí tus preferencias iniciales:';
 
   @override
   String get n1UsualCurrencyDefault => '1. Moneda Habitual (Por Defecto)';

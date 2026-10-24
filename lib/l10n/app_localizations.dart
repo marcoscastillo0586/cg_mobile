@@ -2450,7 +2450,7 @@ abstract class AppLocalizations {
   /// No description provided for @welcomePleaseChooseInitialPreferences.
   ///
   /// In es, this message translates to:
-  /// **'¡Bienvenido a Gastos 2.0! Por favor, selecciona tus preferencias iniciales para configurar la aplicación:'**
+  /// **'¡Bienvenido! Elegí tus preferencias iniciales:'**
   String get welcomePleaseChooseInitialPreferences;
 
   /// No description provided for @n1UsualCurrencyDefault.

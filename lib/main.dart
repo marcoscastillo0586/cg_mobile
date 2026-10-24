@@ -7,6 +7,7 @@ import 'core/theme/app_theme.dart';
 import 'l10n/l10n.dart';
 import 'features/settings/presentation/providers/settings_provider.dart';
 import 'routes/app_router.dart';
+import 'core/constants/app_info.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,7 +28,7 @@ class GastosMobileApp extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
 
     return MaterialApp.router(
-      title: 'control_gastos',
+      title: appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

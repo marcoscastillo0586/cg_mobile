@@ -736,7 +736,7 @@
   "appearanceTheme": "Apariencia y Tema",
   "displayMode": "Modo de Visualización",
   "initialSetup": "Configuración Inicial",
-  "welcomePleaseChooseInitialPreferences": "¡Bienvenido a Gastos 2.0! Por favor, selecciona tus preferencias iniciales para configurar la aplicación:",
+  "welcomePleaseChooseInitialPreferences": "¡Bienvenido! Elegí tus preferencias iniciales:",
   "n1UsualCurrencyDefault": "1. Moneda Habitual (Por Defecto)",
   "n2PreferredLanguage": "2. Idioma de Preferencia",
   "selectSourceDestinationAccounts": "Selecciona cuenta de origen y destino",
