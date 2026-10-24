@@ -13,8 +13,11 @@ import '../../helpers/local_seed.dart';
 class _Rate implements HttpClientAdapter {
   final bool online;
   final bool available;
+
+  /// El servidor no ve saldos en USD y responde 'no aplica' a 1,00.
+  final bool notApplicable;
   int calls = 0;
-  _Rate({this.online = true, this.available = true});
+  _Rate({this.online = true, this.available = true, this.notApplicable = false});
 
   @override
   Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? s, Future<void>? c) async {
@@ -23,7 +26,9 @@ class _Rate implements HttpClientAdapter {
     return ResponseBody.fromString(
       jsonEncode({
         'until': null,
-        'exchangeRate': available
+        'exchangeRate': notApplicable
+            ? {'name': 'no aplica', 'sellCents': 100, 'available': true}
+            : available
             ? {'name': 'Dólar Blue', 'sellCents': 142550, 'available': true}
             : {'name': 'sin conexión', 'sellCents': 100, 'available': false},
         'totalArsCents': 0,
@@ -96,7 +101,19 @@ void main() {
     final rate = _Rate();
     final b = await repo(rate).getBalances();
     expect(rate.calls, 0);
-    expect(b.exchangeRate.name, 'no aplica');
+    expect(b.exchangeRate.isNotApplicable, isTrue);
+  });
+
+  test("'no aplica' del servidor (no ve saldos en USD) no es una cotización: no se guarda ni convierte a 1,00", () async {
+    final sinPrevia = await repo(_Rate(notApplicable: true)).getBalances();
+    expect((await s.db.query('sync_state')).single['rate_sell_cents'], isNull);
+    expect(sinPrevia.accounts.firstWhere((a) => a.name == 'Dolares').balanceArsCents, isNull, reason: 'no a 1,00');
+
+    await repo(_Rate()).getBalances(); // guarda 1.425,50
+    final conPrevia = await repo(_Rate(notApplicable: true)).getBalances();
+    expect((conPrevia.exchangeRate.sellCents, conPrevia.exchangeRate.isStale), (142550, true));
+    expect(conPrevia.accounts.firstWhere((a) => a.name == 'Dolares').balanceArsCents, 14255000);
+    expect((await s.db.query('sync_state')).single['rate_sell_cents'], 142550);
   });
 
   test('toArsCents redondea igual que ExchangeRateService (mitad lejos de cero, también negativos)', () {

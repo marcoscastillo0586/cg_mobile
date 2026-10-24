@@ -206,8 +206,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             }
             final rate = balances.exchangeRate;
             final rateError = balances.rateError;
-            final String cotizacion;
-            if (rate.available && !rate.isStale) {
+            final String? cotizacion;
+            if (rate.isNotApplicable) {
+              cotizacion = null; // ninguna cuenta en USD: no hace falta cotización
+            } else if (rate.available && !rate.isStale) {
               cotizacion = '${rate.name}: ${Money.format(rate.sellCents)}';
             } else if (rate.available) {
               // Última cotización recibida, con su fecha (no hay cotización fija).

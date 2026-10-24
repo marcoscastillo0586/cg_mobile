@@ -20,6 +20,12 @@ class ExchangeRate extends Equatable {
   /// Sin ninguna cotización conocida: los USD no se convierten (no hay cotización fija).
   static const none = ExchangeRate(name: 'sin conexión', sellCents: 0, available: false);
 
+  /// Ninguna cuenta necesita cotización. Es también lo que responde GET /accounts/balances cuando
+  /// el SERVIDOR no ve saldos en USD (accounts.service.ts): no es una cotización real.
+  static const notApplicable = ExchangeRate(name: 'no aplica', sellCents: 100, available: true);
+
+  bool get isNotApplicable => name == notApplicable.name && receivedAt == null;
+
   bool get isStale => receivedAt != null;
 
   @override

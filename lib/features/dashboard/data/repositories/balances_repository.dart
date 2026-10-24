@@ -42,12 +42,16 @@ class BalancesRepository {
       ORDER BY a.name COLLATE NOCASE''', [if (cutoff != null) cutoff]);
 
     final needsRate = rows.any((r) => r['currency'] == Currency.usd.code);
-    var rate = const ExchangeRate(name: 'no aplica', sellCents: 100, available: true);
+    var rate = ExchangeRate.notApplicable;
     Object? rateError;
     if (needsRate) {
       try {
         final fresh = BalancesDto.fromJson(await _client.get('/accounts/balances')).exchangeRate;
-        if (fresh.available) {
+        if (fresh.isNotApplicable) {
+          // El servidor no ve saldos en USD (p. ej. solo hay movimientos pendientes en el celular):
+          // su 1,00 no es una cotización. Se usa la última real, si hay.
+          rate = await lastKnownRate(db);
+        } else if (fresh.available) {
           rate = fresh;
           await db.update('sync_state',
               {'rate_name': fresh.name, 'rate_sell_cents': fresh.sellCents, 'rate_received_at': DateTime.now().toUtc().toIso8601String()},
