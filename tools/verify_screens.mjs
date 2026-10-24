@@ -3,14 +3,17 @@
 //
 // Uso:  node tools/verify_screens.mjs <API_BASE_URL> <credenciales.json>
 //   credenciales.json = {"email": "...", "password": "..."}   (no se imprime nunca)
+// o:    node tools/verify_screens.mjs <API_BASE_URL> <archivo con JWT_ACCESS_SECRET> <userId>
+//   token de prueba firmado en memoria con el secreto del servidor de PRUEBAS (sin contraseñas).
 // Requisitos: celular por adb con la app abierta y la sesión iniciada con el MISMO usuario.
 // Nunca usar contra la base real: solo contra el servidor de pruebas.
+import { createHmac } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
-const [api, credFile] = process.argv.slice(2);
+const [api, credFile, userIdArg] = process.argv.slice(2);
 if (!api || !credFile) {
-  console.error('Uso: node tools/verify_screens.mjs <API_BASE_URL> <credenciales.json>');
+  console.error('Uso: node tools/verify_screens.mjs <API_BASE_URL> <credenciales.json> | <secreto.txt> <userId>');
   process.exit(2);
 }
 const PKG = 'io.github.marcoscastillo0586.cg';
@@ -30,11 +33,23 @@ function percent(v) {
 }
 
 // ---------- API ----------
-const cred = JSON.parse(readFileSync(credFile, 'utf8'));
 const H = { 'Content-Type': 'application/json', 'X-Client': 'mobile' };
-const login = await (await fetch(`${api}/auth/login`, { method: 'POST', headers: H, body: JSON.stringify(cred) })).json();
-if (!login.accessToken) throw new Error(`login falló: ${login.code}`);
-const auth = { ...H, Authorization: `Bearer ${login.accessToken}` };
+let login = null;
+let accessToken;
+if (userIdArg) {
+  // Token de prueba (HS256, mismo formato que AuthService), firmado en memoria.
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const secret = readFileSync(credFile, 'utf8').trim();
+  const iat = Math.floor(Date.now() / 1000);
+  const unsigned = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: Number(userIdArg), typ: 'access', iat, exp: iat + 900 })}`;
+  accessToken = `${unsigned}.${createHmac('sha256', secret).update(unsigned).digest('base64url')}`;
+} else {
+  const cred = JSON.parse(readFileSync(credFile, 'utf8'));
+  login = await (await fetch(`${api}/auth/login`, { method: 'POST', headers: H, body: JSON.stringify(cred) })).json();
+  if (!login.accessToken) throw new Error(`login falló: ${login.code}`);
+  accessToken = login.accessToken;
+}
+const auth = { ...H, Authorization: `Bearer ${accessToken}` };
 const get = async (p) => {
   const r = await fetch(`${api}${p}`, { headers: auth });
   if (!r.ok) throw new Error(`${p} → HTTP ${r.status}`);
@@ -146,6 +161,28 @@ check('Presupuestos', 'total gastado vigentes', money(vig.reduce((a, b) => a + b
 check('Presupuestos', 'total restante vigentes', money(vig.reduce((a, b) => a + b.remainingCents, 0)), s);
 await backToDashboard();
 
+// Campana: novedades esperadas según GET /budgets con la regla de la web (percent, dueForRenewal;
+// sin límites que todavía no empezaron). Todas deben aparecer y ninguna otra.
+const hoy = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+const esperadas = [];
+for (const b of budgets) {
+  if (b.startDate > hoy) continue;
+  const titulo = b.categories.map((c) => c.name).sort().join(', ');
+  const p = Math.floor(b.percent ?? 0);
+  if (b.dueForRenewal) esperadas.push(`El límite '${titulo}' ha finalizado y está vencido`);
+  else if (b.percent != null && b.percent >= 100) esperadas.push(`Límite '${titulo}' alcanzado (${p}%)`);
+  else if (b.percent != null && b.percent >= 75) esperadas.push(`Límite '${titulo}' cercano al tope (${p}%)`);
+}
+await tapByLabel('Novedades');
+s = await collect(6);
+for (const e of esperadas) check('Campana', e, e, s);
+const enPantalla = s.split('\n').filter((t) => /^(El límite '|Límite ')/.test(t) && /(vencido|alcanzado|cercano al tope)/.test(t));
+const sobrantes = enPantalla.filter((t) => !esperadas.some((e) => t.includes(e)));
+check('Campana', 'sin novedades de más', 'ninguna', sobrantes.length ? sobrantes.join(' | ') : 'ninguna');
+adb('shell', 'input', 'keyevent', '4');
+await sleep(1200);
+await backToDashboard();
+
 // Historial
 const movs = await get('/movements?limit=20');
 await tapByLabel('Historial');
@@ -177,8 +214,8 @@ check('Reportes', 'total del mes por categoría', money(byCat.totalCents), s);
 for (const i of byCat.items) check('Reportes', `categoría ${i.label}`, money(i.amountCents), s);
 await backToDashboard();
 
-// Se revoca la sesión que abrió este script.
-await fetch(`${api}/auth/logout`, { method: 'POST', headers: H, body: JSON.stringify({ refreshToken: login.refreshToken }) });
+// Se revoca la sesión que abrió este script (solo en el modo con credenciales).
+if (login) await fetch(`${api}/auth/logout`, { method: 'POST', headers: H, body: JSON.stringify({ refreshToken: login.refreshToken }) });
 
 // ---------- Resultado ----------
 const pad = (t, n) => (t.length > n ? t.slice(0, n - 1) + '…' : t.padEnd(n));
