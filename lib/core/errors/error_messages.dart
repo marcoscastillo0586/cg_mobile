@@ -37,6 +37,7 @@ class ErrorMessages {
         'NOT_AVAILABLE' => l.errNotAvailable,
         'CONFIG_MISSING' => l.errConfigMissing,
         'UNEXPECTED_RESPONSE' => l.errUnexpectedResponse,
+        'INSECURE_TRANSPORT' => l.errInsecureTransport,
         _ => null,
       };
 

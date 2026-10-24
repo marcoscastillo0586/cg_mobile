@@ -5,6 +5,7 @@ import '../config/api_config.dart';
 import '../errors/exceptions.dart';
 import '../auth/session_providers.dart';
 import 'auth_interceptor.dart';
+import 'transport_guard.dart';
 
 final dioClientProvider = Provider<DioClient>((ref) {
   final session = ref.watch(sessionManagerProvider);
@@ -27,9 +28,9 @@ class DioClient {
     _dio.interceptors.addAll([...interceptors, if (kDebugMode) SafeLogInterceptor()]);
   }
 
-  /// Dio con la configuración común (base, timeouts, `X-Client: mobile`), sin interceptores.
+  /// Dio con la configuración común (base, timeouts, `X-Client: mobile`) y [TransportGuard].
   static Dio createDio() {
-    return Dio(
+    final dio = Dio(
       BaseOptions(
         baseUrl: ApiConfig.isConfigured ? ApiConfig.requireBaseUrl : '',
         connectTimeout: const Duration(seconds: 15),
@@ -42,6 +43,9 @@ class DioClient {
         responseType: ResponseType.json,
       ),
     );
+    // Primero: ninguna petición sale por HTTP fuera de lo permitido (ver TransportGuard).
+    dio.interceptors.add(TransportGuard());
+    return dio;
   }
 
   Dio get dio => _dio;

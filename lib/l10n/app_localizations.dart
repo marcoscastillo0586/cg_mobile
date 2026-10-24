@@ -2814,6 +2814,12 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No se pudo usar la cámara.'**
   String get cameraError;
+
+  /// No description provided for @errInsecureTransport.
+  ///
+  /// In es, this message translates to:
+  /// **'La dirección del servidor no usa HTTPS: esta versión de la app solo se conecta por HTTPS.'**
+  String get errInsecureTransport;
 }
 
 class _AppLocalizationsDelegate

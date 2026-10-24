@@ -924,5 +924,6 @@
   "currencyUsd": "Dólares (USD $)",
   "cameraPermissionDenied": "Sin permiso para usar la cámara. Habilitalo en los ajustes del celular para leer el QR.",
   "cameraUnsupported": "Este celular no permite leer códigos QR.",
-  "cameraError": "No se pudo usar la cámara."
+  "cameraError": "No se pudo usar la cámara.",
+  "errInsecureTransport": "La dirección del servidor no usa HTTPS: esta versión de la app solo se conecta por HTTPS."
 }

@@ -1582,4 +1582,8 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get cameraError => 'No se pudo usar la cámara.';
+
+  @override
+  String get errInsecureTransport =>
+      'La dirección del servidor no usa HTTPS: esta versión de la app solo se conecta por HTTPS.';
 }
