@@ -95,11 +95,11 @@ void main() {
       // Desactivar va como `delete` (mismo efecto en el servidor; ver setActive).
       expect((await lastOp())['action'], 'delete');
       expect(await lastData(), isEmpty);
+      final c = (await s.db.query('categories', where: 'local_id = ?', whereArgs: [s.categories['Comida']])).single;
+      expect((c['name'], c['active']), ('Comida', 0));
       await repo.setActive(s.categories['Comida']!, true);
       expect((await lastOp())['action'], 'update');
       expect(await lastData(), {'active': true});
-      final c = (await s.db.query('categories', where: 'local_id = ?', whereArgs: [s.categories['Comida']])).single;
-      expect((c['name'], c['active']), ('Comida', 0));
     });
   });
 
