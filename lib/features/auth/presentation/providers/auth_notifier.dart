@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/auth/session_scope.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../data/repositories/auth_repository_impl.dart';
@@ -8,21 +9,22 @@ import 'auth_state.dart';
 
 final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
-  return AuthNotifier(authRepository);
+  return AuthNotifier(authRepository, initial: ref.watch(initialAuthStateProvider));
 });
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _authRepository;
   late final StreamSubscription<Object> _expiredSub;
 
-  AuthNotifier(this._authRepository) : super(AuthState.initial()) {
+  /// [initial]: estado ya resuelto (contenedor nuevo tras cerrar sesión); si es null, se consulta la sesión guardada.
+  AuthNotifier(this._authRepository, {AuthState? initial}) : super(initial ?? AuthState.initial()) {
     // La sesión puede expirar en cualquier petición (refresh rechazado): se vuelve al login.
     _expiredSub = _authRepository.onSessionExpired.listen((_) {
       if (mounted && state.isAuthenticated) {
         state = AuthState.unauthenticated(notice: AuthNotice.sessionExpired);
       }
     });
-    checkAuth();
+    if (initial == null) checkAuth();
   }
 
   Future<void> checkAuth() async {

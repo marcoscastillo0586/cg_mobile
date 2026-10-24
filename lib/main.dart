@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/auth/session_scope.dart';
 import 'core/theme/app_theme.dart';
 import 'features/settings/presentation/providers/settings_provider.dart';
 import 'routes/app_router.dart';
@@ -12,9 +13,7 @@ void main() async {
   // los diagnósticos con debugPrint, propios o de paquetes, son solo para debug.
   if (kReleaseMode) debugPrint = (String? message, {int? wrapWidth}) {};
   runApp(
-    const ProviderScope(
-      child: GastosMobileApp(),
-    ),
+    const SessionScope(child: GastosMobileApp()),
   );
 }
 

@@ -74,7 +74,7 @@ class LocalDatabase {
   }
 }
 
-/// Base local abierta (creada o migrada). No se guarda el Future en el provider: tras un
-/// cierre de sesión la base se cierra y `instance` la vuelve a abrir. Un error de apertura
-/// llega a quien la usa.
+/// Base local abierta (creada o migrada). El provider guarda el Future: tras un cierre de sesión
+/// [SessionScope] descarta el contenedor entero y el nuevo vuelve a abrir la base con `instance`.
+/// Un error de apertura llega a quien la usa.
 final localDatabaseProvider = Provider<Future<Database>>((ref) => LocalDatabase.instance);
