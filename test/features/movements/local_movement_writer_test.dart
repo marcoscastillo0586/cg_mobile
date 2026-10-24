@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gastos_mobile/core/database/local_database.dart';
 import 'package:gastos_mobile/core/errors/failures.dart';
+import 'package:gastos_mobile/features/movements/data/local_movement_editor.dart';
 import 'package:gastos_mobile/features/movements/data/local_movement_writer.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -212,28 +213,28 @@ void main() {
     test('comprobante del servidor: conserva la hora, encola update con ref serverId, baseVersion y undo', () async {
       final hid = (await db.query('movement_headers', where: 'server_id = ?', whereArgs: [9000 + banco])).single['local_id']! as int;
       await db.update('movement_headers', {'version': 4, 'general_concept': 'viejo'}, where: 'local_id = ?', whereArgs: [hid]);
-      await writer.updateHeader(hid, generalConcept: ' nuevo ', date: DateTime(2026, 3, 4));
+      await LocalMovementEditor(db, now: () => now).updateHeader(hid, generalConcept: ' nuevo ', date: DateTime(2026, 3, 4));
       final h = (await db.query('movement_headers', where: 'local_id = ?', whereArgs: [hid])).single;
       expect((h['general_concept'], h['occurred_at']), ('nuevo', '2026-03-04 10:00:00'));
       final op = await lastOp();
       expect((op['action'], op['ref'], op['base_version'], op['client_id']), ('update', jsonEncode({'serverId': 9000 + banco}), 4, null));
       expect(jsonDecode(op['data']! as String), {'generalConcept': 'nuevo', 'date': '2026-03-04'});
-      expect(jsonDecode(op['undo']! as String), {
-        'table': 'movement_headers', 'local_id': hid, 'values': {'general_concept': 'viejo', 'occurred_at': '2026-01-01 10:00:00'},
-      });
+      expect(jsonDecode(op['undo']! as String), [
+        {'table': 'movement_headers', 'local_id': hid, 'values': {'general_concept': 'viejo', 'occurred_at': '2026-01-01 10:00:00'}},
+      ]);
     });
 
     test('alta todavía pendiente: ref por clientId y sin baseVersion', () async {
       final m = await writer.createIncome(IncomeDraft(accountLocalId: banco, date: date, concept: 'x', amountCents: 1));
-      await writer.updateHeader(m.headerLocalId, generalConcept: 'y');
+      await LocalMovementEditor(db, now: () => now).updateHeader(m.headerLocalId, generalConcept: 'y');
       final op = await lastOp();
       expect((op['ref'], op['base_version']), (jsonEncode({'clientId': m.clientId}), null));
     });
 
     test('sin cambios o concepto vacío: VALIDATION_ERROR y no se encola nada', () async {
       final hid = (await db.query('movement_headers', where: 'server_id = ?', whereArgs: [9000 + banco])).single['local_id']! as int;
-      await expectRule(() => writer.updateHeader(hid, date: DateTime(2026, 1, 1)), 'VALIDATION_ERROR');
-      await expectRule(() => writer.updateHeader(hid, generalConcept: '  '), 'VALIDATION_ERROR');
+      await expectRule(() => LocalMovementEditor(db, now: () => now).updateHeader(hid, date: DateTime(2026, 1, 1)), 'VALIDATION_ERROR');
+      await expectRule(() => LocalMovementEditor(db, now: () => now).updateHeader(hid, generalConcept: '  '), 'VALIDATION_ERROR');
     });
   });
 }

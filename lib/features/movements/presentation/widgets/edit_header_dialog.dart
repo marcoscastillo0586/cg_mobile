@@ -4,7 +4,8 @@ import 'package:intl/intl.dart';
 import '../../../../core/database/local_database.dart';
 import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/utils/app_feedback.dart';
-import '../../data/local_movement_writer.dart';
+import '../../data/local_movement_editor.dart';
+import '../../data/local_movement_writer.dart' show conceptMax;
 import '../../domain/movement_item.dart';
 import '../local_write_feedback.dart';
 
@@ -60,7 +61,7 @@ Future<bool> editMovementHeader(BuildContext context, WidgetRef ref, MovementIte
     if (rows.isEmpty) {
       throw Exception(isEn ? 'This movement is not on the phone yet: sync first.' : 'El comprobante todavía no está en el celular: sincronizá primero.');
     }
-    await (await ref.read(localMovementWriterProvider)).updateHeader(rows.first['local_id']! as int, generalConcept: concept, date: date);
+    await (await ref.read(localMovementEditorProvider)).updateHeader(rows.first['local_id']! as int, generalConcept: concept, date: date);
   } catch (e) {
     debugPrint('[EDITAR] No se guardó: $e');
     if (context.mounted) AppFeedback.showError(context, describeWithCode(e, isEn: isEn));

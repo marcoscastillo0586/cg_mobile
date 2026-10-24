@@ -138,7 +138,7 @@ void main() {
 
   test('referencias: la operación siguiente pasa de {clientId} a {serverId} tras aplicarse el alta', () async {
     final m = await gasto(1000);
-    final upd = await (await s.writer).updateHeader(m.headerLocalId, generalConcept: 'nuevo');
+    final upd = await (await s.editor).updateHeader(m.headerLocalId, generalConcept: 'nuevo');
     expect((await op(upd))['ref'], jsonEncode({'clientId': m.clientId}));
     server.decide = (o) => o['action'] == 'create' ? server.applied(o) : rejected(o, 'TEMPORARY_ERROR');
     await push(batch: 1).push();
@@ -152,7 +152,7 @@ void main() {
     // Comprobante ya sincronizado (server_id 101, versión 1) que se edita en el celular.
     final hid = (await s.db.query('movement_headers', where: 'server_id = 101')).single['local_id']! as int;
     await s.db.update('movement_headers', {'version': 1, 'general_concept': 'original'}, where: 'local_id = ?', whereArgs: [hid]);
-    final upd = await (await s.writer).updateHeader(hid, generalConcept: 'desde el celular');
+    final upd = await (await s.editor).updateHeader(hid, generalConcept: 'desde el celular');
     expect(server.requests, isEmpty);
     server.decide = (o) => {
           'opId': o['opId'], 'status': 'conflict', 'entity': 'movement', 'serverId': 101, 'clientId': null, 'version': 2,
@@ -175,7 +175,7 @@ void main() {
   test('edición rechazada: los valores locales vuelven a los de antes (undo)', () async {
     final hid = (await s.db.query('movement_headers', where: 'server_id = 101')).single['local_id']! as int;
     await s.db.update('movement_headers', {'version': 1, 'general_concept': 'original'}, where: 'local_id = ?', whereArgs: [hid]);
-    await (await s.writer).updateHeader(hid, generalConcept: 'x', date: DateTime(2026, 2, 3));
+    await (await s.editor).updateHeader(hid, generalConcept: 'x', date: DateTime(2026, 2, 3));
     expect(((await header(hid))['general_concept'], (await header(hid))['occurred_at']), ('x', '2026-02-03 10:00:00'));
     server.decide = (o) => rejected(o, 'VALIDATION_ERROR');
     await push().push();

@@ -16,7 +16,8 @@ class Outbox {
     Map<String, Object>? ref,
     int? baseVersion,
     required Map<String, Object?> data,
-    Map<String, Object?>? undo,
+    /// Cómo revertir el cambio local: una fila `{table, local_id, values}` o una lista de filas.
+    Object? undo,
   }) async {
     final opId = LocalDatabase.newId();
     final now = DateTime.now().toUtc().toIso8601String();

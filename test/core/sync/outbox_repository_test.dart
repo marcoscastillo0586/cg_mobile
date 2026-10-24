@@ -104,7 +104,7 @@ void main() {
   test('conflicto: reintentar con mis cambios reaplica el dato local y reencola con baseVersion del servidor', () async {
     final hid = (await s.db.query('movement_headers', where: 'server_id = 101')).single['local_id']! as int;
     await s.db.update('movement_headers', {'version': 1, 'general_concept': 'original'}, where: 'local_id = ?', whereArgs: [hid]);
-    final opId = await (await s.writer).updateHeader(hid, generalConcept: 'mío');
+    final opId = await (await s.editor).updateHeader(hid, generalConcept: 'mío');
     // Lo que deja PushService: conflicto, current aplicado (gana el servidor).
     await s.db.update('movement_headers', {'general_concept': 'de la web', 'version': 2}, where: 'local_id = ?', whereArgs: [hid]);
     await s.db.update('outbox', {
@@ -123,7 +123,7 @@ void main() {
 
   test('conflicto: quedarme con la del servidor quita la operación y deja el dato del servidor', () async {
     final hid = (await s.db.query('movement_headers', where: 'server_id = 101')).single['local_id']! as int;
-    final opId = await (await s.writer).updateHeader(hid, generalConcept: 'mío');
+    final opId = await (await s.editor).updateHeader(hid, generalConcept: 'mío');
     await s.db.update('movement_headers', {'general_concept': 'de la web'}, where: 'local_id = ?', whereArgs: [hid]);
     await s.db.update('outbox', {'status': 'conflict', 'attempts': 1, 'server_result': jsonEncode({'status': 'conflict', 'serverId': 101, 'version': 2})},
         where: 'op_id = ?', whereArgs: [opId]);

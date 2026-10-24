@@ -3,6 +3,7 @@
 import 'dart:io';
 import 'package:gastos_mobile/core/database/local_catalog.dart';
 import 'package:gastos_mobile/core/database/local_database.dart';
+import 'package:gastos_mobile/features/movements/data/local_movement_editor.dart';
 import 'package:gastos_mobile/features/movements/data/local_movement_writer.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -15,6 +16,7 @@ class SeededDb {
 
   Future<LocalCatalog> get catalog async => LocalCatalog(db);
   Future<LocalMovementWriter> get writer async => LocalMovementWriter(db);
+  Future<LocalMovementEditor> get editor async => LocalMovementEditor(db);
 
   Future<int> count(String table, [String where = '1']) async =>
       (await db.rawQuery('SELECT COUNT(*) AS n FROM $table WHERE $where')).first['n']! as int;

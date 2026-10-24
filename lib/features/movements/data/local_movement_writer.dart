@@ -166,46 +166,6 @@ class LocalMovementWriter {
         return SavedMovement(headerId, clientId, opId);
       });
 
-  /// Edición mínima del encabezado (concepto general y/o fecha; la hora se conserva, como
-  /// `MovementEditService.updateHeader`). Se aplica en la base local y se encola un `update`
-  /// con `baseVersion` = versión conocida del servidor, para detectar conflictos.
-  Future<String> updateHeader(int headerLocalId, {String? generalConcept, DateTime? date}) => _db.transaction((txn) async {
-        final rows = await txn.query('movement_headers', where: 'local_id = ? AND deleted = 0', whereArgs: [headerLocalId]);
-        if (rows.isEmpty) throw _invalid('El comprobante no está en el celular; sincronizá y volvé a intentar');
-        final h = rows.single;
-        final before = {'general_concept': h['general_concept'], 'occurred_at': h['occurred_at']};
-        final changes = <String, Object?>{};
-        final data = <String, Object?>{};
-        if (generalConcept != null) {
-          final c = _concept(generalConcept, 'El concepto general');
-          if (c != h['general_concept']) {
-            changes['general_concept'] = c;
-            data['generalConcept'] = c;
-          }
-        }
-        if (date != null) {
-          final occurred = h['occurred_at']! as String;
-          final next = '${_isoDate(date)} ${occurred.substring(11)}';
-          if (next != occurred) {
-            changes['occurred_at'] = next;
-            data['date'] = _isoDate(date);
-          }
-        }
-        if (changes.isEmpty) throw _invalid('No hay cambios para guardar');
-        await txn.update('movement_headers', {...changes, 'updated_at': _now().toUtc().toIso8601String()},
-            where: 'local_id = ?', whereArgs: [headerLocalId]);
-        return Outbox.enqueue(
-          txn,
-          entity: 'movement',
-          action: 'update',
-          ref: syncRef(h['server_id'] as int?, h['client_id'] as String?),
-          // Sin server_id todavía (alta pendiente): no hay versión que comparar.
-          baseVersion: h['server_id'] == null ? null : h['version'] as int?,
-          data: data,
-          undo: {'table': 'movement_headers', 'local_id': headerLocalId, 'values': before},
-        );
-      });
-
   /// Corrección: borra el alta rechazada que se reemplaza (comprobante local y su operación).
   static Future<void> _dropReplaced(Transaction txn, int? seq) async {
     if (seq == null) return;

@@ -145,7 +145,8 @@ class PushService {
             await txn.update(table, {'server_id': serverId, 'version': version},
                 where: 'client_id = ? AND (server_id IS NULL OR server_id = ?)', whereArgs: [op['client_id'], serverId]);
             await _rewriteRefs(txn, op['client_id']! as String, serverId);
-          } else if (op['action'] == 'update' && serverId != null && table != null && version != null) {
+          } else if (op['action'] == 'update' && serverId != null && table != null && version != null && table != 'movement_details') {
+            // movement_details no guarda versión (el pull no la trae): sus ediciones van sin baseVersion.
             await txn.update(table, {'version': version}, where: 'server_id = ?', whereArgs: [serverId]);
           }
           await mark(status!);
@@ -180,9 +181,12 @@ class PushService {
       await txn.update(table, {'deleted': 1, 'deleted_at': DateTime.now().toUtc().toIso8601String()},
           where: 'client_id = ? AND server_id IS NULL', whereArgs: [op['client_id']]);
     } else if (op['undo'] != null) {
-      final undo = jsonDecode(op['undo']! as String) as Map<String, dynamic>;
-      await txn.update(undo['table'] as String, (undo['values'] as Map).cast<String, Object?>(),
-          where: 'local_id = ?', whereArgs: [undo['local_id']]);
+      // Una fila ({table, local_id, values}) o varias (lista), p. ej. el par de una transferencia.
+      final undo = jsonDecode(op['undo']! as String);
+      for (final u in (undo is List ? undo : [undo]).cast<Map<String, dynamic>>()) {
+        await txn.update(u['table'] as String, (u['values'] as Map).cast<String, Object?>(),
+            where: 'local_id = ?', whereArgs: [u['local_id']]);
+      }
     }
   }
 
