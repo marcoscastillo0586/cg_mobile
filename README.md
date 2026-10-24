@@ -70,6 +70,9 @@ Imprime una tabla OK/FALLA; sale con código 1 si hay alguna falla. Requiere Nod
 node tools/verify_sync.mjs http://192.168.0.50:3000/api/v1 <archivo-con-el-secreto> <userId> [cg_local.db]
 ```
 
+También compara cada límite (consumo, %, vencido, monto, período y vínculos) contra `GET /budgets`.
+`tools/verify_screens.mjs` acepta el mismo token de prueba (`<secreto> <userId>`) y compara además la campana.
+
 `GET /movements` solo cuenta comprobantes con renglones; los comprobantes vacíos no entran en esa fila.
 Lo cargado en el celular y todavía no enviado (sin `server_id`) se excluye de esas comparaciones; la vista
 local se compara contra el saldo del servidor más lo pendiente de cada cuenta.
@@ -132,6 +135,12 @@ CG_LIVE_API=http://192.168.0.50:3000/api/v1 CG_LIVE_TTL=20 CG_LIVE_EMAIL=... CG_
   y borrar comprobante. Todo sin conexión por la outbox, con "deshacer" para rechazos y descartes. Saldo: editar
   egresos/ingresos puede dejar una cuenta en negativo (aviso y confirmación); editar una transferencia no puede
   dejar el origen en negativo (`INSUFFICIENT_FUNDS`).
+- Cuentas, categorías y límites (`lib/features/*_admin/data/local_*_repository.dart`): alta, edición,
+  activar/desactivar y baja sin conexión por la outbox, con las reglas del servidor (nombres únicos,
+  `ACCOUNT_HAS_FUNDS`, `CURRENCY_LOCKED`, reservadas protegidas, máx. 5 categorías por límite, `INVALID_PERIOD`).
+  Activar/desactivar envía solo `active`. Desactivar una categoría se envía como `category:delete` (mismo efecto
+  en el servidor; con `update` el servidor fallaba al borrar una categoría sin uso). El consumo de los límites se
+  calcula en SQLite con la regla de budgets.service.ts y la campana se deriva de ese porcentaje y del vencimiento.
 - Envío (`lib/core/sync/push_service.dart`): `POST /sync/push` en orden, con `opId` y `clientId` estables
   (un reintento reenvía lo mismo y el servidor responde `duplicate`). `applied`/`duplicate` remapean
   clientId → serverId; `rejected` revierte el cambio local; `TEMPORARY_ERROR` queda pendiente; `conflict`
