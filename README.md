@@ -39,7 +39,21 @@ Sin `API_BASE_URL`, el login muestra "La app no tiene configurada la dirección 
   La galería usa el selector del sistema y no pide permisos de medios.
 - **Idiomas**: español (plantilla) e inglés en `lib/l10n/app_*.arb` (`flutter gen-l10n`; se usa `context.l10n`). Las validaciones
   hechas en el celular usan `ValidationFailure.t((l) => l.clave)`; los errores de la API se traducen por código en `ErrorMessages`.
-- La firma de release lee `android/key.properties` (no versionado). Si no existe, release se firma con la clave debug: no distribuir ese APK.
+- La firma de release lee `android/key.properties` (no versionado; el `.jks` vive fuera del repo). Sin ese archivo
+  **el release no se arma** (`Falta android/key.properties…`); debug no lo necesita.
+
+### APK para instalar (release)
+
+Requiere la API publicada con **HTTPS** (release rechaza `http://`) y `android/key.properties`.
+
+```sh
+flutter build apk --release --split-per-abi --dart-define=API_BASE_URL=https://<servidor>/api/v1
+# Celulares actuales: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk (~41 MB; el APK universal pesa ~110 MB)
+```
+
+Verificar la firma: `apksigner verify --print-certs <apk>` debe mostrar el certificado propio, no `CN=Android Debug`.
+Un APK firmado con otra clave no se instala encima del de debug: hay que desinstalar antes (se borran los
+datos locales; lo que ya se sincronizó vuelve a bajar del servidor).
 
 ### Servidor de pruebas (PC)
 

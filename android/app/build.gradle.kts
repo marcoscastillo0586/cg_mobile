@@ -48,15 +48,18 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
+    }
+}
+
+// Sin android/key.properties un release no se arma (antes se firmaba en silencio con la clave debug).
+gradle.taskGraph.whenReady {
+    if (!keystorePropertiesFile.exists() && allTasks.any { it.project == project && it.name.contains("Release") }) {
+        throw GradleException("Falta android/key.properties: el APK release necesita la clave de firma (ver README).")
     }
 }
 
