@@ -92,7 +92,12 @@ void main() {
       await repo.rename(s.categories['Super']!, 'Supermercado');
       expect(await lastData(), {'name': 'Supermercado'});
       await repo.setActive(s.categories['Comida']!, false);
-      expect(await lastData(), {'active': false});
+      // Desactivar va como `delete` (mismo efecto en el servidor; ver setActive).
+      expect((await lastOp())['action'], 'delete');
+      expect(await lastData(), isEmpty);
+      await repo.setActive(s.categories['Comida']!, true);
+      expect((await lastOp())['action'], 'update');
+      expect(await lastData(), {'active': true});
       final c = (await s.db.query('categories', where: 'local_id = ?', whereArgs: [s.categories['Comida']])).single;
       expect((c['name'], c['active']), ('Comida', 0));
     });

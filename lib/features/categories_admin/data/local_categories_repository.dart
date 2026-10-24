@@ -50,12 +50,24 @@ class LocalCategoriesRepository {
         return _enqueueUpdate(txn, row, {'name': n}, {'name': n});
       });
 
-  /// Solo se envía `active` (no el nombre). En el servidor, desactivar una categoría sin
-  /// movimientos la borra (la baja llega en el próximo pull).
+  /// Activar: se envía solo `active: true` (no el nombre).
+  /// Desactivar: se envía `category:delete`, que en el servidor es lo mismo que
+  /// `update {active:false}` (ambos llaman a categories.remove: la borra si no tiene
+  /// movimientos, la desactiva si tiene) pero maneja bien el borrado físico. Con `update`, el
+  /// servidor borraba la categoría y después fallaba al leer su versión (TEMPORARY_ERROR y
+  /// luego UNKNOWN_REF al reintentar). La baja física llega en el próximo pull.
   Future<String> setActive(int localId, bool active) => _db.transaction((txn) async {
         final row = await _editable(txn, localId);
         if ((row['active'] == 1) == active) throw LocalOps.invalid(active ? 'La categoría ya está activa' : 'La categoría ya está inactiva');
-        return _enqueueUpdate(txn, row, {'active': active ? 1 : 0}, {'active': active});
+        if (active) return _enqueueUpdate(txn, row, {'active': 1}, {'active': true});
+        await txn.update('categories', {'active': 0, 'updated_at': LocalOps.stamp()}, where: 'local_id = ?', whereArgs: [localId]);
+        return Outbox.enqueue(txn,
+            entity: 'category',
+            action: 'delete',
+            ref: LocalOps.ref(row),
+            baseVersion: LocalOps.baseVersion(row),
+            data: const {},
+            undo: {'table': 'categories', 'local_id': localId, 'values': {'active': row['active']}});
       });
 
   Future<String?> delete(int localId) => _db.transaction((txn) async {
