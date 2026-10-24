@@ -37,7 +37,7 @@ class MlKitTicketReader implements TicketReader {
     final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
     final List<String> rawTexts = [];
     final List<ParsedTicketItem> itemsAcumulados = [];
-    double? totalDetectado;
+    int? totalDetectadoCents;
 
     int fotoIdx = 0;
     try {
@@ -67,15 +67,15 @@ class MlKitTicketReader implements TicketReader {
         // Ejecución de la Reconstrucción Espacial Geométrica mediante ReceiptSpatialParser
         final spatialResult = ReceiptSpatialParser.parseRecognizedText(recognizedText);
         
-        if (spatialResult.totalDetectado != null && spatialResult.totalDetectado! > 0) {
-          totalDetectado = spatialResult.totalDetectado;
+        if (spatialResult.totalDetectadoCents != null && spatialResult.totalDetectadoCents! > 0) {
+          totalDetectadoCents = spatialResult.totalDetectadoCents;
         }
 
         for (final spItem in spatialResult.items) {
           itemsAcumulados.add(
             ParsedTicketItem(
               nombre: spItem.descripcion,
-              precio: spItem.montoNeto,
+              precioCents: spItem.montoNeto,
             ),
           );
         }
@@ -94,7 +94,7 @@ class MlKitTicketReader implements TicketReader {
     return TicketParseResult(
       readerName: 'mlkit_spatial_parser',
       items: itemsAcumulados,
-      totalDetectado: totalDetectado,
+      totalDetectadoCents: totalDetectadoCents,
       rawTexts: rawTexts,
       imagePaths: imagePaths,
       diagnosticLog: logBuffer.toString(),

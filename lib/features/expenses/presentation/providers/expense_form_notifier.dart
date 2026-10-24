@@ -4,6 +4,9 @@ import '../../../../core/database/local_catalog.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/sync/outbox_repository.dart';
+import '../../data/tickets_repository.dart';
+import '../../domain/entities/qr_ticket.dart';
+import '../../../../core/database/local_database.dart';
 import '../../../movements/data/local_movement_writer.dart';
 import '../../domain/entities/renglon_gasto.dart';
 import '../../domain/entities/ticket_parse_result.dart';
@@ -11,7 +14,11 @@ import 'expense_form_state.dart';
 
 final expenseFormNotifierProvider =
     StateNotifierProvider.autoDispose<ExpenseFormNotifier, ExpenseFormState>((ref) {
-  return ExpenseFormNotifier(ref.watch(localCatalogProvider), ref.watch(localMovementWriterProvider));
+  return ExpenseFormNotifier(
+    ref.watch(localCatalogProvider),
+    ref.watch(localMovementWriterProvider),
+    tickets: () => ref.read(ticketsRepositoryProvider),
+  );
 });
 
 /// Formulario de egreso: lee cuentas y categorías de la base local y guarda en SQLite + outbox
@@ -20,12 +27,20 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
   final Future<LocalCatalog> _catalog;
   final Future<LocalMovementWriter> _writer;
 
+  /// Solo para tickets QR (se crea al usarse: requiere el cliente HTTP).
+  final TicketsRepository Function()? _tickets;
+
+  /// Id estable de la confirmación del ticket QR: un reintento no duplica el egreso.
+  String? _ticketClientSyncId;
+
   late final Future<void> _loaded;
 
   /// Alta rechazada que este formulario corrige (se reemplaza al guardar).
   int? _replacingSeq;
 
-  ExpenseFormNotifier(this._catalog, this._writer) : super(ExpenseFormState.initial()) {
+  ExpenseFormNotifier(this._catalog, this._writer, {TicketsRepository Function()? tickets})
+      : _tickets = tickets,
+        super(ExpenseFormState.initial()) {
     _loaded = inicializar();
   }
 
@@ -117,24 +132,30 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
   void aplicarResultadoTicket(TicketParseResult parseResult) {
     final ticketCat = state.categorias.where((c) => c.role == CategoryRoles.defaultTicket).map((c) => c.localId).firstOrNull ??
         _defaultCategoria(state.categorias);
+    final qr = parseResult.qr;
+    // Categoría sugerida por el servidor (id del servidor) → id local, si está disponible para egresos.
+    int? local(int? serverId) => serverId == null ? null : state.categorias.where((c) => c.serverId == serverId).map((c) => c.localId).firstOrNull;
     final renglonesNuevos = [
-      for (final item in parseResult.items)
-        RenglonGasto.nuevo(defaultCategoriaId: ticketCat).copyWith(
+      for (final (i, item) in parseResult.items.indexed)
+        RenglonGasto.nuevo(defaultCategoriaId: (qr == null ? null : local(qr.items[i].suggestedCategoryServerId)) ?? ticketCat).copyWith(
           concepto: item.nombre,
-          // El lector de tickets todavía entrega double (etapa 9): se convierte una sola vez acá.
-          montoCents: Money.parseInput(item.precio.toStringAsFixed(2)) ?? 0,
+          montoCents: item.precioCents,
+          plu: qr?.items[i].plu,
+          unitPriceCents: qr?.items[i].unitPriceCents,
         ),
     ];
+    _ticketClientSyncId = qr == null ? null : LocalDatabase.newId();
 
-    final suma = parseResult.sumaRenglones;
-    final totalD = parseResult.totalDetectado;
+    final suma = Money.format(parseResult.sumaRenglonesCents);
+    final totalD = parseResult.totalDetectadoCents;
     final String feedback;
     if (totalD != null) {
       feedback = parseResult.tieneDiferenciaTotal
-          ? 'Suma de renglones (\$${suma.toStringAsFixed(2)}) difiere del total detectado (\$$totalD). Verifica los montos.'
-          : 'Ticket leído: Suma \$${suma.toStringAsFixed(2)} | Total \$${totalD.toStringAsFixed(2)}';
+          ? 'Suma de renglones ($suma) difiere del total del ticket (${Money.format(totalD)}): diferencia '
+              '${Money.format(parseResult.sumaRenglonesCents - totalD)}. Revisá los montos.'
+          : 'Ticket leído: suma $suma | total ${Money.format(totalD)}';
     } else {
-      feedback = 'Suma de renglones: \$${suma.toStringAsFixed(2)} (No se detectó un total explícito en el ticket).';
+      feedback = 'Suma de renglones: $suma (no se detectó un total en el ticket).';
     }
 
     state = state.copyWith(
@@ -142,10 +163,13 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
       ticketParseResult: parseResult,
       renglones: renglonesNuevos.isNotEmpty ? renglonesNuevos : [RenglonGasto.nuevo(defaultCategoriaId: ticketCat)],
       qrFeedback: feedback,
+      fecha: qr?.isoDate == null ? null : DateTime.tryParse(qr!.isoDate!),
+      conceptoGeneral: qr?.generalConcept,
     );
   }
 
   void limpiarItemsTicket() {
+    _ticketClientSyncId = null;
     state = state.copyWith(
       clearTicket: true,
       renglones: [RenglonGasto.nuevo(defaultCategoriaId: _defaultCategoria(state.categorias))],
@@ -155,6 +179,7 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
   /// Guarda en el celular (SQLite + outbox). Devuelve false y deja el error en el estado si
   /// una regla no se cumple; nunca informa éxito sin haber escrito.
   Future<bool> guardarEgreso() async {
+    if (state.ticketParseResult?.qr != null) return _confirmarTicketQr(state.ticketParseResult!.qr!);
     final cuenta = state.selectedCuentaId;
     if (cuenta == null) {
       state = state.copyWith(error: const ValidationFailure('Debes seleccionar una cuenta de origen', null, 'VALIDATION_ERROR'));
@@ -180,6 +205,61 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
       return true;
     } catch (e) {
       debugPrint('[EGRESO] No se guardó: $e');
+      if (mounted) state = state.copyWith(status: ExpenseFormStatus.ready, error: e);
+      return false;
+    }
+  }
+
+  /// Ticket QR: se registra en el servidor con `POST /tickets/confirm` (solo con conexión),
+  /// con PLU, precio unitario y la auditoría del ticket. El comprobante llega al celular en el
+  /// próximo pull. Sin conexión falla y el formulario queda como estaba para reintentar.
+  Future<bool> _confirmarTicketQr(QrTicket qr) async {
+    final cuenta = state.cuentaSeleccionada;
+    if (cuenta == null) {
+      state = state.copyWith(error: const ValidationFailure('Debes seleccionar una cuenta de origen', null, 'VALIDATION_ERROR'));
+      return false;
+    }
+    final tickets = _tickets;
+    if (tickets == null) {
+      state = state.copyWith(error: const ValidationFailure('No se pueden confirmar tickets QR en este contexto', null, 'NOT_AVAILABLE'));
+      return false;
+    }
+    state = state.copyWith(status: ExpenseFormStatus.submitting, clearError: true);
+    try {
+      if (cuenta.serverId == null) {
+        throw const ValidationFailure('La cuenta todavía no está en el servidor: sincronizá y volvé a intentar', null, 'VALIDATION_ERROR');
+      }
+      final general = state.conceptoGeneral.trim();
+      if (general.isEmpty) throw const ValidationFailure('Debe completar el campo Concepto', null, 'VALIDATION_ERROR');
+      final items = <QrTicketConfirmItem>[];
+      for (final (i, r) in state.renglones.indexed) {
+        final cat = state.categorias.where((c) => c.localId == r.categoriaId).firstOrNull;
+        if (cat == null) throw ValidationFailure('Debes seleccionar una categoría para el Renglón #${i + 1}', null, 'VALIDATION_ERROR');
+        if (cat.serverId == null) {
+          throw ValidationFailure('La categoría ${cat.name} todavía no está en el servidor: sincronizá', null, 'VALIDATION_ERROR');
+        }
+        if (r.montoCents <= 0) throw ValidationFailure('El Renglón #${i + 1} debe tener un monto mayor a 0', null, 'VALIDATION_ERROR');
+        items.add(QrTicketConfirmItem(
+          concept: r.concepto.trim().isEmpty ? general : r.concepto.trim(),
+          categoryServerId: cat.serverId!,
+          amountCents: r.montoCents,
+          plu: r.plu,
+          unitPriceCents: r.unitPriceCents,
+        ));
+      }
+      final f = state.fecha;
+      await tickets().confirm(QrTicketConfirmation(
+        accountServerId: cuenta.serverId!,
+        date: '${f.year.toString().padLeft(4, '0')}-${f.month.toString().padLeft(2, '0')}-${f.day.toString().padLeft(2, '0')}',
+        generalConcept: general,
+        items: items,
+        ticket: qr,
+        clientSyncId: _ticketClientSyncId ??= LocalDatabase.newId(),
+      ));
+      if (mounted) state = state.copyWith(status: ExpenseFormStatus.success);
+      return true;
+    } catch (e) {
+      debugPrint('[TICKET] No se confirmó: $e');
       if (mounted) state = state.copyWith(status: ExpenseFormStatus.ready, error: e);
       return false;
     }

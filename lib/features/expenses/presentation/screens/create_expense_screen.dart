@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
+import '../../../../core/sync/sync_controller.dart';
+import '../../../../core/errors/exceptions.dart';
 import '../../../../core/sync/outbox_repository.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/date_utils.dart';
@@ -69,6 +72,8 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
     final result = await context.push<TicketParseResult>(AppRoutes.scanTicket);
     if (result != null && mounted) {
       ref.read(expenseFormNotifierProvider.notifier).aplicarResultadoTicket(result);
+      // Ticket QR: el concepto general sale del ticket (comercio + sucursal).
+      if (result.qr != null) _conceptoGeneralController.text = ref.read(expenseFormNotifierProvider).conceptoGeneral;
     }
   }
 
@@ -95,14 +100,24 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
       );
       if (seguir != true || !mounted) return;
     }
+    final esQr = st.ticketParseResult?.qr != null;
     final ok = await ref.read(expenseFormNotifierProvider.notifier).guardarEgreso();
     if (!mounted) return;
-    if (ok) {
+    if (ok && esQr) {
+      // Quedó registrado en el servidor: se descarga en la sincronización.
+      unawaited(ref.read(syncControllerProvider.notifier).sync());
+      AppFeedback.showSuccess(context, isEn ? 'Ticket recorded on the server.' : 'Ticket registrado en el servidor.');
+      context.pop(true);
+    } else if (ok) {
       await afterLocalWrite(context, ref, isEn ? 'Expense' : 'Egreso', isEn: isEn);
       if (mounted) context.pop(true);
     } else {
       final error = ref.read(expenseFormNotifierProvider).error;
-      if (error != null) AppFeedback.showError(context, describeWithCode(error, isEn: isEn));
+      if (error == null) return;
+      final hint = esQr && error is NetworkException
+          ? (isEn ? ' Confirming a QR ticket requires a connection.' : ' Confirmar un ticket QR requiere conexión.')
+          : '';
+      AppFeedback.showError(context, describeWithCode(error, isEn: isEn) + hint);
     }
   }
 

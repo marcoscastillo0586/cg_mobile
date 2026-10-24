@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import '../../../../core/money/money.dart';
 
 class SpatialTextElement {
   final String text;
@@ -38,9 +39,10 @@ class StructuredTicketItem {
   final int renglon;
   final String descripcion;
   final String? detalleAdicional;
-  final double montoBruto;
-  final double descuento;
-  final double montoNeto;
+  /// Importes en centavos (enteros).
+  final int montoBruto;
+  final int descuento;
+  final int montoNeto;
   final bool esDudoso;
   final String? motivo;
   final int fotoOrigen;
@@ -73,9 +75,10 @@ class StructuredTicketItem {
 }
 
 class StructuredTicketTotals {
-  final double subtotalBruto;
-  final double totalDescuentos;
-  final double totalPagado;
+  /// Centavos.
+  final int subtotalBruto;
+  final int totalDescuentos;
+  final int totalPagado;
   final String moneda;
 
   StructuredTicketTotals({
@@ -131,7 +134,7 @@ class SpatialParseResult {
     };
   }
 
-  double? get totalDetectado => totales.totalPagado;
+  int? get totalDetectadoCents => totales.totalPagado;
 }
 
 class ReceiptSpatialParser {
@@ -146,9 +149,9 @@ class ReceiptSpatialParser {
       return SpatialParseResult(
         items: [],
         totales: StructuredTicketTotals(
-          subtotalBruto: 0.0,
-          totalDescuentos: 0.0,
-          totalPagado: 0.0,
+          subtotalBruto: 0,
+          totalDescuentos: 0,
+          totalPagado: 0,
         ),
       );
     }
@@ -314,15 +317,19 @@ class ReceiptSpatialParser {
     return reindexadas;
   }
 
+  /// Extracción sobre filas ya armadas (para probar los importes sin ML Kit).
+  @visibleForTesting
+  static SpatialParseResult parseRows(List<SpatialRow> rows) => _extraerBloquesYLineas(rows);
+
   /// Extrae ENCABEZADO, ITEMS y TOTALES sobre la lista unificada
   static SpatialParseResult _extraerBloquesYLineas(List<SpatialRow> spatialRows) {
     if (spatialRows.isEmpty) {
       return SpatialParseResult(
         items: [],
         totales: StructuredTicketTotals(
-          subtotalBruto: 0.0,
-          totalDescuentos: 0.0,
-          totalPagado: 0.0,
+          subtotalBruto: 0,
+          totalDescuentos: 0,
+          totalPagado: 0,
         ),
       );
     }
@@ -362,7 +369,7 @@ class ReceiptSpatialParser {
     }
 
     final List<StructuredTicketItem> items = [];
-    double? totalDetectadoEnTicket;
+    int? totalDetectadoEnTicket;
     bool isPostTotal = false;
 
     for (int i = 0; i < spatialRows.length; i++) {
@@ -385,7 +392,7 @@ class ReceiptSpatialParser {
       // Fila de Código PLU + EAN con Precio al final
       if (_esFilaDeCodigoConPrecio(fila)) {
         final precioBruto = _extraerPrecioDeFila(fila);
-        if (precioBruto != null && precioBruto > 0 && precioBruto <= 10000000) {
+        if (precioBruto != null && precioBruto > 0 && precioBruto <= _maxCents) {
           String descripcion = '';
           String? detalleAdicional;
           int fotoOrigenItem = fila.fotoOrigen;
@@ -407,7 +414,7 @@ class ReceiptSpatialParser {
           }
 
           if (descripcion.isNotEmpty) {
-            double descuento = 0.0;
+            var descuento = 0;
 
             if (i + 1 < spatialRows.length && _esFilaDescuento(spatialRows[i + 1])) {
               final sigFila = spatialRows[i + 1];
@@ -421,7 +428,7 @@ class ReceiptSpatialParser {
               }
             }
 
-            final montoNeto = double.parse(max(0.01, precioBruto - descuento).toStringAsFixed(2));
+            final montoNeto = max(1, precioBruto - descuento);
 
             items.add(
               StructuredTicketItem(
@@ -448,14 +455,14 @@ class ReceiptSpatialParser {
         final precio = _extraerPrecioDeFila(fila);
         final descripcion = _extraerDescripcionPura(fila.fullText);
 
-        if (precio != null && precio > 0 && precio <= 10000000 && descripcion.isNotEmpty) {
+        if (precio != null && precio > 0 && precio <= _maxCents && descripcion.isNotEmpty) {
           items.add(
             StructuredTicketItem(
               renglon: items.length + 1,
               descripcion: descripcion,
               detalleAdicional: null,
               montoBruto: precio,
-              descuento: 0.0,
+              descuento: 0,
               montoNeto: precio,
               fotoOrigen: fila.fotoOrigen,
             ),
@@ -464,9 +471,9 @@ class ReceiptSpatialParser {
       }
     }
 
-    final subtotalBruto = double.parse(items.fold(0.0, (acc, item) => acc + item.montoBruto).toStringAsFixed(2));
-    final totalDescuentos = double.parse(items.fold(0.0, (acc, item) => acc + item.descuento).toStringAsFixed(2));
-    final totalPagado = totalDetectadoEnTicket ?? double.parse((subtotalBruto - totalDescuentos).toStringAsFixed(2));
+    final subtotalBruto = items.fold<int>(0, (acc, item) => acc + item.montoBruto);
+    final totalDescuentos = items.fold<int>(0, (acc, item) => acc + item.descuento);
+    final totalPagado = totalDetectadoEnTicket ?? subtotalBruto - totalDescuentos;
 
     final parseResult = SpatialParseResult(
       comercio: comercio,
@@ -539,7 +546,7 @@ class ReceiptSpatialParser {
         lower.contains('marcas');
   }
 
-  static double? _extraerPrecioDeFila(SpatialRow fila) {
+  static int? _extraerPrecioDeFila(SpatialRow fila) {
     if (fila.elements.isEmpty) return null;
     final rightmostText = fila.elements.last.text;
     final priceRight = _extraerMontoDeTexto(rightmostText);
@@ -549,13 +556,13 @@ class ReceiptSpatialParser {
     return _extraerMontoDeTexto(fila.fullText);
   }
 
-  static double? _extraerPrecioDecimalFinal(String texto) {
+  static int? _extraerPrecioDecimalFinal(String texto) {
     final cleanSpaces = texto.replaceAll(' ,', ',').replaceAll(', ', ',');
     final regExp = RegExp(r'\$?\s*(\b\d{1,3}(?:[.,]\d{3})*,\d{2}\b|\b\d+,\d{2}\b|\b\d+\.\d{2}\b)\s*$');
     final match = regExp.firstMatch(cleanSpaces);
     if (match != null && match.group(1) != null) {
       final parsed = _parseMontoArgentino(match.group(1)!);
-      if (parsed != null && parsed > 0 && parsed <= 10000000) {
+      if (parsed != null && parsed > 0 && parsed <= _maxCents) {
         return parsed;
       }
     }
@@ -580,7 +587,7 @@ class ReceiptSpatialParser {
     return cleaned.trim();
   }
 
-  static double? _extraerMontoDeTexto(String texto) {
+  static int? _extraerMontoDeTexto(String texto) {
     final cleanSpaces = texto.replaceAll(' ,', ',').replaceAll(', ', ',');
     final regExpDecimal = RegExp(r'\$?\s*(\b\d{1,3}(?:[.,]\d{3})*,\d{2}\b|\b\d+,\d{2}\b|\b\d+\.\d{2}\b)');
     final matchesDecimal = regExpDecimal.allMatches(cleanSpaces);
@@ -594,24 +601,25 @@ class ReceiptSpatialParser {
     return null;
   }
 
-  static double? _parseMontoArgentino(String str) {
-    var clean = str.replaceAll('\$', '').replaceAll(' ', '').trim();
+  /// Tope de un importe razonable en un ticket: $ 10.000.000,00.
+  static const _maxCents = 1000000000;
+
+  /// "1.234,56", "1234,56" o "1234.56" → centavos (entero, sin pasar por double).
+  static int? _parseMontoArgentino(String str) {
+    final clean = str.replaceAll('\$', '').replaceAll(' ', '').trim();
     if (clean.isEmpty) return null;
 
     final lastComma = clean.lastIndexOf(',');
     final lastDot = clean.lastIndexOf('.');
-
-    if (lastComma != -1 && lastComma == clean.length - 3) {
-      final before = clean.substring(0, lastComma).replaceAll('.', '').replaceAll(',', '');
-      final decimals = clean.substring(lastComma + 1);
-      return double.tryParse('$before.$decimals');
-    } else if (lastDot != -1 && lastDot == clean.length - 3) {
-      final before = clean.substring(0, lastDot).replaceAll('.', '').replaceAll(',', '');
-      final decimals = clean.substring(lastDot + 1);
-      return double.tryParse('$before.$decimals');
+    final sep = lastComma != -1 && lastComma == clean.length - 3
+        ? lastComma
+        : (lastDot != -1 && lastDot == clean.length - 3 ? lastDot : -1);
+    if (sep != -1) {
+      final before = clean.substring(0, sep).replaceAll('.', '').replaceAll(',', '');
+      final decimals = clean.substring(sep + 1);
+      if (!RegExp(r'^\d*$').hasMatch(before) || !RegExp(r'^\d{2}$').hasMatch(decimals)) return null;
+      return (before.isEmpty ? 0 : int.parse(before)) * 100 + int.parse(decimals);
     }
-
-    final cleanNoSep = clean.replaceAll('.', '').replaceAll(',', '.');
-    return double.tryParse(cleanNoSep);
+    return Money.parseInput(clean);
   }
 }

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../../core/errors/error_messages.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
+import '../../data/tickets_repository.dart';
 import '../../domain/entities/ticket_parse_result.dart';
 
 class QrScannerScreen extends ConsumerStatefulWidget {
@@ -49,64 +49,26 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
     try {
       await _controller.stop();
-      final dioClient = ref.read(dioClientProvider);
-
-      debugPrint('[TICKET-DEBUG] [QR] Enviando URL a API PHP: $trimmedUrl');
-
-      final response = await dioClient.post(
-        '${ApiEndpoints.baseUrl}/api/tickets/qr',
-        data: {'qr_url': trimmedUrl},
-      );
-
+      // El servidor descarga y analiza el ticket (solo con conexión).
+      final qr = await ref.read(ticketsRepositoryProvider).parseUrl(trimmedUrl);
       if (!mounted) return;
-
-      Map<String, dynamic> data;
-      if (response is Map<String, dynamic>) {
-        if (response.containsKey('data') && response['data'] is Map<String, dynamic>) {
-          data = response['data'] as Map<String, dynamic>;
-        } else {
-          data = response;
-        }
-      } else {
-        throw Exception('Respuesta inválida del servidor');
-      }
-
-      final rawItems = data['items'] as List<dynamic>? ?? [];
-      final double? totalVal = (data['total'] as num?)?.toDouble();
-
-      final List<ParsedTicketItem> parsedItems = [];
-      for (final it in rawItems) {
-        if (it is Map<String, dynamic>) {
-          final desc = it['descripcion']?.toString() ?? 'Producto';
-          final mNeto = (it['monto_neto'] as num?)?.toDouble() ?? 0.0;
-          parsedItems.add(
-            ParsedTicketItem(
-              nombre: desc,
-              precio: mNeto,
-            ),
-          );
-        }
-      }
-
       final result = TicketParseResult(
-        readerName: 'qr_learned_parser',
-        items: parsedItems,
-        totalDetectado: totalVal,
+        readerName: qr.reader,
+        items: [
+          for (final i in qr.items) ParsedTicketItem(nombre: i.description, precioCents: i.netCents, esDudoso: i.doubtful),
+        ],
+        totalDetectadoCents: qr.totalPrintedCents,
         rawTexts: [trimmedUrl],
         imagePaths: const [],
-        diagnosticLog: '[TICKET-DEBUG] [QR-JSON] ${response.toString()}',
+        qr: qr,
       );
-
-      AppFeedback.showSuccess(
-        context,
-        '¡QR de ticket procesado! (${parsedItems.length} renglones)',
-      );
-
+      AppFeedback.showSuccess(context, 'Ticket leído: ${qr.items.length} renglones');
       context.pop(result);
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
-        _mostrarDialogoFalloQr(e.toString());
+        debugPrint('[TICKET] No se pudo leer el QR: $e');
+        _mostrarDialogoFalloQr(ErrorMessages.describe(e, isEn: false) + (ErrorMessages.codeOf(e) != null ? ' (${ErrorMessages.codeOf(e)})' : ''));
         await _controller.start();
       }
     }
