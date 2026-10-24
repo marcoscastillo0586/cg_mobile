@@ -131,6 +131,28 @@ void main() {
     expect(firstInt(await db.rawQuery('SELECT COUNT(*) FROM movement_details')), 3);
   });
 
+  test('página en bloque: un renglón que pasa a otro comprobante de la misma página no se pierde; repetidos en la página no duplican', () async {
+    await service(_Server(fullWindow())).pull();
+    final r = await service(_Server([
+      page(
+        full: false,
+        accounts: [acc(1, 'Banco', -150050 + 200000, 2), acc(2, 'Efectivo', -3000, 1)],
+        // El renglón 10 pasa del comprobante 1 al 2 (el 1 queda con uno nuevo); el 2 viene dos veces.
+        movements: [
+          mov(2, [det(20, 2, -3000)]),
+          mov(1, [det(11, 1, -150050)]),
+          mov(2, [det(20, 2, -3000), det(10, 1, 200000, category: null)]),
+          mov(3, [], type: 1),
+        ],
+        cursor: 'c-2',
+      ),
+    ])).pull();
+    expect(r.complete, isTrue, reason: r.mismatches.join('\n'));
+    final rows = await db.rawQuery(
+        'SELECT d.server_id AS d, h.server_id AS h FROM movement_details d JOIN movement_headers h ON h.local_id = d.header_local_id ORDER BY d.server_id');
+    expect([for (final x in rows) (x['d'], x['h'])], [(10, 2), (11, 1), (20, 2)]);
+  });
+
   test('incremental: renglón modificado, renglón borrado y comprobante eliminado', () async {
     await service(_Server(fullWindow())).pull();
     final s = _Server([

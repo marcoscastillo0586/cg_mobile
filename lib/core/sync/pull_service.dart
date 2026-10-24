@@ -58,6 +58,8 @@ class PullService {
     final seen = _Seen();
     var pages = 0, movementsApplied = 0, deletedApplied = 0;
     List<Map<String, dynamic>> windowAccounts = const [];
+    final total = Stopwatch()..start();
+    final applying = Stopwatch();
 
     while (true) {
       final page = _map(
@@ -67,6 +69,7 @@ class PullService {
       pages++;
       final accounts = _list(page['accounts']).cast<Map<String, dynamic>>();
       if (accounts.isNotEmpty) windowAccounts = accounts; // la primera página trae todas las cuentas
+      applying.start();
       await _db.transaction((txn) async {
         for (final a in accounts) {
           await _upsertAccount(txn, a);
@@ -80,15 +83,15 @@ class PullService {
           await _upsertBudget(txn, b);
           seen.budgets.add(b['id'] as int);
         }
-        for (final m in _list(page['movements']).cast<Map<String, dynamic>>()) {
-          await upsertMovement(txn, m);
-          seen.headers.add(m['id'] as int);
-          movementsApplied++;
-        }
+        final movements = _list(page['movements']).cast<Map<String, dynamic>>();
+        await upsertMovements(txn, movements);
+        seen.headers.addAll(movements.map((m) => m['id'] as int));
+        movementsApplied += movements.length;
         for (final d in _list(page['deleted']).cast<Map<String, dynamic>>()) {
           deletedApplied += await _applyDeleted(txn, d['entity'] as String, d['id'] as int);
         }
       });
+      applying.stop();
       cursor = page['cursor'] as String?;
       if (page['hasMore'] != true) break;
     }
@@ -96,6 +99,8 @@ class PullService {
     if (full) deletedApplied += await _removeNotSeen(seen);
 
     final mismatches = await _verify(windowAccounts);
+    debugPrint('[SYNC] Pull ${full ? 'completo' : 'incremental'}: $pages página(s), $movementsApplied comprobantes, '
+        '${total.elapsedMilliseconds} ms (aplicar en SQLite: ${applying.elapsedMilliseconds} ms)');
     final now = DateTime.now().toUtc().toIso8601String();
     if (mismatches.isEmpty) {
       await _db.update('sync_state', {'cursor': cursor, 'last_pull_at': now}, where: 'id = 1');
@@ -118,18 +123,19 @@ class PullService {
     return rows.isEmpty ? null : rows.first['local_id'] as int;
   }
 
+  static Map<String, Object?> _row(Map<String, dynamic> dto, Map<String, Object?> values) => {
+        'server_id': dto['id'] as int,
+        if (dto['clientId'] != null) 'client_id': dto['clientId'],
+        'version': dto['version'],
+        'deleted': 0,
+        'deleted_at': null,
+        'updated_at': dto['updatedAt'] ?? DateTime.now().toUtc().toIso8601String(),
+        ...values,
+      };
+
   Future<int> _upsert(Transaction txn, String table, Map<String, dynamic> dto, Map<String, Object?> values) async {
-    final serverId = dto['id'] as int;
-    final row = {
-      'server_id': serverId,
-      if (dto['clientId'] != null) 'client_id': dto['clientId'],
-      'version': dto['version'],
-      'deleted': 0,
-      'deleted_at': null,
-      'updated_at': dto['updatedAt'] ?? DateTime.now().toUtc().toIso8601String(),
-      ...values,
-    };
-    final localId = await _find(txn, table, serverId, dto['clientId']);
+    final row = _row(dto, values);
+    final localId = await _find(txn, table, dto['id'] as int, dto['clientId']);
     if (localId == null) return txn.insert(table, row);
     await txn.update(table, row, where: 'local_id = ?', whereArgs: [localId]);
     return localId;
@@ -167,51 +173,111 @@ class PullService {
 
   /// Aplica un comprobante completo del servidor (MovementDto + id/version/clientId/updatedAt).
   /// También lo usa el push para aplicar el `current` de un conflicto (gana el servidor).
-  Future<void> upsertMovement(Transaction txn, Map<String, dynamic> m) async {
-    if (m['partialDetails'] == true) throw _bad('movimiento ${m['id']} con renglones parciales');
-    final updatedAt = m['updatedAt'] as String? ?? DateTime.now().toUtc().toIso8601String();
-    final headerId = await _upsert(txn, 'movement_headers', m, {
-      'type': m['type'],
-      'occurred_at': m['occurredAt'],
-      'general_concept': m['generalConcept'],
-    });
-    final keep = <int>[];
-    for (final d in _list(m['details']).cast<Map<String, dynamic>>()) {
-      final serverId = d['id'] as int;
-      keep.add(serverId);
-      final categoryId = d['categoryId'] as int?;
-      final unit = d['unitPriceCents'];
-      final values = {
-        'server_id': serverId,
-        'header_local_id': headerId,
-        'account_local_id': await _require(txn, 'accounts', d['accountId'] as int),
-        'category_local_id': categoryId == null ? null : await _require(txn, 'categories', categoryId),
-        'concept': d['concept'],
-        'amount_cents': Money.centsFrom(d['amountCents'], 'detail.amountCents'),
-        'plu': d['plu'],
-        'unit_price_cents': unit == null ? null : Money.centsFrom(unit, 'detail.unitPriceCents'),
-        'image_url': d['imageUrl'],
-        'deleted': 0,
-        'deleted_at': null,
-        'updated_at': updatedAt,
-      };
-      final existing = await txn.query('movement_details', columns: ['local_id'], where: 'server_id = ?', whereArgs: [serverId]);
-      if (existing.isEmpty) {
-        await txn.insert('movement_details', values);
+  Future<void> upsertMovement(Transaction txn, Map<String, dynamic> m) => upsertMovements(txn, [m]);
+
+  /// Aplica comprobantes completos con pocas llamadas a SQLite (lecturas en bloque y `batch`):
+  /// en Android cada consulta cruza el canal de plataforma, y una por renglón tardaba ~10 s por página.
+  Future<void> upsertMovements(Transaction txn, List<Map<String, dynamic>> input) async {
+    if (input.isEmpty) return;
+    // El mismo comprobante puede llegar dos veces: vale el último.
+    final movements = {for (final m in input) m['id'] as int: m}.values.toList();
+    for (final m in movements) {
+      if (m['partialDetails'] == true) throw _bad('movimiento ${m['id']} con renglones parciales');
+    }
+    final accounts = await _serverToLocal(txn, 'accounts');
+    final categories = await _serverToLocal(txn, 'categories');
+    int need(Map<Object?, int> ids, String table, int serverId) =>
+        ids[serverId] ?? (throw _bad('$table #$serverId referenciada pero no recibida'));
+
+    // Encabezados: por server_id y, si no está, por client_id (alta hecha en el celular).
+    final byServer = await _localIdsIn(txn, 'movement_headers', 'server_id', [for (final m in movements) m['id']]);
+    final byClient = await _localIdsIn(txn, 'movement_headers', 'client_id', [
+      for (final m in movements)
+        if (m['clientId'] is String) m['clientId'],
+    ]);
+    final existing = [for (final m in movements) byServer[m['id']] ?? byClient[m['clientId']]];
+    final headers = txn.batch();
+    for (final (i, m) in movements.indexed) {
+      final row = _row(m, {'type': m['type'], 'occurred_at': m['occurredAt'], 'general_concept': m['generalConcept']});
+      final localId = existing[i];
+      if (localId == null) {
+        headers.insert('movement_headers', row);
       } else {
-        await txn.update('movement_details', values, where: 'local_id = ?', whereArgs: [existing.first['local_id']]);
+        headers.update('movement_headers', row, where: 'local_id = ?', whereArgs: [localId]);
       }
     }
-    // Si el comprobante se cargó en el celular (encontrado por clientId), el servidor ya lo
-    // registró: sus renglones reemplazan a los locales sin server_id (no se duplican).
-    await txn.delete('movement_details', where: 'header_local_id = ? AND server_id IS NULL', whereArgs: [headerId]);
-    // El servidor manda el comprobante completo: los renglones del servidor que ya no vienen se borraron.
-    await txn.delete(
-      'movement_details',
-      where: 'header_local_id = ? AND server_id IS NOT NULL'
-          '${keep.isEmpty ? '' : ' AND server_id NOT IN (${List.filled(keep.length, '?').join(',')})'}',
-      whereArgs: [headerId, ...keep],
-    );
+    final inserted = await headers.commit();
+    final headerIds = [for (final (i, localId) in existing.indexed) localId ?? inserted[i] as int];
+
+    final details = [for (final m in movements) _list(m['details']).cast<Map<String, dynamic>>()];
+    final existingDetails = await _localIdsIn(txn, 'movement_details', 'server_id', [
+      for (final ds in details)
+        for (final d in ds) d['id'],
+    ]);
+    final batch = txn.batch();
+    for (final (i, m) in movements.indexed) {
+      final updatedAt = m['updatedAt'] as String? ?? DateTime.now().toUtc().toIso8601String();
+      for (final d in details[i]) {
+        final serverId = d['id'] as int;
+        final categoryId = d['categoryId'] as int?;
+        final unit = d['unitPriceCents'];
+        final values = {
+          'server_id': serverId,
+          'header_local_id': headerIds[i],
+          'account_local_id': need(accounts, 'accounts', d['accountId'] as int),
+          'category_local_id': categoryId == null ? null : need(categories, 'categories', categoryId),
+          'concept': d['concept'],
+          'amount_cents': Money.centsFrom(d['amountCents'], 'detail.amountCents'),
+          'plu': d['plu'],
+          'unit_price_cents': unit == null ? null : Money.centsFrom(unit, 'detail.unitPriceCents'),
+          'image_url': d['imageUrl'],
+          'deleted': 0,
+          'deleted_at': null,
+          'updated_at': updatedAt,
+        };
+        final localId = existingDetails[serverId];
+        if (localId == null) {
+          batch.insert('movement_details', values);
+        } else {
+          batch.update('movement_details', values, where: 'local_id = ?', whereArgs: [localId]);
+        }
+      }
+    }
+    // Los borrados van después de todas las altas y cambios: un renglón que pasó a otro
+    // comprobante de la misma página ya no está en el anterior cuando se borra lo que sobra.
+    for (final (i, headerId) in headerIds.indexed) {
+      final keep = [for (final d in details[i]) d['id'] as int];
+      // Si el comprobante se cargó en el celular (encontrado por clientId), el servidor ya lo
+      // registró: sus renglones reemplazan a los locales sin server_id (no se duplican).
+      batch.delete('movement_details', where: 'header_local_id = ? AND server_id IS NULL', whereArgs: [headerId]);
+      // El servidor manda el comprobante completo: los renglones del servidor que ya no vienen se borraron.
+      batch.delete(
+        'movement_details',
+        where: 'header_local_id = ? AND server_id IS NOT NULL'
+            '${keep.isEmpty ? '' : ' AND server_id NOT IN (${List.filled(keep.length, '?').join(',')})'}',
+        whereArgs: [headerId, ...keep],
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  static Future<Map<Object?, int>> _serverToLocal(Transaction txn, String table) async => {
+        for (final r in await txn.query(table, columns: ['server_id', 'local_id'], where: 'server_id IS NOT NULL'))
+          r['server_id']: r['local_id'] as int,
+      };
+
+  /// local_id de las filas cuyo `column` está en `values`, en tandas (límite de parámetros de SQLite).
+  static Future<Map<Object?, int>> _localIdsIn(Transaction txn, String table, String column, List<Object?> values) async {
+    final out = <Object?, int>{};
+    for (var i = 0; i < values.length; i += 500) {
+      final chunk = values.sublist(i, i + 500 > values.length ? values.length : i + 500);
+      final rows = await txn.query(table,
+          columns: [column, 'local_id'], where: '$column IN (${List.filled(chunk.length, '?').join(',')})', whereArgs: chunk);
+      for (final r in rows) {
+        out[r[column]] = r['local_id'] as int;
+      }
+    }
+    return out;
   }
 
   /// Local id de una entidad referenciada por el servidor; si no está, la base quedaría inconsistente.
