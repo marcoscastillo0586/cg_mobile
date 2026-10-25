@@ -11,9 +11,6 @@ class MovementCard extends StatelessWidget {
   final VoidCallback onEditar;
   final VoidCallback onEliminar;
 
-  /// Dashboard compartido: tercer renglón con quién lo cargó.
-  final bool showAuthor;
-
   /// Solo quien lo cargó lo edita o lo borra.
   final bool canEdit;
 
@@ -22,7 +19,6 @@ class MovementCard extends StatelessWidget {
     required this.item,
     required this.onEditar,
     required this.onEliminar,
-    this.showAuthor = false,
     this.canEdit = true,
   });
 
@@ -56,7 +52,7 @@ class MovementCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 12),
             ),
-            if (showAuthor && (item.createdByName ?? '').isNotEmpty)
+            if ((item.createdByName ?? '').isNotEmpty)
               Text(
                 context.l10n.movementCreatedBy(item.createdByName!),
                 key: ValueKey('mov-autor-${item.id}'),

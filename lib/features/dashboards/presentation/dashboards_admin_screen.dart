@@ -171,7 +171,6 @@ class _OwnDashboardCard extends ConsumerStatefulWidget {
 }
 
 class _OwnDashboardCardState extends ConsumerState<_OwnDashboardCard> {
-  late final TextEditingController _name = TextEditingController(text: widget.dashboard.name);
   final _email = TextEditingController();
   List<DashboardMember> _members = const [];
 
@@ -185,7 +184,6 @@ class _OwnDashboardCardState extends ConsumerState<_OwnDashboardCard> {
 
   @override
   void dispose() {
-    _name.dispose();
     _email.dispose();
     super.dispose();
   }
@@ -200,9 +198,40 @@ class _OwnDashboardCardState extends ConsumerState<_OwnDashboardCard> {
     }
   }
 
+  Future<void> _rename() async {
+    final l = context.l10n;
+    final controller = TextEditingController(text: d.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.rename),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 100,
+          decoration: InputDecoration(labelText: l.dashboardName),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text(l.save)),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.isEmpty || name == d.name) return;
+    await widget.run((r) => r.rename(d.id, name), l.dashboardRenamed);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
+    final theme = Theme.of(context);
+    // Segunda línea solo con lo que el nombre no dice: que es el principal (si se llama distinto) y si está compartido.
+    final details = [
+      if (d.principal && d.name.trim().toLowerCase() != l.dashboardDefaultName) l.dashboardIsPrincipal,
+      if (d.shared) l.dashboardSharedCount(d.membersCount),
+    ];
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
@@ -210,29 +239,29 @@ class _OwnDashboardCardState extends ConsumerState<_OwnDashboardCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Wrap(
-              spacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(widget.label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                if (d.principal) Chip(label: Text(l.dashboardPrincipalTag), visualDensity: VisualDensity.compact),
-                if (d.shared) Chip(label: Text(l.dashboardSharedTag), visualDensity: VisualDensity.compact),
-              ],
-            ),
             Row(
               children: [
-                Expanded(child: TextField(controller: _name, maxLength: 100, decoration: InputDecoration(labelText: l.dashboardName, counterText: ''))),
-                TextButton(
-                  style: TextButton.styleFrom(minimumSize: const Size(48, 40)),
-                  onPressed: () {
-                    final name = _name.text.trim();
-                    if (name.isEmpty || name == d.name) return;
-                    widget.run((r) => r.rename(d.id, name), l.dashboardRenamed);
-                  },
-                  child: Text(l.saveName),
+                Icon(d.principal ? Icons.home_outlined : (d.shared ? Icons.group_outlined : Icons.dashboard_outlined),
+                    color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.label, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                      if (details.isNotEmpty) Text(details.join(' · '), style: theme.textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  key: ValueKey('renombrar-${d.id}'),
+                  tooltip: l.rename,
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: _rename,
                 ),
               ],
             ),
+            const SizedBox(height: 4),
             Row(
               children: [
                 Expanded(

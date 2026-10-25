@@ -464,7 +464,6 @@
   "manageDashboards": "Manage dashboards",
   "chooseDashboard": "Choose dashboard",
   "dashboardSharedTag": "shared",
-  "dashboardPrincipalTag": "main",
   "invitationTitle": "A dashboard was shared with you",
   "invitationBody": "{inviter} ({email}) invited you to share their dashboard \"{dashboard}\".",
   "acceptInvitation": "Accept",
@@ -493,7 +492,6 @@
   "openDashboard": "Open",
   "clearDashboard": "Clear dashboard",
   "deleteDashboard": "Delete dashboard",
-  "saveName": "Save name",
   "confirmClearDashboard": "All movements, receipts and limits of \"{name}\" are deleted. Accounts and categories are kept. This cannot be undone.",
   "confirmDeleteDashboard": "\"{name}\" is deleted with all its content and every guest loses access. This cannot be undone.",
   "confirmLeaveDashboard": "You stop seeing \"{name}\". To come back, the owner has to invite you again.",
@@ -515,5 +513,7 @@
   "errOwnerCannotLeave": "The owner cannot leave their dashboard.",
   "errPrincipalUndeletable": "The main dashboard cannot be deleted; it can be cleared.",
   "errNotPrincipal": "Only the main dashboard is cleared; the others are deleted.",
-  "errInvitationClosed": "The invitation was already answered."
+  "errInvitationClosed": "The invitation was already answered.",
+  "dashboardIsPrincipal": "Your main dashboard",
+  "dashboardSharedCount": "Shared · {count} members"
 }

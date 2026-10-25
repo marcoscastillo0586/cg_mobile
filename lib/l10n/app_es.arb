@@ -951,7 +951,6 @@
   "manageDashboards": "Gestionar dashboards",
   "chooseDashboard": "Elegir dashboard",
   "dashboardSharedTag": "compartido",
-  "dashboardPrincipalTag": "principal",
   "invitationTitle": "Te compartieron un dashboard",
   "invitationBody": "{inviter} ({email}) te invitó a compartir su dashboard \"{dashboard}\".",
   "@invitationBody": {
@@ -1034,7 +1033,6 @@
   "openDashboard": "Abrir",
   "clearDashboard": "Limpiar dashboard",
   "deleteDashboard": "Eliminar dashboard",
-  "saveName": "Guardar nombre",
   "confirmClearDashboard": "Se borran todos los movimientos, tickets y límites de \"{name}\". Se conservan las cuentas y las categorías. No se puede deshacer.",
   "@confirmClearDashboard": {
     "placeholders": {
@@ -1094,5 +1092,14 @@
   "errOwnerCannotLeave": "El dueño no puede salir de su dashboard.",
   "errPrincipalUndeletable": "El dashboard principal no se elimina; se puede limpiar.",
   "errNotPrincipal": "Solo se limpia el dashboard principal; los demás se eliminan.",
-  "errInvitationClosed": "La invitación ya fue respondida."
+  "errInvitationClosed": "La invitación ya fue respondida.",
+  "dashboardIsPrincipal": "Tu dashboard principal",
+  "dashboardSharedCount": "Compartido · {count} integrantes",
+  "@dashboardSharedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

@@ -2887,12 +2887,6 @@ abstract class AppLocalizations {
   /// **'compartido'**
   String get dashboardSharedTag;
 
-  /// No description provided for @dashboardPrincipalTag.
-  ///
-  /// In es, this message translates to:
-  /// **'principal'**
-  String get dashboardPrincipalTag;
-
   /// No description provided for @invitationTitle.
   ///
   /// In es, this message translates to:
@@ -3061,12 +3055,6 @@ abstract class AppLocalizations {
   /// **'Eliminar dashboard'**
   String get deleteDashboard;
 
-  /// No description provided for @saveName.
-  ///
-  /// In es, this message translates to:
-  /// **'Guardar nombre'**
-  String get saveName;
-
   /// No description provided for @confirmClearDashboard.
   ///
   /// In es, this message translates to:
@@ -3198,6 +3186,18 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'La invitación ya fue respondida.'**
   String get errInvitationClosed;
+
+  /// No description provided for @dashboardIsPrincipal.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu dashboard principal'**
+  String get dashboardIsPrincipal;
+
+  /// No description provided for @dashboardSharedCount.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartido · {count} integrantes'**
+  String dashboardSharedCount(int count);
 }
 
 class _AppLocalizationsDelegate

@@ -1627,9 +1627,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get dashboardSharedTag => 'compartido';
 
   @override
-  String get dashboardPrincipalTag => 'principal';
-
-  @override
   String get invitationTitle => 'Te compartieron un dashboard';
 
   @override
@@ -1729,9 +1726,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get deleteDashboard => 'Eliminar dashboard';
 
   @override
-  String get saveName => 'Guardar nombre';
-
-  @override
   String confirmClearDashboard(String name) {
     return 'Se borran todos los movimientos, tickets y límites de \"$name\". Se conservan las cuentas y las categorías. No se puede deshacer.';
   }
@@ -1811,4 +1805,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get errInvitationClosed => 'La invitación ya fue respondida.';
+
+  @override
+  String get dashboardIsPrincipal => 'Tu dashboard principal';
+
+  @override
+  String dashboardSharedCount(int count) {
+    return 'Compartido · $count integrantes';
+  }
 }
