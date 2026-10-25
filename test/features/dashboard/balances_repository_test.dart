@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gastos_mobile/core/errors/exceptions.dart';
 import 'package:gastos_mobile/core/network/dio_client.dart';
+import 'package:gastos_mobile/core/network/server_reachability.dart';
 import 'package:gastos_mobile/features/dashboard/data/repositories/balances_repository.dart';
 import 'package:gastos_mobile/features/movements/data/local_movement_writer.dart';
 import '../../helpers/local_seed.dart';
@@ -45,7 +46,11 @@ class _Rate implements HttpClientAdapter {
 
 void main() {
   late SeededDb s;
-  setUp(() async => s = await seededDb());
+  setUp(() async {
+    // "Sin conexión" se recuerda 30 s (R2): cada prueba empieza con el servidor alcanzable.
+    ServerReachability.markOnline();
+    s = await seededDb();
+  });
   tearDown(() => s.db.close());
 
   BalancesRepository repo(_Rate rate) =>

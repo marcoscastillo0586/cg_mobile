@@ -87,10 +87,11 @@ Future<void> _pump(WidgetTester tester, Widget screen, {SeededDb? db}) async {
     await tester.pumpAndSettle();
     return;
   }
-  // Base real: la E/S de SQLite no avanza con el reloj simulado; se la deja correr y se repinta.
+  // Base real: la E/S de SQLite no avanza con el reloj simulado; se la deja correr, se avanza el reloj
+  // (desde R2 la pantalla consulta antes al servidor) y se repinta.
   for (var i = 0; i < 5; i++) {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
   }
 }
 

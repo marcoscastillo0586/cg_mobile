@@ -114,13 +114,12 @@ void main() {
       expect(op['status'], 'pending');
     });
 
-    test('lo pendiente de enviar cuenta para los fondos de una transferencia posterior', () async {
+    test('una transferencia posterior sin fondos se guarda igual (R2: el servidor decide al enviarla)', () async {
       await writer.createExpense(ExpenseDraft(accountLocalId: banco, date: date, generalConcept: 'x',
           lines: [ExpenseLine(concept: 'a', categoryLocalId: comida, amountCents: 60000)]));
-      await expectRule(
-        () => writer.createTransfer(TransferDraft(fromLocalId: banco, toLocalId: efectivo, amountCents: 40001, date: date)),
-        'INSUFFICIENT_FUNDS',
-      );
+      await writer.createTransfer(TransferDraft(fromLocalId: banco, toLocalId: efectivo, amountCents: 40001, date: date));
+      expect(await balance(banco), 100000 - 60000 - 40001);
+      expect((await lastOp())['status'], 'pending');
     });
 
     test('categorías reservadas o inactivas, cuenta inactiva y datos vacíos se rechazan', () async {
@@ -170,12 +169,13 @@ void main() {
       });
     });
 
-    test('misma cuenta, distinta moneda, cuenta inactiva y sin fondos se rechazan', () async {
+    test('misma cuenta, distinta moneda y cuenta inactiva se rechazan; sin fondos no (lo decide el servidor)', () async {
       TransferDraft t(int from, int to, [int amount = 100]) => TransferDraft(fromLocalId: from, toLocalId: to, amountCents: amount, date: date);
       await expectRule(() => writer.createTransfer(t(banco, banco)), 'SAME_ACCOUNT');
       await expectRule(() => writer.createTransfer(t(banco, dolares)), 'CURRENCY_MISMATCH');
       await expectRule(() => writer.createTransfer(t(cerrada, banco)), 'ACCOUNT_INACTIVE');
-      await expectRule(() => writer.createTransfer(t(efectivo, banco, 5001)), 'INSUFFICIENT_FUNDS');
+      await writer.createTransfer(t(efectivo, banco, 5001));
+      expect(await balance(efectivo), -1);
     });
 
     test('concepto escrito por el usuario se guarda y se envía', () async {

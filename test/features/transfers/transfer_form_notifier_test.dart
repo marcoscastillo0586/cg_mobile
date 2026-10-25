@@ -2,7 +2,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gastos_mobile/core/database/local_catalog.dart';
-import 'package:gastos_mobile/core/errors/failures.dart';
 import 'package:gastos_mobile/features/movements/data/local_movement_writer.dart';
 import 'package:gastos_mobile/features/transfers/presentation/providers/transfer_form_notifier.dart';
 import '../../helpers/local_seed.dart';
@@ -47,12 +46,12 @@ void main() {
     expect(await s.count('outbox', "data LIKE '%\"type\":3%'"), 1);
   });
 
-  test('aviso de fondos y rechazo sin escribir', () async {
+  test('aviso de fondos; el celular no la bloquea: queda en la cola y el servidor decide al enviarla (R2)', () async {
     notifier.setOrigen(s.accounts['Efectivo']!);
     notifier.setMonto(5001);
     expect(notifier.state.fondosInsuficientes, isTrue);
-    expect(await notifier.realizarTransferencia(), isFalse);
-    expect((notifier.state.error! as Failure).code, 'INSUFFICIENT_FUNDS');
-    expect(await s.count('outbox'), 0);
+    expect(await notifier.realizarTransferencia(), isTrue);
+    expect(await s.balance('Efectivo'), -1);
+    expect(await s.count('outbox', "data LIKE '%\"type\":3%'"), 1);
   });
 }

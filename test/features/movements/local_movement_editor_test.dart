@@ -135,13 +135,11 @@ void main() {
       expect((await s.balance('Banco'), await s.balance('Efectivo')), (100000 - 3000 - 1000 - 2000, 5000 + 2000));
     });
 
-    test('dejaría el origen en negativo: INSUFFICIENT_FUNDS y no cambia nada', () async {
-      // Efectivo tiene 7000 (5000 + 2000 de esta transferencia); como origen no puede mandar 7001.
-      await rule(
-        () => editor.updateTransfer(transfer, fromLocalId: s.accounts['Efectivo']!, toLocalId: s.accounts['Banco']!, amountCents: 5001 + 4000),
-        'INSUFFICIENT_FUNDS',
-      );
-      expect(await s.balance('Efectivo'), 7000);
+    test('dejaría el origen en negativo: el celular no lo bloquea (R2: decide el servidor al enviarla)', () async {
+      // Sin la transferencia actual Efectivo tiene 5000; como origen manda 9001 → -4001 y queda en la cola.
+      await editor.updateTransfer(transfer, fromLocalId: s.accounts['Efectivo']!, toLocalId: s.accounts['Banco']!, amountCents: 5001 + 4000);
+      expect(await s.balance('Efectivo'), 5000 - 9001);
+      expect((await lastOp())['status'], 'pending');
     });
   });
 

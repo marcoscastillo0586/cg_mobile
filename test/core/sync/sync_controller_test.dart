@@ -62,7 +62,8 @@ void main() {
     await Future.wait([a, b]);
     expect(server.paths, ['/sync/push']); // un solo envío y sin pull
     final st = container.read(syncControllerProvider);
-    expect((st.status, st.pendingOps), (SyncStatus.attention, 1));
+    // R2: el error temporal del servidor cuenta como "sin conexión" (sin avisos); lo pendiente sigue en la cola.
+    expect((st.status, st.pendingOps), (SyncStatus.offline, 1));
     expect(st.lastPush!.issues.single.code, 'TEMPORARY_ERROR');
   });
 
