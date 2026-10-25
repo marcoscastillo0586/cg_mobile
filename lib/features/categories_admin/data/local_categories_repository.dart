@@ -5,22 +5,26 @@ import '../../../core/errors/failures.dart';
 import '../../../core/sync/local_ops.dart';
 import '../../../core/sync/outbox.dart';
 import '../domain/category_item.dart';
+import '../../../core/auth/current_author.dart';
 
 /// Largo máximo del nombre de categoría (CATEGORY_NAME_MAX de @cg/shared).
 const categoryNameMax = 250;
 
 final localCategoriesRepositoryProvider = Provider<Future<LocalCategoriesRepository>>(
-  (ref) async => LocalCategoriesRepository(await ref.watch(localDatabaseProvider)),
+  (ref) async => LocalCategoriesRepository(await ref.watch(localDatabaseProvider), author: ref.watch(currentAuthorProvider)),
 );
 
 /// Categorías desde la base local, con alta, renombrar, activar/desactivar y baja sin conexión
 /// (outbox). Las reservadas (TRANSFER, INCOME, DEFAULT_TICKET) no se tocan.
 class LocalCategoriesRepository {
   final Database _db;
-  LocalCategoriesRepository(this._db);
+
+  /// Queda como creador de las categorías nuevas (los invitados editan solo las suyas).
+  final LocalAuthor? _author;
+  LocalCategoriesRepository(this._db, {LocalAuthor? author}) : _author = author;
 
   Future<List<CategoryItem>> list() async => (await _db.rawQuery('''
-        SELECT c.local_id, c.server_id, c.name, c.active, c.role, c.version,
+        SELECT c.local_id, c.server_id, c.name, c.active, c.role, c.version, c.created_by_user_id,
                (SELECT COUNT(*) FROM movement_details d JOIN movement_headers h ON h.local_id = d.header_local_id
                  WHERE d.category_local_id = c.local_id AND d.deleted = 0 AND h.deleted = 0) AS movements
         FROM categories c WHERE c.deleted = 0
@@ -32,13 +36,16 @@ class LocalCategoriesRepository {
             role: CategoryRole.parse(r['role']),
             movementsCount: r['movements']! as int,
             version: r['version'] as int?,
+            createdByUserId: r['created_by_user_id'] as int?,
           )).toList();
 
   Future<String> create(String name) => _db.transaction((txn) async {
         final n = _name(name);
         await _assertFreeName(txn, n);
         final clientId = LocalDatabase.newId();
-        await txn.insert('categories', {'client_id': clientId, 'name': n, 'active': 1, 'updated_at': LocalOps.stamp()});
+        await txn.insert('categories', {
+          'client_id': clientId, 'name': n, 'active': 1, 'updated_at': LocalOps.stamp(), 'created_by_user_id': _author?.id,
+        });
         return Outbox.enqueue(txn, entity: 'category', action: 'create', clientId: clientId, data: {'name': n});
       });
 

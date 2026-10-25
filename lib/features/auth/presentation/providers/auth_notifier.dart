@@ -59,6 +59,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Nombre para mostrar. Devuelve el error (para mostrarlo traducido) o null.
+  Future<Object?> updateDisplayName(String name) async {
+    try {
+      final user = await _authRepository.updateDisplayName(name);
+      if (mounted) state = AuthState.authenticated(user);
+      return null;
+    } catch (e) {
+      debugPrint('[AUTH] No se pudo cambiar el nombre: $e');
+      return e;
+    }
+  }
+
   Future<void> logout() async {
     state = AuthState.loading();
     try {

@@ -7,23 +7,27 @@ import '../../../core/sync/local_ops.dart';
 import '../../../core/sync/outbox.dart';
 import '../../../core/widgets/account_avatar.dart';
 import '../domain/account_item.dart';
+import '../../../core/auth/current_author.dart';
 
 /// Largo del nombre de cuenta (ACCOUNT_NAME_MIN/MAX de @cg/shared).
 const accountNameMin = 3;
 const accountNameMax = 25;
 
 final localAccountsRepositoryProvider = Provider<Future<LocalAccountsRepository>>(
-  (ref) async => LocalAccountsRepository(await ref.watch(localDatabaseProvider)),
+  (ref) async => LocalAccountsRepository(await ref.watch(localDatabaseProvider), author: ref.watch(currentAuthorProvider)),
 );
 
 /// Cuentas desde la base local, con alta, edición, activar/desactivar y baja sin conexión
 /// (outbox). Mismas reglas que accounts.service.ts.
 class LocalAccountsRepository {
   final Database _db;
-  LocalAccountsRepository(this._db);
+
+  /// Queda como creador de las cuentas nuevas (los invitados editan solo las suyas).
+  final LocalAuthor? _author;
+  LocalAccountsRepository(this._db, {LocalAuthor? author}) : _author = author;
 
   Future<List<AccountItem>> list() async => (await _db.rawQuery('''
-        SELECT a.local_id, a.server_id, a.name, a.currency, a.active, a.image_url, a.icon_ref, b.balance_cents,
+        SELECT a.local_id, a.server_id, a.name, a.currency, a.active, a.image_url, a.icon_ref, a.created_by_user_id, b.balance_cents,
                (SELECT COUNT(*) FROM movement_details d JOIN movement_headers h ON h.local_id = d.header_local_id
                  WHERE d.account_local_id = a.local_id AND d.deleted = 0 AND h.deleted = 0) AS movements
         FROM accounts a JOIN account_balances b ON b.account_local_id = a.local_id
@@ -38,6 +42,7 @@ class LocalAccountsRepository {
             iconRef: r['icon_ref'] as String?,
             balanceCents: r['balance_cents']! as int,
             movementsCount: r['movements']! as int,
+            createdByUserId: r['created_by_user_id'] as int?,
           )).toList();
 
   Future<String> create({required String name, required Currency currency, String? iconRef}) => _db.transaction((txn) async {
@@ -47,6 +52,7 @@ class LocalAccountsRepository {
         final clientId = LocalDatabase.newId();
         await txn.insert('accounts', {
           'client_id': clientId, 'name': n, 'currency': currency.code, 'active': 1, 'icon_ref': iconRef, 'updated_at': LocalOps.stamp(),
+          'created_by_user_id': _author?.id,
         });
         return Outbox.enqueue(txn, entity: 'account', action: 'create', clientId: clientId, data: {
           'name': n,

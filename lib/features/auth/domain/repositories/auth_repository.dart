@@ -23,6 +23,9 @@ abstract class AuthRepository {
   /// Revoca en el servidor, borra la base local y los datos de sesión. Conserva los ajustes.
   Future<LogoutOutcome> logout();
 
+  /// Cambia el nombre para mostrar en el servidor y en la copia guardada del usuario.
+  Future<UserEntity> updateDisplayName(String name);
+
   /// Emite cuando la sesión expira durante el uso.
   Stream<Object> get onSessionExpired;
 }

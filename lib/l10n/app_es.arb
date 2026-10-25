@@ -945,5 +945,154 @@
       }
     }
   },
-  "changesSaved": "Cambios guardados."
+  "changesSaved": "Cambios guardados.",
+  "dashboardYou": "tú",
+  "dashboards": "Dashboards",
+  "manageDashboards": "Gestionar dashboards",
+  "chooseDashboard": "Elegir dashboard",
+  "dashboardSharedTag": "compartido",
+  "dashboardPrincipalTag": "principal",
+  "invitationTitle": "Te compartieron un dashboard",
+  "invitationBody": "{inviter} ({email}) te invitó a compartir su dashboard \"{dashboard}\".",
+  "@invitationBody": {
+    "placeholders": {
+      "inviter": {
+        "type": "String"
+      },
+      "email": {
+        "type": "String"
+      },
+      "dashboard": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptInvitation": "Aceptar",
+  "rejectInvitation": "Rechazar",
+  "notificationAccepted": "{user} aceptó compartir el dashboard \"{dashboard}\".",
+  "@notificationAccepted": {
+    "placeholders": {
+      "user": {
+        "type": "String"
+      },
+      "dashboard": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationRejected": "{user} rechazó compartir el dashboard \"{dashboard}\".",
+  "@notificationRejected": {
+    "placeholders": {
+      "user": {
+        "type": "String"
+      },
+      "dashboard": {
+        "type": "String"
+      }
+    }
+  },
+  "accessLostNotice": "Ya no tenés acceso a ese dashboard: se muestra tu dashboard principal.",
+  "movementCreatedBy": "Cargado por {name}",
+  "@movementCreatedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "dashboardName": "Nombre del dashboard",
+  "dashboardDefaultName": "principal",
+  "displayName": "Nombre para mostrar",
+  "displayNameHint": "Lo ven las personas con las que compartís un dashboard. No tiene que ser único.",
+  "displayNameSaved": "Nombre guardado.",
+  "yourDashboards": "Tus dashboards",
+  "sharedWithYou": "Compartidos con vos",
+  "newDashboard": "Nuevo dashboard",
+  "createDashboard": "Crear",
+  "shareWithEmail": "Compartir con (correo de un usuario registrado)",
+  "shareDashboard": "Compartir",
+  "invitationSent": "Se envió la invitación a {email}. Cuando la acepte o la rechace te llega un aviso.",
+  "@invitationSent": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "dashboardMembers": "Integrantes",
+  "ownerTag": "dueño",
+  "ownedBy": "de {name}",
+  "@ownedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "removeAccess": "Quitar acceso",
+  "leaveDashboard": "Salir",
+  "openDashboard": "Abrir",
+  "clearDashboard": "Limpiar dashboard",
+  "deleteDashboard": "Eliminar dashboard",
+  "saveName": "Guardar nombre",
+  "confirmClearDashboard": "Se borran todos los movimientos, tickets y límites de \"{name}\". Se conservan las cuentas y las categorías. No se puede deshacer.",
+  "@confirmClearDashboard": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmDeleteDashboard": "Se elimina \"{name}\" con todo su contenido y se quita el acceso a todos los invitados. No se puede deshacer.",
+  "@confirmDeleteDashboard": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmLeaveDashboard": "Dejás de ver \"{name}\". Para volver, el dueño te tiene que invitar de nuevo.",
+  "@confirmLeaveDashboard": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmRemoveMember": "{user} deja de ver \"{name}\".",
+  "@confirmRemoveMember": {
+    "placeholders": {
+      "user": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "dashboardCreated": "Se creó el dashboard \"{name}\".",
+  "@dashboardCreated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "dashboardRenamed": "Se cambió el nombre.",
+  "dashboardClearedMsg": "Se limpió el dashboard.",
+  "dashboardDeletedMsg": "Se eliminó el dashboard.",
+  "dashboardLeftMsg": "Saliste del dashboard.",
+  "accessRemovedMsg": "Se quitó el acceso.",
+  "dashboardsNeedConnection": "Administrar y compartir dashboards necesita conexión.",
+  "noNotifications2": "No tenés avisos.",
+  "errDashboardForbidden": "No tenés acceso a ese dashboard.",
+  "errNotCreator": "Solo quien lo cargó puede modificarlo.",
+  "errOwnerOnly": "Solo el dueño del dashboard puede hacer esto.",
+  "errUserNotRegistered": "Solo se puede compartir con usuarios registrados.",
+  "errAlreadyMember": "Esa persona ya tiene acceso a este dashboard.",
+  "errSelfInvite": "No podés compartir un dashboard con vos mismo.",
+  "errOwnerCannotLeave": "El dueño no puede salir de su dashboard.",
+  "errPrincipalUndeletable": "El dashboard principal no se elimina; se puede limpiar.",
+  "errNotPrincipal": "Solo se limpia el dashboard principal; los demás se eliminan.",
+  "errInvitationClosed": "La invitación ya fue respondida."
 }

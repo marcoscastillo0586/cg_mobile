@@ -2,15 +2,19 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/presentation/providers/auth_notifier.dart';
 import '../../features/auth/presentation/providers/auth_state.dart';
+import '../dashboards/current_dashboard.dart';
+import '../dashboards/dashboard_switch.dart';
 
-/// Estado de sesión con el que arranca un contenedor nuevo (después de cerrar sesión), en lugar
-/// de volver a consultar el almacenamiento. null = arranque normal de la app.
+/// Estado de sesión con el que arranca un contenedor nuevo (después de cerrar sesión o de cambiar
+/// de dashboard), en lugar de volver a consultar el almacenamiento. null = arranque normal de la app.
 final initialAuthStateProvider = Provider<AuthState?>((ref) => null);
 
-/// Raíz de providers de la app. Cuando la sesión deja de estar autenticada (cierre de sesión o
-/// sesión expirada) descarta TODO el contenedor y crea uno nuevo: ningún provider conserva datos
-/// del usuario anterior en memoria ni la base local ya cerrada y borrada. El contenedor nuevo
-/// arranca con el estado de sesión ya resuelto (incluido el aviso de logout sin red).
+/// Raíz de providers de la app. Descarta TODO el contenedor y crea uno nuevo cuando:
+///  - la sesión deja de estar autenticada (cierre de sesión o sesión expirada): ningún provider
+///    conserva datos del usuario anterior ni la base local ya cerrada y borrada;
+///  - cambia el dashboard elegido ([CurrentDashboard]): ningún provider conserva datos del dashboard
+///    anterior y el contenedor nuevo abre la base local del elegido.
+/// El contenedor nuevo arranca con el estado de sesión ya resuelto.
 class SessionScope extends StatefulWidget {
   final Widget child;
 
@@ -24,14 +28,26 @@ class SessionScope extends StatefulWidget {
 }
 
 class _SessionScopeState extends State<SessionScope> {
-  late ProviderContainer _container;
+  ProviderContainer? _container;
   ProviderSubscription<AuthState>? _auth;
   var _wasAuthenticated = false;
+
+  /// Usuario al que pertenece la elección guardada (para descartarla si inicia sesión otro).
+  int? _choiceOwner;
+
+  /// El cambio de dashboard lo provoca el propio cierre de sesión: no hay que recrear dos veces.
+  var _resetting = false;
 
   @override
   void initState() {
     super.initState();
-    _container = _create(null);
+    CurrentDashboard.id.addListener(_onDashboardChanged);
+    // La elección guardada se aplica antes de crear el contenedor: nada abre otra base primero.
+    CurrentDashboard.restore().then((owner) {
+      if (!mounted) return;
+      _choiceOwner = owner;
+      setState(() => _container = _create(null));
+    });
   }
 
   ProviderContainer _create(AuthState? initial) {
@@ -43,6 +59,13 @@ class _SessionScopeState extends State<SessionScope> {
     _auth = c.listen<AuthState>(authNotifierProvider, (_, next) {
       if (next.isAuthenticated) {
         _wasAuthenticated = true;
+        final userId = next.user?.idUsuario;
+        DashboardSwitch.userId = userId;
+        // La elección guardada era de otro usuario: vuelve a su principal.
+        if (_choiceOwner != null && userId != null && _choiceOwner != userId) {
+          _choiceOwner = userId;
+          if (CurrentDashboard.id.value != null) WidgetsBinding.instance.addPostFrameCallback((_) => DashboardSwitch.select(null));
+        }
       } else if (_wasAuthenticated && (next.status == AuthStatus.unauthenticated || next.status == AuthStatus.error)) {
         _reset(next);
       }
@@ -50,22 +73,41 @@ class _SessionScopeState extends State<SessionScope> {
     return c;
   }
 
+  void _onDashboardChanged() {
+    final current = _container;
+    if (_resetting || current == null || !_wasAuthenticated) return;
+    _replace(current.read(authNotifierProvider));
+  }
+
   void _reset(AuthState state) {
+    _resetting = true;
+    DashboardSwitch.userId = null;
+    _choiceOwner = null;
+    CurrentDashboard.id.value = null; // el próximo inicio de sesión arranca en su principal
+    _resetting = false;
+    _replace(state);
+  }
+
+  void _replace(AuthState state) {
     final old = _container;
     _auth?.close();
     setState(() => _container = _create(state));
     // El árbol viejo se desmonta en este frame: recién después se libera su contenedor.
-    WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+    if (old != null) WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
   }
 
   @override
   void dispose() {
+    CurrentDashboard.id.removeListener(_onDashboardChanged);
     _auth?.close();
-    _container.dispose();
+    _container?.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) =>
-      UncontrolledProviderScope(key: ObjectKey(_container), container: _container, child: widget.child);
+  Widget build(BuildContext context) {
+    final container = _container;
+    if (container == null) return const SizedBox.shrink();
+    return UncontrolledProviderScope(key: ObjectKey(container), container: container, child: widget.child);
+  }
 }

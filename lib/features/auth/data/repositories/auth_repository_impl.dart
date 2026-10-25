@@ -9,12 +9,17 @@ import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
 import '../models/user_model.dart';
+import '../../../../core/dashboards/current_dashboard.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(
     ref.watch(authRemoteDataSourceProvider),
     ref.watch(secureStorageServiceProvider),
-    LocalDatabase.deleteAll,
+    () async {
+      // Todas las bases locales (una por dashboard) y el dashboard elegido; se conservan los ajustes.
+      await LocalDatabase.deleteAll();
+      await CurrentDashboard.forget();
+    },
   );
 });
 
@@ -27,6 +32,13 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Stream<Object> get onSessionExpired => _remote.onExpired;
+
+  @override
+  Future<UserEntity> updateDisplayName(String name) async {
+    final user = await _remote.updateName(name);
+    await _storage.saveUserJson(jsonEncode(user.toJson()));
+    return user;
+  }
 
   @override
   Future<UserEntity> login(String email, String password) async {

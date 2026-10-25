@@ -4,6 +4,7 @@ import '../../../../core/utils/app_feedback.dart';
 import '../providers/novedades_notifier.dart';
 import 'novedades_bottom_sheet.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../dashboards/presentation/dashboards_notifier.dart';
 
 class NotificationBellWidget extends ConsumerWidget {
   const NotificationBellWidget({super.key});
@@ -11,8 +12,10 @@ class NotificationBellWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(novedadesNotifierProvider);
-    final hasUnread = state.hasUnread;
-    final dotColor = state.gravedadMaxColor;
+    // Avisos del servidor (aceptó / rechazó una invitación) también cuentan como no leídos.
+    final avisos = ref.watch(dashboardsNotifierProvider.select((s) => s.notifications.length));
+    final hasUnread = state.hasUnread || avisos > 0;
+    final dotColor = state.hasUnread ? state.gravedadMaxColor : Theme.of(context).colorScheme.primary;
 
     return Stack(
       alignment: Alignment.center,

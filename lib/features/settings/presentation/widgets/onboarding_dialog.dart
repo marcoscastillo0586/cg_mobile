@@ -6,7 +6,7 @@ import '../../../../l10n/l10n.dart';
 class OnboardingDialog extends StatefulWidget {
   final String initialMoneda;
   final String initialIdioma;
-  final void Function({required String moneda, required String idioma}) onConfirmar;
+  final void Function({required String moneda, required String idioma, required String nombreDashboard}) onConfirmar;
 
   const OnboardingDialog({
     super.key,
@@ -23,11 +23,26 @@ class _OnboardingDialogState extends State<OnboardingDialog> {
   late String _selectedMoneda;
   late String _selectedIdioma;
 
+  /// Nombre del dashboard principal ("principal" por defecto).
+  TextEditingController? _nombreDashboard;
+
   @override
   void initState() {
     super.initState();
     _selectedMoneda = widget.initialMoneda;
     _selectedIdioma = widget.initialIdioma;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _nombreDashboard ??= TextEditingController(text: context.l10n.dashboardDefaultName);
+  }
+
+  @override
+  void dispose() {
+    _nombreDashboard?.dispose();
+    super.dispose();
   }
 
   @override
@@ -100,6 +115,24 @@ class _OnboardingDialogState extends State<OnboardingDialog> {
                 if (val != null) setState(() => _selectedIdioma = val);
               },
             ),
+            const SizedBox(height: 16),
+
+            // 3. Nombre del dashboard
+            Text(
+              '3. ${context.l10n.dashboardName}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const ValueKey('onboarding-nombre-dashboard'),
+              controller: _nombreDashboard,
+              maxLength: 100,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                counterText: '',
+              ),
+            ),
           ],
         ),
       ),
@@ -111,7 +144,12 @@ class _OnboardingDialogState extends State<OnboardingDialog> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           onPressed: () {
-            widget.onConfirmar(moneda: _selectedMoneda, idioma: _selectedIdioma);
+            final nombre = _nombreDashboard?.text.trim() ?? '';
+            widget.onConfirmar(
+              moneda: _selectedMoneda,
+              idioma: _selectedIdioma,
+              nombreDashboard: nombre.isEmpty ? context.l10n.dashboardDefaultName : nombre,
+            );
             Navigator.of(context).pop();
           },
           child: Text(context.l10n.start, style: const TextStyle(fontWeight: FontWeight.bold)),

@@ -147,12 +147,14 @@ class PullService {
         'active': a['active'] == true ? 1 : 0,
         'icon_ref': a['iconRef'],
         'image_url': a['imageUrl'],
+        'created_by_user_id': a['createdByUserId'],
       });
 
   Future<void> _upsertCategory(Transaction txn, Map<String, dynamic> c) => _upsert(txn, 'categories', c, {
         'name': c['name'],
         'active': c['active'] == true ? 1 : 0,
         'role': c['role'],
+        'created_by_user_id': c['createdByUserId'],
       });
 
   Future<void> _upsertBudget(Transaction txn, Map<String, dynamic> b) async {
@@ -198,7 +200,13 @@ class PullService {
     final existing = [for (final m in movements) byServer[m['id']] ?? byClient[m['clientId']]];
     final headers = txn.batch();
     for (final (i, m) in movements.indexed) {
-      final row = _row(m, {'type': m['type'], 'occurred_at': m['occurredAt'], 'general_concept': m['generalConcept']});
+      final row = _row(m, {
+        'type': m['type'],
+        'occurred_at': m['occurredAt'],
+        'general_concept': m['generalConcept'],
+        'created_by_user_id': m['createdByUserId'],
+        'created_by_name': m['createdByName'],
+      });
       final localId = existing[i];
       if (localId == null) {
         headers.insert('movement_headers', row);

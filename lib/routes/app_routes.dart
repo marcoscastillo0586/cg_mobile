@@ -13,6 +13,7 @@ class AppRoutes {
   static const String accountsAdmin = '/admin/accounts';
   static const String categoriesAdmin = '/admin/categories';
   static const String limitsAdmin = '/admin/limits';
+  static const String dashboardsAdmin = '/admin/dashboards';
   static const String analytics = '/analytics';
   static const String settings = '/settings';
   static const String syncPending = '/sync/pending';

@@ -101,6 +101,8 @@ class MovementsRepository {
         details: details.map(_detail).toList(),
         fromAccountId: json['fromAccountId'] as int?,
         toAccountId: json['toAccountId'] as int?,
+        createdByUserId: json['createdByUserId'] as int?,
+        createdByName: json['createdByName'] as String?,
       );
     } on ArgumentError catch (e) {
       throw ServerException('Respuesta inesperada del servidor (${e.message})', null, 'UNEXPECTED_RESPONSE');

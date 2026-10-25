@@ -71,6 +71,10 @@ class MovementItem extends Equatable {
   final int? fromAccountId;
   final int? toAccountId;
 
+  /// Quién lo cargó (el único que lo edita o lo borra) y su nombre para mostrar actual.
+  final int? createdByUserId;
+  final String? createdByName;
+
   const MovementItem({
     required this.id,
     required this.type,
@@ -83,6 +87,8 @@ class MovementItem extends Equatable {
     required this.details,
     required this.fromAccountId,
     required this.toAccountId,
+    this.createdByUserId,
+    this.createdByName,
   });
 
   /// Moneda del comprobante (la de su primer renglón; la API no mezcla monedas).
@@ -90,7 +96,7 @@ class MovementItem extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, type, occurredAt, generalConcept, accountNames, amountCents, detailsCount, partialDetails, details, fromAccountId, toAccountId];
+      [id, type, occurredAt, generalConcept, accountNames, amountCents, detailsCount, partialDetails, details, fromAccountId, toAccountId, createdByUserId, createdByName];
 }
 
 class MovementsPage extends Equatable {

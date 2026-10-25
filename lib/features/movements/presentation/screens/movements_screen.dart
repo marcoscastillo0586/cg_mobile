@@ -14,6 +14,8 @@ import '../providers/movement_list_notifier.dart';
 import '../providers/movement_list_state.dart';
 import '../widgets/movement_card.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../auth/presentation/providers/auth_notifier.dart';
+import '../../../dashboards/presentation/dashboards_notifier.dart';
 
 class MovementsScreen extends ConsumerStatefulWidget {
   final int? initialLugarId;
@@ -73,6 +75,7 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(movementListNotifierProvider);
+    ref.watch(dashboardsNotifierProvider.select((s) => s.dashboards)); // "Cargado por" al llegar la lista
     final notifier = ref.read(movementListNotifierProvider.notifier);
     // La sincronización automática trajo movimientos nuevos o borrados: se actualiza la lista.
     ref.listen<SyncState>(syncControllerProvider, (prev, next) {
@@ -183,8 +186,13 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
             return const SizedBox(height: 8);
           }
           final item = state.movimientos[i];
+          final userId = ref.read(authNotifierProvider).user?.idUsuario;
           return MovementCard(
             item: item,
+            // Dashboard compartido: quién lo cargó; solo esa persona lo edita o lo borra (sin dato
+            // del servidor todavía = cargado en este celular).
+            showAuthor: ref.read(dashboardsNotifierProvider.notifier).current?.shared ?? false,
+            canEdit: item.createdByUserId == null || item.createdByUserId == userId,
             // Edición y borrado por la outbox (funcionan sin conexión; el envío lo hace el sincronizador).
             onEditar: () async {
               await context.push(AppRoutes.movementEdit(item.id));

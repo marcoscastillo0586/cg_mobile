@@ -2856,6 +2856,348 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Cambios guardados.'**
   String get changesSaved;
+
+  /// No description provided for @dashboardYou.
+  ///
+  /// In es, this message translates to:
+  /// **'tú'**
+  String get dashboardYou;
+
+  /// No description provided for @dashboards.
+  ///
+  /// In es, this message translates to:
+  /// **'Dashboards'**
+  String get dashboards;
+
+  /// No description provided for @manageDashboards.
+  ///
+  /// In es, this message translates to:
+  /// **'Gestionar dashboards'**
+  String get manageDashboards;
+
+  /// No description provided for @chooseDashboard.
+  ///
+  /// In es, this message translates to:
+  /// **'Elegir dashboard'**
+  String get chooseDashboard;
+
+  /// No description provided for @dashboardSharedTag.
+  ///
+  /// In es, this message translates to:
+  /// **'compartido'**
+  String get dashboardSharedTag;
+
+  /// No description provided for @dashboardPrincipalTag.
+  ///
+  /// In es, this message translates to:
+  /// **'principal'**
+  String get dashboardPrincipalTag;
+
+  /// No description provided for @invitationTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Te compartieron un dashboard'**
+  String get invitationTitle;
+
+  /// No description provided for @invitationBody.
+  ///
+  /// In es, this message translates to:
+  /// **'{inviter} ({email}) te invitó a compartir su dashboard \"{dashboard}\".'**
+  String invitationBody(String inviter, String email, String dashboard);
+
+  /// No description provided for @acceptInvitation.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar'**
+  String get acceptInvitation;
+
+  /// No description provided for @rejectInvitation.
+  ///
+  /// In es, this message translates to:
+  /// **'Rechazar'**
+  String get rejectInvitation;
+
+  /// No description provided for @notificationAccepted.
+  ///
+  /// In es, this message translates to:
+  /// **'{user} aceptó compartir el dashboard \"{dashboard}\".'**
+  String notificationAccepted(String user, String dashboard);
+
+  /// No description provided for @notificationRejected.
+  ///
+  /// In es, this message translates to:
+  /// **'{user} rechazó compartir el dashboard \"{dashboard}\".'**
+  String notificationRejected(String user, String dashboard);
+
+  /// No description provided for @accessLostNotice.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya no tenés acceso a ese dashboard: se muestra tu dashboard principal.'**
+  String get accessLostNotice;
+
+  /// No description provided for @movementCreatedBy.
+  ///
+  /// In es, this message translates to:
+  /// **'Cargado por {name}'**
+  String movementCreatedBy(String name);
+
+  /// No description provided for @dashboardName.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre del dashboard'**
+  String get dashboardName;
+
+  /// No description provided for @dashboardDefaultName.
+  ///
+  /// In es, this message translates to:
+  /// **'principal'**
+  String get dashboardDefaultName;
+
+  /// No description provided for @displayName.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre para mostrar'**
+  String get displayName;
+
+  /// No description provided for @displayNameHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Lo ven las personas con las que compartís un dashboard. No tiene que ser único.'**
+  String get displayNameHint;
+
+  /// No description provided for @displayNameSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre guardado.'**
+  String get displayNameSaved;
+
+  /// No description provided for @yourDashboards.
+  ///
+  /// In es, this message translates to:
+  /// **'Tus dashboards'**
+  String get yourDashboards;
+
+  /// No description provided for @sharedWithYou.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartidos con vos'**
+  String get sharedWithYou;
+
+  /// No description provided for @newDashboard.
+  ///
+  /// In es, this message translates to:
+  /// **'Nuevo dashboard'**
+  String get newDashboard;
+
+  /// No description provided for @createDashboard.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear'**
+  String get createDashboard;
+
+  /// No description provided for @shareWithEmail.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartir con (correo de un usuario registrado)'**
+  String get shareWithEmail;
+
+  /// No description provided for @shareDashboard.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartir'**
+  String get shareDashboard;
+
+  /// No description provided for @invitationSent.
+  ///
+  /// In es, this message translates to:
+  /// **'Se envió la invitación a {email}. Cuando la acepte o la rechace te llega un aviso.'**
+  String invitationSent(String email);
+
+  /// No description provided for @dashboardMembers.
+  ///
+  /// In es, this message translates to:
+  /// **'Integrantes'**
+  String get dashboardMembers;
+
+  /// No description provided for @ownerTag.
+  ///
+  /// In es, this message translates to:
+  /// **'dueño'**
+  String get ownerTag;
+
+  /// No description provided for @ownedBy.
+  ///
+  /// In es, this message translates to:
+  /// **'de {name}'**
+  String ownedBy(String name);
+
+  /// No description provided for @removeAccess.
+  ///
+  /// In es, this message translates to:
+  /// **'Quitar acceso'**
+  String get removeAccess;
+
+  /// No description provided for @leaveDashboard.
+  ///
+  /// In es, this message translates to:
+  /// **'Salir'**
+  String get leaveDashboard;
+
+  /// No description provided for @openDashboard.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir'**
+  String get openDashboard;
+
+  /// No description provided for @clearDashboard.
+  ///
+  /// In es, this message translates to:
+  /// **'Limpiar dashboard'**
+  String get clearDashboard;
+
+  /// No description provided for @deleteDashboard.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar dashboard'**
+  String get deleteDashboard;
+
+  /// No description provided for @saveName.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar nombre'**
+  String get saveName;
+
+  /// No description provided for @confirmClearDashboard.
+  ///
+  /// In es, this message translates to:
+  /// **'Se borran todos los movimientos, tickets y límites de \"{name}\". Se conservan las cuentas y las categorías. No se puede deshacer.'**
+  String confirmClearDashboard(String name);
+
+  /// No description provided for @confirmDeleteDashboard.
+  ///
+  /// In es, this message translates to:
+  /// **'Se elimina \"{name}\" con todo su contenido y se quita el acceso a todos los invitados. No se puede deshacer.'**
+  String confirmDeleteDashboard(String name);
+
+  /// No description provided for @confirmLeaveDashboard.
+  ///
+  /// In es, this message translates to:
+  /// **'Dejás de ver \"{name}\". Para volver, el dueño te tiene que invitar de nuevo.'**
+  String confirmLeaveDashboard(String name);
+
+  /// No description provided for @confirmRemoveMember.
+  ///
+  /// In es, this message translates to:
+  /// **'{user} deja de ver \"{name}\".'**
+  String confirmRemoveMember(String user, String name);
+
+  /// No description provided for @dashboardCreated.
+  ///
+  /// In es, this message translates to:
+  /// **'Se creó el dashboard \"{name}\".'**
+  String dashboardCreated(String name);
+
+  /// No description provided for @dashboardRenamed.
+  ///
+  /// In es, this message translates to:
+  /// **'Se cambió el nombre.'**
+  String get dashboardRenamed;
+
+  /// No description provided for @dashboardClearedMsg.
+  ///
+  /// In es, this message translates to:
+  /// **'Se limpió el dashboard.'**
+  String get dashboardClearedMsg;
+
+  /// No description provided for @dashboardDeletedMsg.
+  ///
+  /// In es, this message translates to:
+  /// **'Se eliminó el dashboard.'**
+  String get dashboardDeletedMsg;
+
+  /// No description provided for @dashboardLeftMsg.
+  ///
+  /// In es, this message translates to:
+  /// **'Saliste del dashboard.'**
+  String get dashboardLeftMsg;
+
+  /// No description provided for @accessRemovedMsg.
+  ///
+  /// In es, this message translates to:
+  /// **'Se quitó el acceso.'**
+  String get accessRemovedMsg;
+
+  /// No description provided for @dashboardsNeedConnection.
+  ///
+  /// In es, this message translates to:
+  /// **'Administrar y compartir dashboards necesita conexión.'**
+  String get dashboardsNeedConnection;
+
+  /// No description provided for @noNotifications2.
+  ///
+  /// In es, this message translates to:
+  /// **'No tenés avisos.'**
+  String get noNotifications2;
+
+  /// No description provided for @errDashboardForbidden.
+  ///
+  /// In es, this message translates to:
+  /// **'No tenés acceso a ese dashboard.'**
+  String get errDashboardForbidden;
+
+  /// No description provided for @errNotCreator.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo quien lo cargó puede modificarlo.'**
+  String get errNotCreator;
+
+  /// No description provided for @errOwnerOnly.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo el dueño del dashboard puede hacer esto.'**
+  String get errOwnerOnly;
+
+  /// No description provided for @errUserNotRegistered.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo se puede compartir con usuarios registrados.'**
+  String get errUserNotRegistered;
+
+  /// No description provided for @errAlreadyMember.
+  ///
+  /// In es, this message translates to:
+  /// **'Esa persona ya tiene acceso a este dashboard.'**
+  String get errAlreadyMember;
+
+  /// No description provided for @errSelfInvite.
+  ///
+  /// In es, this message translates to:
+  /// **'No podés compartir un dashboard con vos mismo.'**
+  String get errSelfInvite;
+
+  /// No description provided for @errOwnerCannotLeave.
+  ///
+  /// In es, this message translates to:
+  /// **'El dueño no puede salir de su dashboard.'**
+  String get errOwnerCannotLeave;
+
+  /// No description provided for @errPrincipalUndeletable.
+  ///
+  /// In es, this message translates to:
+  /// **'El dashboard principal no se elimina; se puede limpiar.'**
+  String get errPrincipalUndeletable;
+
+  /// No description provided for @errNotPrincipal.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo se limpia el dashboard principal; los demás se eliminan.'**
+  String get errNotPrincipal;
+
+  /// No description provided for @errInvitationClosed.
+  ///
+  /// In es, this message translates to:
+  /// **'La invitación ya fue respondida.'**
+  String get errInvitationClosed;
 }
 
 class _AppLocalizationsDelegate

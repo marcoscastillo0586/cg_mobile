@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,8 @@ import '../auth/session_providers.dart';
 import 'auth_interceptor.dart';
 import 'server_reachability.dart';
 import 'transport_guard.dart';
+import '../dashboards/current_dashboard.dart';
+import '../dashboards/dashboard_switch.dart';
 
 final dioClientProvider = Provider<DioClient>((ref) {
   final session = ref.watch(sessionManagerProvider);
@@ -47,6 +50,12 @@ class DioClient {
     );
     // Primero: ninguna petición sale por HTTP fuera de lo permitido (ver TransportGuard).
     dio.interceptors.add(TransportGuard());
+    // Dashboard elegido (sin header: el principal del usuario). Las rutas del usuario lo ignoran.
+    dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+      final dashboardId = CurrentDashboard.id.value;
+      if (dashboardId != null) options.headers['X-Dashboard-Id'] = '$dashboardId';
+      handler.next(options);
+    }));
     return dio;
   }
 
@@ -77,6 +86,11 @@ class DioClient {
       return response.data;
     } on DioException catch (e) {
       final error = mapDioError(e);
+      // Ya no hay acceso al dashboard elegido: se borran sus datos del celular y se vuelve al principal.
+      final dashboardId = CurrentDashboard.id.value;
+      if (error is ServerException && error.code == 'DASHBOARD_FORBIDDEN' && dashboardId != null) {
+        unawaited(DashboardSwitch.lost(dashboardId));
+      }
       if (ServerReachability.isOfflineError(error)) {
         ServerReachability.markOffline();
       } else if (e.response != null) {

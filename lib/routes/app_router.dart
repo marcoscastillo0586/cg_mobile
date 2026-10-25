@@ -20,6 +20,7 @@ import '../features/settings/presentation/screens/settings_screen.dart';
 import '../features/sync/presentation/pending_operations_screen.dart';
 import '../core/sync/outbox_repository.dart';
 import 'app_routes.dart';
+import '../features/dashboards/presentation/dashboards_admin_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -108,6 +109,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.analytics,
         builder: (context, state) => const AnalyticsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.dashboardsAdmin,
+        builder: (context, state) => const DashboardsAdminScreen(),
       ),
       GoRoute(
         path: AppRoutes.settings,

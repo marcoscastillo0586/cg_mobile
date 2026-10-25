@@ -11,11 +11,19 @@ class MovementCard extends StatelessWidget {
   final VoidCallback onEditar;
   final VoidCallback onEliminar;
 
+  /// Dashboard compartido: tercer renglón con quién lo cargó.
+  final bool showAuthor;
+
+  /// Solo quien lo cargó lo edita o lo borra.
+  final bool canEdit;
+
   const MovementCard({
     super.key,
     required this.item,
     required this.onEditar,
     required this.onEliminar,
+    this.showAuthor = false,
+    this.canEdit = true,
   });
 
   (IconData, Color, String) _tipo(AppLocalizations l) => switch (item.type) {
@@ -39,11 +47,24 @@ class MovementCard extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
         ),
-        subtitle: Text(
-          '${AppDateUtils.formatDateTimeString(item.occurredAt)} · ${item.accountNames.join(' → ')}',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 12),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${AppDateUtils.formatDateTimeString(item.occurredAt)} · ${item.accountNames.join(' → ')}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12),
+            ),
+            if (showAuthor && (item.createdByName ?? '').isNotEmpty)
+              Text(
+                context.l10n.movementCreatedBy(item.createdByName!),
+                key: ValueKey('mov-autor-${item.id}'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
+              ),
+          ],
         ),
         trailing: Text(
           Money.format(item.amountCents, currency: item.currency),
@@ -64,7 +85,8 @@ class MovementCard extends StatelessWidget {
                 style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
               ),
             ),
-          Row(
+          if (canEdit)
+            Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton.icon(onPressed: onEditar, icon: const Icon(Icons.edit_outlined, size: 18), label: Text(context.l10n.edit)),

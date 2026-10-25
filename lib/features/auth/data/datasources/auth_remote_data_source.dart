@@ -30,6 +30,15 @@ class AuthRemoteDataSource {
     return UserModel.fromJson(data);
   }
 
+  /// Cambia el nombre para mostrar (lo ven los integrantes de un dashboard compartido).
+  Future<UserModel> updateName(String name) async {
+    final data = await _client.patch(ApiEndpoints.me, data: {'name': name});
+    if (data is! Map<String, dynamic>) {
+      throw const ServerException('Respuesta inesperada de /auth/me', null, 'UNEXPECTED_RESPONSE');
+    }
+    return UserModel.fromJson(data);
+  }
+
   Future<bool> hasSession() => _session.hasSession();
 
   Future<void> refresh() => _session.refresh();

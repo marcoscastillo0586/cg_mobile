@@ -6,6 +6,7 @@ import '../../../core/errors/failures.dart';
 import '../../../core/money/money.dart';
 import '../../../core/sync/outbox.dart';
 import '../../../l10n/l10n.dart';
+import '../../../core/auth/current_author.dart';
 
 /// Largo máximo de un concepto (CONCEPT_MAX de @cg/shared).
 const conceptMax = 150;
@@ -53,7 +54,7 @@ class SavedMovement {
 }
 
 final localMovementWriterProvider = Provider<Future<LocalMovementWriter>>(
-  (ref) async => LocalMovementWriter(await ref.watch(localDatabaseProvider)),
+  (ref) async => LocalMovementWriter(await ref.watch(localDatabaseProvider), author: ref.watch(currentAuthorProvider)),
 );
 
 /// Altas de egresos, ingresos y transferencias SIN red: escriben el comprobante en SQLite y
@@ -64,7 +65,12 @@ class LocalMovementWriter {
   final Database _db;
   final DateTime Function() _now;
 
-  LocalMovementWriter(this._db, {DateTime Function()? now}) : _now = now ?? DateTime.now;
+  /// Autor de lo que se carga (null en tests: sin autor hasta la descarga).
+  final LocalAuthor? _author;
+
+  LocalMovementWriter(this._db, {DateTime Function()? now, LocalAuthor? author})
+      : _now = now ?? DateTime.now,
+        _author = author;
 
   /// [replacingSeq]: corrige un alta rechazada (la reemplaza en la misma transacción).
   Future<SavedMovement> createExpense(ExpenseDraft d, {int? replacingSeq}) => _db.transaction((txn) async {
@@ -208,6 +214,8 @@ class LocalMovementWriter {
         'type': type,
         'occurred_at': '${_isoDate(date)} ${_argentinaTime()}',
         'general_concept': concept,
+        'created_by_user_id': _author?.id,
+        'created_by_name': _author?.name,
         'updated_at': _now().toUtc().toIso8601String(),
       });
 

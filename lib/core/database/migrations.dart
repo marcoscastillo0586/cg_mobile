@@ -165,6 +165,16 @@ CREATE TABLE sync_state (
     "ALTER TABLE sync_state ADD COLUMN rate_sell_cents INTEGER CHECK (rate_sell_cents IS NULL OR (typeof(rate_sell_cents) = 'integer' AND rate_sell_cents > 0))",
     'ALTER TABLE sync_state ADD COLUMN rate_received_at TEXT',
   ]),
+  Migration(5, 'Dashboards compartidos: quién creó movimientos, cuentas y categorías', [
+    // Autor (id y nombre para mostrar actual) de cada comprobante: se muestra en dashboards compartidos
+    // y solo quien lo creó lo edita o lo borra. En cuentas y categorías, para "editar las propias".
+    'ALTER TABLE movement_headers ADD COLUMN created_by_user_id INTEGER',
+    'ALTER TABLE movement_headers ADD COLUMN created_by_name TEXT',
+    'ALTER TABLE accounts ADD COLUMN created_by_user_id INTEGER',
+    'ALTER TABLE categories ADD COLUMN created_by_user_id INTEGER',
+    // Lo ya descargado no trae autor: la próxima descarga es completa y lo completa.
+    'UPDATE sync_state SET cursor = NULL',
+  ]),
 ];
 
 /// Versión de esquema que espera esta compilación de la app.

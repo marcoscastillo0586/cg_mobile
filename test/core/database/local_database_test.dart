@@ -41,7 +41,7 @@ void main() {
   test('creación desde cero: versión, tablas, vista y fila única de sync_state', () async {
     final db = await _fresh();
     expect(await db.getVersion(), latestSchemaVersion);
-    expect(latestSchemaVersion, 4);
+    expect(latestSchemaVersion, 5);
     final names = (await db.rawQuery("SELECT name FROM sqlite_master WHERE type IN ('table','view')"))
         .map((r) => r['name'])
         .toSet();

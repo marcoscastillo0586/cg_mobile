@@ -10,6 +10,8 @@ import '../../domain/category_item.dart';
 import '../providers/categories_admin_notifier.dart';
 import '../providers/categories_admin_state.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../auth/presentation/providers/auth_notifier.dart';
+import '../../../dashboards/presentation/dashboards_notifier.dart';
 
 class CategoriesAdminScreen extends ConsumerStatefulWidget {
   const CategoriesAdminScreen({super.key});
@@ -122,10 +124,20 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
       itemCount: lista.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, i) => _CategoryTile(item: lista[i], onAction: (a) => _accion(context, lista[i], a)),
+      itemBuilder: (_, i) => _CategoryTile(
+        item: lista[i],
+        canEdit: _canEdit(lista[i].createdByUserId),
+        isOwner: _isOwner(),
+        onAction: (a) => _accion(context, lista[i], a),
+      ),
     );
   }
 
+
+  /// Dashboard compartido (docs/dashboards.md de CG): el dueño maneja todas; un invitado edita las que
+  /// creó y no elimina. Sin dato del servidor todavía = creada en este celular.
+  bool _isOwner() => ref.read(dashboardsNotifierProvider.notifier).current?.isOwner ?? true;
+  bool _canEdit(int? createdBy) => _isOwner() || createdBy == null || createdBy == ref.read(authNotifierProvider).user?.idUsuario;
   Future<void> _accion(BuildContext context, CategoryItem item, String accion) async {
     final notifier = ref.read(categoriesAdminNotifierProvider.notifier);
     switch (accion) {
@@ -196,7 +208,12 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
 class _CategoryTile extends StatelessWidget {
   final CategoryItem item;
   final ValueChanged<String> onAction;
-  const _CategoryTile({required this.item, required this.onAction});
+
+  /// Renombrar y activar: el dueño o quien la creó. Desactivar y eliminar: solo el dueño
+  /// (en el servidor, desactivar una categoría es su baja).
+  final bool canEdit;
+  final bool isOwner;
+  const _CategoryTile({required this.item, required this.onAction, this.canEdit = true, this.isOwner = true});
 
   @override
   Widget build(BuildContext context) {
@@ -222,18 +239,21 @@ class _CategoryTile extends StatelessWidget {
           ),
           trailing: item.isReserved
               ? Tooltip(message: context.l10n.reserved2, child: const Icon(Icons.lock_outline_rounded, size: 20))
-              : PopupMenuButton<String>(
-                  key: ValueKey('menu-categoria-${item.name}'),
-                  onSelected: onAction,
-                  itemBuilder: (_) => [
-                    PopupMenuItem(value: 'edit', child: Text(context.l10n.rename)),
-                    PopupMenuItem(
-                      value: 'toggle',
-                      child: Text(item.active ? (context.l10n.deactivate) : (context.l10n.activate)),
+              : !canEdit && !isOwner
+                  ? null
+                  : PopupMenuButton<String>(
+                      key: ValueKey('menu-categoria-${item.name}'),
+                      onSelected: onAction,
+                      itemBuilder: (_) => [
+                        if (canEdit) PopupMenuItem(value: 'edit', child: Text(context.l10n.rename)),
+                        if (item.active ? isOwner : canEdit)
+                          PopupMenuItem(
+                            value: 'toggle',
+                            child: Text(item.active ? (context.l10n.deactivate) : (context.l10n.activate)),
+                          ),
+                        if (isOwner) PopupMenuItem(value: 'delete', child: Text(context.l10n.delete)),
+                      ],
                     ),
-                    PopupMenuItem(value: 'delete', child: Text(context.l10n.delete)),
-                  ],
-                ),
         ),
       ),
     );

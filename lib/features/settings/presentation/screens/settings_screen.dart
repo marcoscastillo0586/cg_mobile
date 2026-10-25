@@ -14,6 +14,8 @@ import 'package:gastos_mobile/routes/app_routes.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../../core/widgets/dialog_controllers.dart';
+import '../../../movements/presentation/local_write_feedback.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -157,7 +159,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               children: [
                 ListTile(
+                  key: const ValueKey('editar-nombre'),
                   leading: const Icon(Icons.person_outline_rounded),
+                  // Nombre para mostrar: lo ven los integrantes de un dashboard compartido.
+                  trailing: const Icon(Icons.edit_outlined, size: 18),
+                  onTap: () => _editDisplayName(authState.user?.nombreUsuario ?? ''),
                   title: Text(authState.user?.nombreUsuario ?? ''),
                   subtitle: Text(
                     authState.offline
@@ -238,6 +244,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             child: Column(
               children: [
+                _buildAdminTile(
+                  icon: Icons.dashboard_outlined,
+                  color: AppColors.primary,
+                  title: context.l10n.dashboards,
+                  subtitle: context.l10n.manageDashboards,
+                  onTap: () => context.push(AppRoutes.dashboardsAdmin),
+                ),
+                const Divider(height: 1),
                 _buildAdminTile(
                   icon: Icons.account_balance_wallet_outlined,
                   color: AppColors.emerald,
@@ -335,6 +349,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  /// Cambia el nombre para mostrar (con conexión; el servidor lo guarda).
+  Future<void> _editDisplayName(String current) async {
+    final l = context.l10n;
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => DialogControllers(
+        initial: [current],
+        builder: (ctx, c) => AlertDialog(
+          title: Text(l.displayName),
+          content: TextField(
+            key: const ValueKey('nombre-para-mostrar'),
+            controller: c[0],
+            maxLength: 100,
+            autofocus: true,
+            decoration: InputDecoration(helperText: l.displayNameHint, helperMaxLines: 3),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
+            TextButton(onPressed: () => Navigator.pop(ctx, c[0].text.trim()), child: Text(l.save)),
+          ],
+        ),
+      ),
+    );
+    if (name == null || name.isEmpty || name == current || !mounted) return;
+    final error = await ref.read(authNotifierProvider.notifier).updateDisplayName(name);
+    if (!mounted) return;
+    if (error != null) {
+      AppFeedback.showError(context, describeWithCode(error, l));
+    } else {
+      AppFeedback.showSuccess(context, l.displayNameSaved);
+    }
   }
 
   Widget _buildAdminTile({

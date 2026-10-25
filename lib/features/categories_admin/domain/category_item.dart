@@ -31,6 +31,9 @@ class CategoryItem extends Equatable {
   final int movementsCount;
   final int? version;
 
+  /// Quién la creó (null: todavía sin dato del servidor).
+  final int? createdByUserId;
+
   const CategoryItem({
     required this.id,
     this.serverId,
@@ -39,10 +42,11 @@ class CategoryItem extends Equatable {
     required this.role,
     required this.movementsCount,
     this.version,
+    this.createdByUserId,
   });
 
   bool get isReserved => role != null;
 
   @override
-  List<Object?> get props => [id, serverId, name, active, role, movementsCount, version];
+  List<Object?> get props => [id, serverId, name, active, role, movementsCount, version, createdByUserId];
 }

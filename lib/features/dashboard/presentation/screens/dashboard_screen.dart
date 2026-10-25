@@ -23,6 +23,11 @@ import '../widgets/balance_card.dart';
 import '../widgets/notification_bell_widget.dart';
 import '../widgets/quick_actions_bar.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../dashboards/presentation/dashboard_widgets.dart';
+import '../../../dashboards/presentation/dashboards_notifier.dart';
+import '../../../../core/dashboards/current_dashboard.dart';
+import '../../../../core/dashboards/live_events.dart';
+import '../../../../core/network/dio_client.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -37,6 +42,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
   static const _autoSync = Duration(seconds: 30);
   Timer? _timer;
 
+  /// Avisos en vivo (invitaciones, cambios de otros integrantes) mientras la app está visible.
+  LiveEvents? _events;
+
+  /// Invitación que se está mostrando (para no abrir la ventana dos veces).
+  int? _showingInvitation;
+
+  void _onLiveEvent(LiveEvent e) {
+    if (!mounted) return;
+    final dashboards = ref.read(dashboardsNotifierProvider.notifier);
+    switch (e.type) {
+      case 'invitation':
+        dashboards.loadInvitations();
+      case 'notification':
+        dashboards.loadNotifications();
+      case 'dashboard-changed':
+        // Otro integrante cambió algo en el dashboard que se está viendo: se trae ya.
+        if (e.dashboardId != null && e.dashboardId == dashboards.current?.id) ref.read(syncControllerProvider.notifier).sync();
+      case 'dashboards-changed' || 'access-removed':
+        dashboards.refresh();
+    }
+  }
+
+  /// Aviso único al volver al principal porque se perdió el acceso al dashboard elegido.
+  void _showNotice() {
+    if (CurrentDashboard.notice.value != CurrentDashboard.accessLost || !mounted) return;
+    CurrentDashboard.notice.value = null;
+    AppFeedback.showError(context, context.l10n.accessLostNotice);
+  }
+
   void _startAutoSync() {
     _timer?.cancel();
     _timer = Timer.periodic(_autoSync, (_) => ref.read(syncControllerProvider.notifier).sync());
@@ -46,9 +80,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _startAutoSync();
+      _events?.start();
       ref.read(syncControllerProvider.notifier).sync();
+      ref.read(dashboardsNotifierProvider.notifier).refresh();
     } else if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
       _timer?.cancel(); // solo con la app visible
+      _events?.stop();
     }
   }
 
@@ -56,6 +93,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _events?.stop();
+    CurrentDashboard.notice.removeListener(_showNotice);
     super.dispose();
   }
 
@@ -72,7 +111,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _startAutoSync();
+    _events = LiveEvents(ref.read(dioClientProvider), _onLiveEvent)..start();
+    CurrentDashboard.notice.addListener(_showNotice);
     Future.microtask(() {
+      _showNotice();
       final settings = ref.read(settingsProvider);
       if (settings.isFirstLaunch && mounted) {
         showDialog<void>(
@@ -81,11 +123,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
           builder: (ctx) => OnboardingDialog(
             initialMoneda: settings.defaultCurrency,
             initialIdioma: settings.language,
-            onConfirmar: ({required String moneda, required String idioma}) {
+            onConfirmar: ({required String moneda, required String idioma, required String nombreDashboard}) {
               ref.read(settingsProvider.notifier).guardarConfiguracionInicial(
                     moneda: moneda,
                     idioma: idioma,
                   );
+              // Sin conexión queda pendiente y se envía en la próxima carga de la lista.
+              ref.read(dashboardsNotifierProvider.notifier).namePrincipal(nombreDashboard);
             },
           ),
         );
@@ -133,6 +177,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
     final dashboardState = ref.watch(dashboardNotifierProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Invitación recibida: la ventana aparece sola (una a la vez).
+    ref.listen<DashboardsState>(dashboardsNotifierProvider, (prev, next) {
+      final inv = next.invitations.isEmpty ? null : next.invitations.first;
+      if (inv == null || inv.id == _showingInvitation) return;
+      _showingInvitation = inv.id;
+      showInvitationDialog(context, ref, inv).whenComplete(() => _showingInvitation = null);
+    });
+    final dashboardsState = ref.watch(dashboardsNotifierProvider);
+    final dashboards = ref.read(dashboardsNotifierProvider.notifier);
+    final currentDashboard = dashboards.current;
+
     // Los saldos salen de la base local: después de cada sincronización se recalculan.
     // Sin conexión, rechazos (quedan en Pendientes) o diferencias (se corrigen con la próxima
     // descarga completa) no muestran avisos; solo un error inesperado, que no es de red.
@@ -151,12 +206,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
 
     return Scaffold(
       appBar: AppBar(
+        // Con más de un dashboard, el título dice cuál se está viendo.
         title: Text(
-          context.l10n.expenses2,
+          dashboardsState.dashboards.length > 1 && currentDashboard != null
+              ? dashboards.label(currentDashboard, context.l10n)
+              : context.l10n.expenses2,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
           const NotificationBellWidget(),
+          const DashboardSelector(),
           IconButton(
             icon: const Icon(Icons.analytics_outlined),
             tooltip: context.l10n.reportsAnalytics,

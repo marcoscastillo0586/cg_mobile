@@ -1600,4 +1600,205 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get changesSaved => 'Changes saved.';
+
+  @override
+  String get dashboardYou => 'you';
+
+  @override
+  String get dashboards => 'Dashboards';
+
+  @override
+  String get manageDashboards => 'Manage dashboards';
+
+  @override
+  String get chooseDashboard => 'Choose dashboard';
+
+  @override
+  String get dashboardSharedTag => 'shared';
+
+  @override
+  String get dashboardPrincipalTag => 'main';
+
+  @override
+  String get invitationTitle => 'A dashboard was shared with you';
+
+  @override
+  String invitationBody(String inviter, String email, String dashboard) {
+    return '$inviter ($email) invited you to share their dashboard \"$dashboard\".';
+  }
+
+  @override
+  String get acceptInvitation => 'Accept';
+
+  @override
+  String get rejectInvitation => 'Reject';
+
+  @override
+  String notificationAccepted(String user, String dashboard) {
+    return '$user accepted sharing the dashboard \"$dashboard\".';
+  }
+
+  @override
+  String notificationRejected(String user, String dashboard) {
+    return '$user declined sharing the dashboard \"$dashboard\".';
+  }
+
+  @override
+  String get accessLostNotice =>
+      'You no longer have access to that dashboard: showing your main dashboard.';
+
+  @override
+  String movementCreatedBy(String name) {
+    return 'Added by $name';
+  }
+
+  @override
+  String get dashboardName => 'Dashboard name';
+
+  @override
+  String get dashboardDefaultName => 'principal';
+
+  @override
+  String get displayName => 'Display name';
+
+  @override
+  String get displayNameHint =>
+      'People you share a dashboard with see it. It does not have to be unique.';
+
+  @override
+  String get displayNameSaved => 'Name saved.';
+
+  @override
+  String get yourDashboards => 'Your dashboards';
+
+  @override
+  String get sharedWithYou => 'Shared with you';
+
+  @override
+  String get newDashboard => 'New dashboard';
+
+  @override
+  String get createDashboard => 'Create';
+
+  @override
+  String get shareWithEmail => 'Share with (email of a registered user)';
+
+  @override
+  String get shareDashboard => 'Share';
+
+  @override
+  String invitationSent(String email) {
+    return 'Invitation sent to $email. You will be notified when it is accepted or declined.';
+  }
+
+  @override
+  String get dashboardMembers => 'Members';
+
+  @override
+  String get ownerTag => 'owner';
+
+  @override
+  String ownedBy(String name) {
+    return 'by $name';
+  }
+
+  @override
+  String get removeAccess => 'Remove access';
+
+  @override
+  String get leaveDashboard => 'Leave';
+
+  @override
+  String get openDashboard => 'Open';
+
+  @override
+  String get clearDashboard => 'Clear dashboard';
+
+  @override
+  String get deleteDashboard => 'Delete dashboard';
+
+  @override
+  String get saveName => 'Save name';
+
+  @override
+  String confirmClearDashboard(String name) {
+    return 'All movements, receipts and limits of \"$name\" are deleted. Accounts and categories are kept. This cannot be undone.';
+  }
+
+  @override
+  String confirmDeleteDashboard(String name) {
+    return '\"$name\" is deleted with all its content and every guest loses access. This cannot be undone.';
+  }
+
+  @override
+  String confirmLeaveDashboard(String name) {
+    return 'You stop seeing \"$name\". To come back, the owner has to invite you again.';
+  }
+
+  @override
+  String confirmRemoveMember(String user, String name) {
+    return '$user stops seeing \"$name\".';
+  }
+
+  @override
+  String dashboardCreated(String name) {
+    return 'Dashboard \"$name\" created.';
+  }
+
+  @override
+  String get dashboardRenamed => 'Name changed.';
+
+  @override
+  String get dashboardClearedMsg => 'Dashboard cleared.';
+
+  @override
+  String get dashboardDeletedMsg => 'Dashboard deleted.';
+
+  @override
+  String get dashboardLeftMsg => 'You left the dashboard.';
+
+  @override
+  String get accessRemovedMsg => 'Access removed.';
+
+  @override
+  String get dashboardsNeedConnection =>
+      'Managing and sharing dashboards needs a connection.';
+
+  @override
+  String get noNotifications2 => 'You have no notifications.';
+
+  @override
+  String get errDashboardForbidden =>
+      'You do not have access to that dashboard.';
+
+  @override
+  String get errNotCreator => 'Only the person who added it can change it.';
+
+  @override
+  String get errOwnerOnly => 'Only the dashboard owner can do this.';
+
+  @override
+  String get errUserNotRegistered =>
+      'You can only share with registered users.';
+
+  @override
+  String get errAlreadyMember =>
+      'That person already has access to this dashboard.';
+
+  @override
+  String get errSelfInvite => 'You cannot share a dashboard with yourself.';
+
+  @override
+  String get errOwnerCannotLeave => 'The owner cannot leave their dashboard.';
+
+  @override
+  String get errPrincipalUndeletable =>
+      'The main dashboard cannot be deleted; it can be cleared.';
+
+  @override
+  String get errNotPrincipal =>
+      'Only the main dashboard is cleared; the others are deleted.';
+
+  @override
+  String get errInvitationClosed => 'The invitation was already answered.';
 }

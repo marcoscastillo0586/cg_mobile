@@ -5,10 +5,13 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
+import '../dashboards/current_dashboard.dart';
 import 'migrations.dart';
 
-/// Base local de la app (`cg_local.db`): copia de los datos del servidor más la cola de
-/// operaciones pendientes. Ver `migrations.dart` para el esquema.
+/// Base local de un dashboard: copia de sus datos del servidor más su cola de operaciones
+/// pendientes. Una base por dashboard: `cg_local.db` el principal del usuario y
+/// `cg_local_<id>.db` los demás (dashboards compartidos), así sus datos nunca se mezclan.
+/// Ver `migrations.dart` para el esquema.
 class LocalDatabase {
   LocalDatabase._();
 
@@ -24,13 +27,52 @@ class LocalDatabase {
   /// Id fijo derivado de [name] (UUID v5): el mismo ticket QR genera siempre el mismo clientSyncId.
   static String idFor(String name) => _uuid.v5(Namespace.url.value, name);
 
-  static Database? _db;
+  /// Base abierta y para qué dashboard (null = principal). Solo una abierta a la vez.
+  static Future<Database>? _current;
+  static int? _currentFor;
 
-  static Future<Database> get instance async => _db ??= await open(path: await _defaultPath());
+  /// Base del dashboard elegido ([CurrentDashboard]); si había otra abierta, la cierra antes.
+  static Future<Database> get instance {
+    final want = CurrentDashboard.id.value;
+    final current = _current;
+    if (current != null && _currentFor == want) return current;
+    _currentFor = want;
+    return _current = () async {
+      await _close(current);
+      return open(path: await pathFor(want));
+    }();
+  }
 
-  static Future<String> _defaultPath() async {
+  /// Archivo de la base de un dashboard (null = el principal del usuario).
+  static Future<String> pathFor(int? dashboardId) async {
     final dir = await getApplicationDocumentsDirectory();
-    return p.join(dir.path, fileName);
+    return p.join(dir.path, dashboardId == null ? fileName : 'cg_local_$dashboardId.db');
+  }
+
+  static Future<void> _close(Future<Database>? db) async {
+    if (db == null) return;
+    try {
+      final open = await db;
+      if (open.isOpen) await open.close();
+    } catch (e) {
+      // Si no había llegado a abrirse, no hay nada que cerrar; el error ya lo vio quien la pidió.
+      debugPrint('[DB] La base anterior no estaba abierta: $e');
+    }
+  }
+
+  /// Cierra la base abierta (antes de cambiar de dashboard o de borrar archivos).
+  static Future<void> close() async {
+    final current = _current;
+    _current = null;
+    _currentFor = null;
+    await _close(current);
+  }
+
+  /// Borra la base local de un dashboard (se perdió el acceso o se eliminó).
+  static Future<void> deleteFor(int dashboardId) async {
+    if (_currentFor == dashboardId) await close();
+    final path = await pathFor(dashboardId);
+    if (await File(path).exists() || await databaseExists(path)) await deleteDatabase(path);
   }
 
   /// Abre (y crea o migra) la base en [path]. [factory] permite usar ffi en tests.
@@ -62,13 +104,17 @@ class LocalDatabase {
     }
   }
 
-  /// Cierra y borra la base local y el archivo de la base vieja (cierre de sesión).
+  /// Cierra y borra las bases locales de todos los dashboards y la base vieja (cierre de sesión).
   static Future<void> deleteAll() async {
-    final db = _db;
-    _db = null;
-    if (db != null && db.isOpen) await db.close();
+    await close();
     final dir = await getApplicationDocumentsDirectory();
-    for (final name in [fileName, legacyFileName]) {
+    final names = {
+      fileName,
+      legacyFileName,
+      for (final f in Directory(dir.path).listSync().whereType<File>())
+        if (RegExp(r'^cg_local_\d+\.db$').hasMatch(p.basename(f.path))) p.basename(f.path),
+    };
+    for (final name in names) {
       final path = p.join(dir.path, name);
       if (await File(path).exists() || await databaseExists(path)) {
         await deleteDatabase(path);

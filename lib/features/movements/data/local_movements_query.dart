@@ -59,7 +59,7 @@ class LocalMovementsQuery {
     const order = 'h.occurred_at DESC, COALESCE(h.server_id, 1000000000000 + h.local_id) DESC';
 
     final headers = await _db.rawQuery('''
-      SELECT h.local_id, h.server_id, h.type, h.occurred_at, h.general_concept,
+      SELECT h.local_id, h.server_id, h.type, h.occurred_at, h.general_concept, h.created_by_user_id, h.created_by_name,
              SUM(d.amount_cents) AS sum_cents, MAX(ABS(d.amount_cents)) AS max_abs, MIN(a.name) AS first_account,
              (SELECT COUNT(*) FROM movement_details x WHERE x.header_local_id = h.local_id AND x.deleted = 0) AS details_total,
              $conceptMatch AS concept_match
@@ -160,6 +160,8 @@ class LocalMovementsQuery {
       'details': details,
       'fromAccountId': from?['accountId'],
       'toAccountId': to?['accountId'],
+      'createdByUserId': h['created_by_user_id'],
+      'createdByName': h['created_by_name'],
     };
   }
 

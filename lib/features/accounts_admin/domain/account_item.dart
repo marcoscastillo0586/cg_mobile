@@ -14,6 +14,9 @@ class AccountItem extends Equatable {
   final int balanceCents;
   final int movementsCount;
 
+  /// Quién la creó (null: todavía sin dato del servidor).
+  final int? createdByUserId;
+
   const AccountItem({
     required this.id,
     this.serverId,
@@ -24,8 +27,9 @@ class AccountItem extends Equatable {
     required this.iconRef,
     required this.balanceCents,
     required this.movementsCount,
+    this.createdByUserId,
   });
 
   @override
-  List<Object?> get props => [id, serverId, name, currency, active, imageUrl, iconRef, balanceCents, movementsCount];
+  List<Object?> get props => [id, serverId, name, currency, active, imageUrl, iconRef, balanceCents, movementsCount, createdByUserId];
 }

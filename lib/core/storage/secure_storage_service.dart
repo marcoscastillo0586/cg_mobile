@@ -187,7 +187,7 @@ class SecureStorageService {
   /// del dispositivo (tema, idioma, moneda, onboarding).
   Future<void> clearSessionData() async {
     try {
-      for (final key in [_keyRefreshToken, _keyUser, _keyOwnerUserId, _keyLastSyncedAt]) {
+      for (final key in [_keyRefreshToken, _keyUser, _keyOwnerUserId, _keyLastSyncedAt, 'dashboards_cache']) {
         await _storage.delete(key: key);
       }
     } catch (e) {

@@ -12,6 +12,8 @@ import '../../domain/account_item.dart';
 import '../providers/accounts_admin_notifier.dart';
 import '../providers/accounts_admin_state.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../auth/presentation/providers/auth_notifier.dart';
+import '../../../dashboards/presentation/dashboards_notifier.dart';
 
 class AccountsAdminScreen extends ConsumerStatefulWidget {
   const AccountsAdminScreen({super.key});
@@ -123,9 +125,19 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
       itemCount: cuentas.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => _AccountTile(item: cuentas[i], onAction: (a) => _accion(context, cuentas[i], a)),
+      itemBuilder: (_, i) => _AccountTile(
+        item: cuentas[i],
+        canEdit: _canEdit(cuentas[i].createdByUserId),
+        canDelete: _isOwner(),
+        onAction: (a) => _accion(context, cuentas[i], a),
+      ),
     );
   }
+
+  /// Dashboard compartido (docs/dashboards.md de CG): el dueño maneja todas; un invitado edita las que
+  /// creó y no elimina. Sin dato del servidor todavía = creada en este celular.
+  bool _isOwner() => ref.read(dashboardsNotifierProvider.notifier).current?.isOwner ?? true;
+  bool _canEdit(int? createdBy) => _isOwner() || createdBy == null || createdBy == ref.read(authNotifierProvider).user?.idUsuario;
 
   Future<void> _accion(BuildContext context, AccountItem item, String accion) async {
     final notifier = ref.read(accountsAdminNotifierProvider.notifier);
@@ -240,8 +252,10 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
 class _AccountTile extends StatelessWidget {
   final AccountItem item;
   final ValueChanged<String> onAction;
+  final bool canEdit;
+  final bool canDelete;
 
-  const _AccountTile({required this.item, required this.onAction});
+  const _AccountTile({required this.item, required this.onAction, this.canEdit = true, this.canDelete = true});
 
   @override
   Widget build(BuildContext context) {
@@ -292,18 +306,20 @@ class _AccountTile extends StatelessWidget {
                   ),
                 ),
               ),
-              PopupMenuButton<String>(
-                key: ValueKey('menu-cuenta-${item.name}'),
-                onSelected: onAction,
-                itemBuilder: (_) => [
-                  PopupMenuItem(value: 'edit', child: Text(context.l10n.edit)),
-                  PopupMenuItem(
-                    value: 'toggle',
-                    child: Text(item.active ? (context.l10n.deactivate) : (context.l10n.activate)),
-                  ),
-                  PopupMenuItem(value: 'delete', child: Text(context.l10n.delete)),
-                ],
-              ),
+              if (canEdit || canDelete)
+                PopupMenuButton<String>(
+                  key: ValueKey('menu-cuenta-${item.name}'),
+                  onSelected: onAction,
+                  itemBuilder: (_) => [
+                    if (canEdit) PopupMenuItem(value: 'edit', child: Text(context.l10n.edit)),
+                    if (canEdit)
+                      PopupMenuItem(
+                        value: 'toggle',
+                        child: Text(item.active ? (context.l10n.deactivate) : (context.l10n.activate)),
+                      ),
+                    if (canDelete) PopupMenuItem(value: 'delete', child: Text(context.l10n.delete)),
+                  ],
+                ),
             ],
           ),
         ),

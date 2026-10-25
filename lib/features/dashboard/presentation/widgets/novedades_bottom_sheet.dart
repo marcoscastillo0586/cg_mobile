@@ -7,6 +7,9 @@ import '../../../../routes/app_routes.dart';
 import '../../domain/entities/novedad_entity.dart';
 import '../providers/novedades_notifier.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../dashboards/presentation/dashboards_notifier.dart';
+import '../../../dashboards/domain/dashboard.dart';
+import '../../../movements/presentation/local_write_feedback.dart';
 
 class NovedadesBottomSheet extends ConsumerWidget {
   const NovedadesBottomSheet({super.key});
@@ -59,6 +62,8 @@ class NovedadesBottomSheet extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final novedades = state.novedades;
+    // Avisos del servidor (aceptó / rechazó compartir un dashboard): al tocarlos desaparecen.
+    final avisos = ref.watch(dashboardsNotifierProvider).notifications;
 
     final tituloPanel = context.l10n.notifications;
     final sinNovedadesTexto = context.l10n.noPendingNotifications;
@@ -109,7 +114,7 @@ class NovedadesBottomSheet extends ConsumerWidget {
 
           // Lista de Novedades
           Expanded(
-            child: novedades.isEmpty
+            child: novedades.isEmpty && avisos.isEmpty
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(32.0),
@@ -132,10 +137,11 @@ class NovedadesBottomSheet extends ConsumerWidget {
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    itemCount: novedades.length,
+                    itemCount: avisos.length + novedades.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
-                      final item = novedades[index];
+                      if (index < avisos.length) return _AvisoTile(aviso: avisos[index]);
+                      final item = novedades[index - avisos.length];
                       final color = _obtenerColorTipo(item.tipo);
                       final icon = _obtenerIconoTipo(item.tipo);
                       final texto = _obtenerTextoNovedad(item, context.l10n);
@@ -215,6 +221,52 @@ class NovedadesBottomSheet extends ConsumerWidget {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Aviso de una invitación respondida. Al tocarlo se marca como leído en el servidor y desaparece.
+class _AvisoTile extends ConsumerWidget {
+  final AppNotification aviso;
+  const _AvisoTile({required this.aviso});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = context.l10n;
+    final color = aviso.accepted ? AppColors.emerald : AppColors.rose;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: ValueKey('aviso-${aviso.id}'),
+        borderRadius: BorderRadius.circular(14),
+        onTap: () async {
+          AppFeedback.light();
+          final error = await ref.read(dashboardsNotifierProvider.notifier).markRead(aviso);
+          if (error != null && context.mounted) AppFeedback.showError(context, describeWithCode(error, l));
+        },
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(aviso.accepted ? Icons.group_add_outlined : Icons.group_off_outlined, color: color, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  aviso.accepted
+                      ? l.notificationAccepted(aviso.userName, aviso.dashboardName)
+                      : l.notificationRejected(aviso.userName, aviso.dashboardName),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

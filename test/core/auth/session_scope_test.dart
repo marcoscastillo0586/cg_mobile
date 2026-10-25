@@ -33,6 +33,9 @@ class _FakeAuth implements AuthRepository {
 
   @override
   Stream<Object> get onSessionExpired => expired.stream;
+
+  @override
+  Future<UserEntity> updateDisplayName(String name) async => throw UnimplementedError();
 }
 
 /// Datos del usuario en memoria (como los notifiers de saldos o la base local abierta).
@@ -55,6 +58,11 @@ void main() {
         return Text('${s.status.name} ${s.user?.idUsuario} ${ref.watch(_userData)}', textDirection: TextDirection.ltr);
       }),
     ));
+    // SessionScope crea el contenedor después de leer el dashboard elegido (CurrentDashboard.restore).
+    for (var i = 0; i < 20 && find.byType(Text).evaluate().isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+      await tester.pump();
+    }
     container = () => ProviderScope.containerOf(tester.element(find.byType(Text)));
     await tester.pump();
   }
