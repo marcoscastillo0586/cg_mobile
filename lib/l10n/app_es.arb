@@ -934,5 +934,16 @@
         "type": "String"
       }
     }
-  }
+  },
+  "syncOfflineSaved": "Sin conexión con el servidor: lo que cargues se guarda en el celular y se envía cuando vuelva.",
+  "qrNeedsConnection": "La lectura por QR necesita conexión",
+  "savedThing": "{what} guardado.",
+  "@savedThing": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "changesSaved": "Cambios guardados."
 }

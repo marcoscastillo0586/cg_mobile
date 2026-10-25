@@ -33,7 +33,17 @@ class Outbox {
       'created_at': now,
       'updated_at': now,
     });
+    _recent.add(opId);
     return opId;
+  }
+
+  static final _recent = <String>[];
+
+  /// opIds encolados desde la última llamada (lo que acaba de guardar el usuario).
+  static List<String> takeRecent() {
+    final out = List<String>.of(_recent);
+    _recent.clear();
+    return out;
   }
 
   /// Tabla local de cada entidad de la API.

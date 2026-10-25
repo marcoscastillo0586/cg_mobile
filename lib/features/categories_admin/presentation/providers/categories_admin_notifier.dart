@@ -14,8 +14,9 @@ class CategoriesAdminNotifier extends StateNotifier<CategoriesAdminState> {
 
   CategoriesAdminNotifier(this._repository) : super(CategoriesAdminState.initial());
 
-  Future<void> cargarCategorias() async {
-    state = state.copyWith(status: CategoriesAdminStatus.loading, clearError: true);
+  /// [silencioso]: recarga tras una sincronización, sin mostrar "cargando".
+  Future<void> cargarCategorias({bool silencioso = false}) async {
+    if (!silencioso) state = state.copyWith(status: CategoriesAdminStatus.loading, clearError: true);
     try {
       final categorias = await (await _repository).list();
       if (!mounted) return;

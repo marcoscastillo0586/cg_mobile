@@ -1,20 +1,41 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite/sqflite.dart';
+import '../../../core/database/local_database.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../../core/money/money.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/server_reachability.dart';
 import '../domain/entities/category_expense_report_entity.dart';
 import '../domain/entities/daily_evolution_entity.dart';
 import '../domain/entities/monthly_comparison_entity.dart';
 import '../domain/entities/product_price_entity.dart';
+import 'local_reports.dart';
 
 final reportsRepositoryProvider = Provider<ReportsRepository>((ref) {
-  return ReportsRepository(ref.watch(dioClientProvider));
+  return ReportsRepository(ref.watch(dioClientProvider), db: ref.watch(localDatabaseProvider));
 });
 
 /// Reportes de la API (`/reports/*`). Solo lectura; importes en centavos.
+/// Sin conexión se calculan con la base del celular ([LocalReports]), con las mismas reglas.
 class ReportsRepository {
   final DioClient _client;
-  ReportsRepository(this._client);
+
+  /// Base local para calcular sin conexión (null: solo servidor).
+  final Future<Database>? _db;
+  ReportsRepository(this._client, {Future<Database>? db}) : _db = db;
+
+  Future<Object?> _get(String path, {Map<String, dynamic>? queryParameters}) async {
+    final db = _db;
+    final params = queryParameters ?? const <String, dynamic>{};
+    if (db == null || !ServerReachability.recentlyOffline) {
+      try {
+        return await _client.get(path, queryParameters: params);
+      } catch (e) {
+        if (db == null || !ServerReachability.isOfflineError(e)) rethrow;
+      }
+    }
+    return LocalReports(await db).get(path, params);
+  }
 
   /// Gasto por categoría (F8.1) y desglose por concepto de esas categorías (F8.2).
   Future<CategoryExpenseReportEntity> getCategoryReport({String? from, String? to, List<int> accountIds = const []}) async {
@@ -23,7 +44,7 @@ class ReportsRepository {
       if (to != null) 'to': to,
       if (accountIds.isNotEmpty) 'accountIds': accountIds.join(','),
     };
-    final chart = _map(await _client.get('/reports/by-category', queryParameters: filter), 'by-category');
+    final chart = _map(await _get('/reports/by-category', queryParameters: filter), 'by-category');
     final total = Money.centsFrom(chart['totalCents'], 'totalCents');
     final items = _list(chart['items'], 'items').map((e) => _map(e, 'item')).toList();
     final categorias = items
@@ -40,7 +61,7 @@ class ReportsRepository {
     var subcategorias = <SubcategoryExpenseItemEntity>[];
     if (ids.isNotEmpty) {
       final sub = _map(
-        await _client.get('/reports/by-concept-in-categories', queryParameters: {...filter, 'categoryIds': ids.join(',')}),
+        await _get('/reports/by-concept-in-categories', queryParameters: {...filter, 'categoryIds': ids.join(',')}),
         'by-concept-in-categories',
       );
       final subTotal = Money.centsFrom(sub['totalCents'], 'totalCents');
@@ -65,7 +86,7 @@ class ReportsRepository {
 
   /// Ingresos, egresos y ahorro por mes de un año (`/reports/income-expense`).
   Future<MonthlyComparisonReportEntity> getIncomeExpense({int? year}) async {
-    final m = _map(await _client.get('/reports/income-expense', queryParameters: {if (year != null) 'year': year}), 'income-expense');
+    final m = _map(await _get('/reports/income-expense', queryParameters: {if (year != null) 'year': year}), 'income-expense');
     final totals = _map(m['totals'], 'totals');
     MonthExtremeEntity? extreme(Object? v) {
       if (v == null) return null;
@@ -102,7 +123,7 @@ class ReportsRepository {
   }
 
   Future<DailyEvolutionReportEntity> getDaily({required int year, required int month}) async {
-    final m = _map(await _client.get('/reports/daily', queryParameters: {'year': year, 'month': month}), 'daily');
+    final m = _map(await _get('/reports/daily', queryParameters: {'year': year, 'month': month}), 'daily');
     return DailyEvolutionReportEntity(
       anio: _int(m['year'], 'year'),
       mes: _int(m['month'], 'month'),
@@ -116,7 +137,7 @@ class ReportsRepository {
   }
 
   Future<List<ProductPriceItemEntity>> getProducts({String? search, int limit = 50}) async {
-    final data = await _client.get('/reports/products', queryParameters: {
+    final data = await _get('/reports/products', queryParameters: {
       if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
       'limit': limit,
     });
@@ -137,7 +158,7 @@ class ReportsRepository {
 
   Future<ProductPriceHistoryEntity> getProductHistory({String? concept, String? plu}) async {
     final m = _map(
-      await _client.get('/reports/product-history', queryParameters: {
+      await _get('/reports/product-history', queryParameters: {
         if (concept != null && concept.isNotEmpty) 'concept': concept,
         if (plu != null && plu.isNotEmpty) 'plu': plu,
       }),
@@ -171,7 +192,7 @@ class ReportsRepository {
     required String to2,
   }) async {
     final m = _map(
-      await _client.get('/reports/compare-products', queryParameters: {'from1': from1, 'to1': to1, 'from2': from2, 'to2': to2}),
+      await _get('/reports/compare-products', queryParameters: {'from1': from1, 'to1': to1, 'from2': from2, 'to2': to2}),
       'compare-products',
     );
     final totals = _map(m['totals'], 'totals');

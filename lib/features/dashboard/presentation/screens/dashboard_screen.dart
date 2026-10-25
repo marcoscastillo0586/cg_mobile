@@ -31,10 +31,47 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsBindingObserver {
+  /// Con la app visible se actualiza sola cada 30 s: sin notificaciones push, es el retraso máximo
+  /// con que aparece en el celular un cambio hecho en la web.
+  static const _autoSync = Duration(seconds: 30);
+  Timer? _timer;
+
+  void _startAutoSync() {
+    _timer?.cancel();
+    _timer = Timer.periodic(_autoSync, (_) => ref.read(syncControllerProvider.notifier).sync());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startAutoSync();
+      ref.read(syncControllerProvider.notifier).sync();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      _timer?.cancel(); // solo con la app visible
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  /// ↻ y arrastrar hacia abajo: sincronización completa (envía lo pendiente y trae lo nuevo).
+  Future<void> _refresh({String? hasta}) async {
+    await ref.read(syncControllerProvider.notifier).sync();
+    if (!mounted) return;
+    await ref.read(dashboardNotifierProvider.notifier).cargarDashboard(hasta: hasta);
+    await ref.read(novedadesNotifierProvider.notifier).calcularNovedades();
+  }
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _startAutoSync();
     Future.microtask(() {
       final settings = ref.read(settingsProvider);
       if (settings.isFirstLaunch && mounted) {
@@ -96,27 +133,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final dashboardState = ref.watch(dashboardNotifierProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // La sincronización avisa si falla o si la base local no coincide con el servidor.
+    // Los saldos salen de la base local: después de cada sincronización se recalculan.
+    // Sin conexión, rechazos (quedan en Pendientes) o diferencias (se corrigen con la próxima
+    // descarga completa) no muestran avisos; solo un error inesperado, que no es de red.
     ref.listen<SyncState>(syncControllerProvider, (prev, next) {
-      if (prev?.status == next.status) return;
-      // Los saldos salen de la base local: después de descargar, se recalculan.
-      if (next.status == SyncStatus.complete || next.status == SyncStatus.mismatch || next.status == SyncStatus.attention) {
+      if (syncFinished(prev, next)) {
         ref.read(dashboardNotifierProvider.notifier).cargarDashboard(hasta: ref.read(dashboardNotifierProvider).fechaFiltro);
+        ref.read(novedadesNotifierProvider.notifier).calcularNovedades();
       }
-      if (next.status == SyncStatus.error && next.error != null) {
+      if (prev?.status != next.status && next.status == SyncStatus.error && next.error != null) {
         AppFeedback.showError(
           context,
           '${context.l10n.syncFailed2}: ${ErrorMessages.describe(next.error!, context.l10n)}',
-        );
-      } else if (next.status == SyncStatus.attention) {
-        AppFeedback.showError(
-          context,
-          context.l10n.operationSWereNotApplied(next.needsAttention),
-        );
-      } else if (next.status == SyncStatus.mismatch) {
-        AppFeedback.showError(
-          context,
-          context.l10n.localDataDoesNotMatch,
         );
       }
     });
@@ -142,8 +170,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             tooltip: context.l10n.refreshBalances,
             onPressed: () {
               AppFeedback.light();
-              ref.read(dashboardNotifierProvider.notifier).cargarDashboard();
-              ref.read(novedadesNotifierProvider.notifier).calcularNovedades();
+              _refresh();
             },
           ),
           IconButton(
@@ -159,8 +186,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           AppFeedback.light();
-          await ref.read(dashboardNotifierProvider.notifier).cargarDashboard(hasta: dashboardState.fechaFiltro);
-          await ref.read(novedadesNotifierProvider.notifier).calcularNovedades();
+          await _refresh(hasta: dashboardState.fechaFiltro);
         },
         child: Builder(
           builder: (context) {

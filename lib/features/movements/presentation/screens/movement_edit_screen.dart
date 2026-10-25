@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/database/local_catalog.dart';
 import '../../../../core/money/money.dart';
+import '../../../../core/network/server_reachability.dart';
 import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../data/local_movement_editor.dart';
@@ -64,7 +65,8 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
     try {
       final editor = await ref.read(localMovementEditorProvider);
       final catalog = await ref.read(localCatalogProvider);
-      final m = await editor.loadByServerId(widget.serverId);
+      // Id negativo: comprobante que todavía no llegó al servidor (historial sin conexión).
+      final m = widget.serverId < 0 ? await editor.load(-widget.serverId) : await editor.loadByServerId(widget.serverId);
       final cuentas = await catalog.activeAccounts();
       final categorias = await catalog.expenseCategories();
       if (!mounted) return;
@@ -99,6 +101,8 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
 
   /// Aviso de saldo negativo antes de guardar (egresos/ingresos: se puede guardar igual).
   Future<bool> _confirmNegative(Map<int, int> deltas) async {
+    // Sin conexión se guarda sin diálogos (el servidor decide al sincronizar).
+    if (ServerReachability.offline.value) return true;
     final negativas = <String>[];
     for (final e in deltas.entries) {
       final a = _account(e.key);
@@ -127,10 +131,15 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
     setState(() => _busy = true);
     try {
       await action(await ref.read(localMovementEditorProvider));
+      // Se envía ya; si el servidor lo rechaza, el cambio no queda guardado.
+      final rejection = await ref.read(syncControllerProvider.notifier).sendNow();
       if (!mounted) return;
-      AppFeedback.showSuccess(context, context.l10n.savedPhoneSending2);
-      await ref.read(syncControllerProvider.notifier).sync();
-      if (!mounted) return;
+      if (rejection != null) {
+        AppFeedback.showError(context, describeWithCode(rejection, context.l10n));
+        await _load();
+        return;
+      }
+      AppFeedback.showSuccess(context, context.l10n.changesSaved);
       if (close) {
         context.pop(true);
       } else {

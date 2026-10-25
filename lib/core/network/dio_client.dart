@@ -5,6 +5,7 @@ import '../config/api_config.dart';
 import '../errors/exceptions.dart';
 import '../auth/session_providers.dart';
 import 'auth_interceptor.dart';
+import 'server_reachability.dart';
 import 'transport_guard.dart';
 
 final dioClientProvider = Provider<DioClient>((ref) {
@@ -33,7 +34,8 @@ class DioClient {
     final dio = Dio(
       BaseOptions(
         baseUrl: ApiConfig.isConfigured ? ApiConfig.requireBaseUrl : '',
-        connectTimeout: const Duration(seconds: 15),
+        // Corto: con el servidor apagado se pasa enseguida a lo guardado en el celular.
+        connectTimeout: const Duration(seconds: 3),
         receiveTimeout: const Duration(seconds: 30),
         sendTimeout: const Duration(seconds: 30),
         headers: {
@@ -71,9 +73,16 @@ class DioClient {
     }
     try {
       final response = await call();
+      ServerReachability.markOnline();
       return response.data;
     } on DioException catch (e) {
-      throw mapDioError(e);
+      final error = mapDioError(e);
+      if (ServerReachability.isOfflineError(error)) {
+        ServerReachability.markOffline();
+      } else if (e.response != null) {
+        ServerReachability.markOnline();
+      }
+      throw error;
     }
   }
 

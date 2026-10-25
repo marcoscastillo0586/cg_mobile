@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/sync/sync_controller.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -31,6 +32,10 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
   @override
   void initState() {
     super.initState();
+    // Se muestra enseguida con lo guardado; con conexión se actualiza al llegar lo del servidor.
+    ref.read(syncControllerProvider.notifier).refreshIfOnline().then((_) {
+      if (mounted) ref.read(transferFormNotifierProvider.notifier).recargarCuentas();
+    });
     final c = widget.correction;
     if (c != null) {
       ref.read(transferFormNotifierProvider.notifier).prefill(c).then((_) {
@@ -63,15 +68,27 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
     }
   }
 
+  /// Evita un segundo guardado mientras se espera la respuesta del servidor.
+  bool _guardando = false;
+
   void _confirmarTransferencia() async {
+    if (_guardando) return;
+    _guardando = true;
+    try {
+      await _confirmarTransferenciaAhora();
+    } finally {
+      _guardando = false;
+    }
+  }
+
+  Future<void> _confirmarTransferenciaAhora() async {
     final notifier = ref.read(transferFormNotifierProvider.notifier);
     notifier.setConcepto(_conceptoController.text.trim());
 
     final ok = await notifier.realizarTransferencia();
     if (!mounted) return;
     if (ok) {
-      await afterLocalWrite(context, ref, context.l10n.transfer);
-      if (mounted) context.pop();
+      if (await afterLocalWrite(context, ref, context.l10n.transfer) && mounted) context.pop();
     } else {
       final error = ref.read(transferFormNotifierProvider).error;
       if (error != null) AppFeedback.showError(context, describeWithCode(error, context.l10n));
@@ -314,7 +331,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
             // 5. Botón Confirmar
             ElevatedButton(
               key: const ValueKey('guardar-transferencia'),
-              onPressed: state.isSubmitting || state.fondosInsuficientes ? null : _confirmarTransferencia,
+              onPressed: state.isSubmitting ? null : _confirmarTransferencia,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
               ),

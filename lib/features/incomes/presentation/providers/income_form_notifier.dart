@@ -34,6 +34,18 @@ class IncomeFormNotifier extends StateNotifier<IncomeFormState> {
     state = state.copyWith(selectedCuentaId: c.accountLocalId, montoCents: c.amountCents, concepto: c.concept, fecha: c.date);
   }
 
+  /// Tras traer lo del servidor al abrir: actualiza cuentas (saldos) sin tocar lo cargado.
+  Future<void> recargarCuentas() async {
+    await _loaded;
+    try {
+      final cuentas = await (await _catalog).activeAccounts();
+      if (mounted) state = state.copyWith(cuentas: cuentas);
+    } catch (e) {
+      debugPrint('[INGRESO] No se pudo leer la base local: $e');
+      if (mounted) state = state.copyWith(error: e);
+    }
+  }
+
   Future<void> cargarCuentas() async {
     state = state.copyWith(status: IncomeFormStatus.loading, clearError: true);
     try {

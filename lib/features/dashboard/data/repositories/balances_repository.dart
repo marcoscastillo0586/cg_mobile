@@ -5,6 +5,7 @@ import '../../../../core/database/local_database.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/network/server_reachability.dart';
 import '../../domain/entities/balances.dart';
 import '../models/balances_dto.dart';
 
@@ -44,7 +45,11 @@ class BalancesRepository {
     final needsRate = rows.any((r) => r['currency'] == Currency.usd.code);
     var rate = ExchangeRate.notApplicable;
     Object? rateError;
-    if (needsRate) {
+    if (needsRate && ServerReachability.recentlyOffline) {
+      // Sin conexión confirmada: la última cotización guardada, sin esperar al servidor.
+      rateError = const NetworkException();
+      rate = await lastKnownRate(db);
+    } else if (needsRate) {
       try {
         final fresh = BalancesDto.fromJson(await _client.get('/accounts/balances')).exchangeRate;
         if (fresh.isNotApplicable) {

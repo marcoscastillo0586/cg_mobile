@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/widgets/dialog_controllers.dart';
@@ -21,12 +22,19 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => ref.read(categoriesAdminNotifierProvider.notifier).cargarCategorias());
+    // Con conexión trae primero lo que cambió en el servidor; sin conexión muestra lo guardado.
+    Future.microtask(() async {
+      await ref.read(syncControllerProvider.notifier).refreshIfOnline();
+      if (mounted) await ref.read(categoriesAdminNotifierProvider.notifier).cargarCategorias();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(categoriesAdminNotifierProvider);
+    ref.listen<SyncState>(syncControllerProvider, (prev, next) {
+      if (syncFinished(prev, next)) ref.read(categoriesAdminNotifierProvider.notifier).cargarCategorias(silencioso: true);
+    });
     final notifier = ref.read(categoriesAdminNotifierProvider.notifier);
 
     Widget chip(String key, String label) => ChoiceChip(

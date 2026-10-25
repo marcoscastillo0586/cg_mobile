@@ -276,23 +276,8 @@ class LocalMovementEditor {
         if (fromLocalId == from.accountLocalId && toLocalId == to.accountLocalId && amountCents == to.amountCents) {
           throw _invalid((l) => l.noChangesSave);
         }
-        // Saldo de cada cuenta tocada: antes y después de reemplazar el par.
-        final touched = {from.accountLocalId, to.accountLocalId, fromLocalId, toLocalId};
-        for (final acc in touched) {
-          final before = await _balance(txn, acc);
-          var after = before;
-          if (acc == from.accountLocalId) after -= from.amountCents;
-          if (acc == to.accountLocalId) after -= to.amountCents;
-          if (acc == fromLocalId) after -= amountCents;
-          if (acc == toLocalId) after += amountCents;
-          if (after < 0 && after < before) {
-            final a = (await LocalCatalog(txn).account(acc))!;
-            throw ValidationFailure.t(
-              (l) => l.insufficientFundsTransferEdit(Money.format(before - after, currency: a.currency), a.name.toUpperCase()),
-              'INSUFFICIENT_FUNDS',
-            );
-          }
-        }
+        // Sin control de fondos local: con conexión lo decide el servidor al instante; sin
+        // conexión se guarda y, si el servidor la rechaza al sincronizar, queda en Pendientes.
         await txn.update('movement_details', {'account_local_id': toLocalId, 'amount_cents': amountCents, 'updated_at': _stamp()},
             where: 'local_id = ?', whereArgs: [to.localId]);
         await txn.update('movement_details', {'account_local_id': fromLocalId, 'amount_cents': -amountCents, 'updated_at': _stamp()},

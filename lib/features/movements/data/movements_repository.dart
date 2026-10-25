@@ -1,12 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite/sqflite.dart';
+import '../../../core/database/local_database.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../../core/money/money.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/server_reachability.dart';
 import '../../categories_admin/domain/category_item.dart';
 import '../domain/movement_item.dart';
+import 'local_movements_query.dart';
 
 final movementsRepositoryProvider = Provider<MovementsRepository>((ref) {
-  return MovementsRepository(ref.watch(dioClientProvider));
+  return MovementsRepository(ref.watch(dioClientProvider), db: ref.watch(localDatabaseProvider));
 });
 
 /// Filtros de GET /movements. Fechas `yyyy-MM-dd`; sin fechas el servidor devuelve
@@ -42,12 +46,16 @@ class MovementsQuery {
 }
 
 /// Historial de movimientos. Solo lectura (edición y borrado: etapa 7).
+/// Con conexión lee del servidor; sin conexión, de la base del celular con las mismas reglas.
 class MovementsRepository {
   final DioClient _client;
-  MovementsRepository(this._client);
+
+  /// Base local para leer sin conexión (null: solo servidor).
+  final Future<Database>? _db;
+  MovementsRepository(this._client, {Future<Database>? db}) : _db = db;
 
   Future<MovementsPage> getMovements(MovementsQuery query) async {
-    final data = await _client.get('/movements', queryParameters: query.toQuery());
+    final data = await _listFromServerOrPhone(query);
     if (data is! Map<String, dynamic>) throw _bad('movements');
     final items = data['items'];
     if (items is! List) throw _bad('items');
@@ -59,6 +67,18 @@ class MovementsRepository {
       hasMore: data['hasMore'] == true,
       filteredTotalCents: Money.centsFrom(data['filteredTotalCents'], 'filteredTotalCents'),
     );
+  }
+
+  Future<Object?> _listFromServerOrPhone(MovementsQuery query) async {
+    final db = _db;
+    if (db == null || !ServerReachability.recentlyOffline) {
+      try {
+        return await _client.get('/movements', queryParameters: query.toQuery());
+      } catch (e) {
+        if (db == null || !ServerReachability.isOfflineError(e)) rethrow;
+      }
+    }
+    return LocalMovementsQuery(await db).list(query);
   }
 
   Future<MovementItem> getMovement(int id) async => parseMovement(await _client.get('/movements/$id'));

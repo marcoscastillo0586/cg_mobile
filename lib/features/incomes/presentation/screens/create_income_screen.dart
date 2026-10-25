@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/sync/sync_controller.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -30,6 +31,10 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Se muestra enseguida con lo guardado; con conexión se actualiza al llegar lo del servidor.
+    ref.read(syncControllerProvider.notifier).refreshIfOnline().then((_) {
+      if (mounted) ref.read(incomeFormNotifierProvider.notifier).recargarCuentas();
+    });
     final c = widget.correction;
     if (c != null) {
       ref.read(incomeFormNotifierProvider.notifier).prefill(c).then((_) {
@@ -63,7 +68,20 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
     }
   }
 
+  /// Evita un segundo guardado mientras se espera la respuesta del servidor.
+  bool _guardando = false;
+
   void _guardarIngreso() async {
+    if (_guardando) return;
+    _guardando = true;
+    try {
+      await _guardarIngresoAhora();
+    } finally {
+      _guardando = false;
+    }
+  }
+
+  Future<void> _guardarIngresoAhora() async {
     final notifier = ref.read(incomeFormNotifierProvider.notifier);
     notifier.setMonto(Money.parseInput(_montoController.text) ?? 0);
     notifier.setConcepto(_conceptoController.text.trim());
@@ -71,8 +89,7 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
     final ok = await notifier.guardarIngreso();
     if (!mounted) return;
     if (ok) {
-      await afterLocalWrite(context, ref, context.l10n.income);
-      if (mounted) context.pop();
+      if (await afterLocalWrite(context, ref, context.l10n.income) && mounted) context.pop();
     } else {
       final error = ref.read(incomeFormNotifierProvider).error;
       if (error != null) AppFeedback.showError(context, describeWithCode(error, context.l10n));

@@ -142,7 +142,6 @@ class LocalMovementWriter {
         _positive(d.amountCents, (l) => l.transferWord);
         final typed = d.concept.trim();
         if (typed.length > conceptMax) throw _invalid((l) => l.conceptCannotExceedConceptmaxCharacters(conceptMax));
-        _assertFunds(from, d.amountCents);
         final category = await _roleCategory(catalog, CategoryRoles.transfer);
         final concept = typed.isNotEmpty ? typed : 'Transferencia desde ${from.name.toUpperCase()} hacia ${to.name.toUpperCase()}';
 
@@ -179,18 +178,6 @@ class LocalMovementWriter {
     if (account == null) throw _invalid(missing);
     if (!account.active) throw ValidationFailure.t((l) => l.accountNameInactive(account.name), 'ACCOUNT_INACTIVE');
     return account;
-  }
-
-  /// Solo transferencias (regla del servidor): el origen debe tener `saldo >= monto`
-  /// (el saldo local ya descuenta lo pendiente de enviar).
-  static void _assertFunds(LocalAccount account, int amountCents) {
-    if (account.balanceCents < amountCents) {
-      throw ValidationFailure.t(
-        (l) => l.insufficientFundsTransfer(Money.format(amountCents, currency: account.currency), account.name.toUpperCase(),
-            Money.format(account.balanceCents, currency: account.currency)),
-        'INSUFFICIENT_FUNDS',
-      );
-    }
   }
 
   static Future<LocalCategory> _roleCategory(LocalCatalog catalog, String role) async {

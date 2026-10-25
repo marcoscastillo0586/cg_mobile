@@ -15,8 +15,9 @@ class LimitsAdminNotifier extends StateNotifier<LimitsAdminState> {
 
   LimitsAdminNotifier(this._repository) : super(LimitsAdminState.initial());
 
-  Future<void> cargarLimites() async {
-    state = state.copyWith(status: LimitsAdminStatus.loading, clearError: true);
+  /// [silencioso]: recarga tras una sincronización, sin mostrar "cargando".
+  Future<void> cargarLimites({bool silencioso = false}) async {
+    if (!silencioso) state = state.copyWith(status: LimitsAdminStatus.loading, clearError: true);
     try {
       final limits = await (await _repository).list();
       if (!mounted) return;

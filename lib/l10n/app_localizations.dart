@@ -2832,6 +2832,30 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Ticket registrado en el servidor, pero no se pudo traer al celular: {error}. Va a aparecer en la próxima sincronización.'**
   String ticketRecordedNotOnPhoneYet(String error);
+
+  /// No description provided for @syncOfflineSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin conexión con el servidor: lo que cargues se guarda en el celular y se envía cuando vuelva.'**
+  String get syncOfflineSaved;
+
+  /// No description provided for @qrNeedsConnection.
+  ///
+  /// In es, this message translates to:
+  /// **'La lectura por QR necesita conexión'**
+  String get qrNeedsConnection;
+
+  /// No description provided for @savedThing.
+  ///
+  /// In es, this message translates to:
+  /// **'{what} guardado.'**
+  String savedThing(String what);
+
+  /// No description provided for @changesSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambios guardados.'**
+  String get changesSaved;
 }
 
 class _AppLocalizationsDelegate

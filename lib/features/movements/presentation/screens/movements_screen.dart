@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/money/money.dart';
+import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../../../../core/widgets/movements_skeleton.dart';
 import '../../../../routes/app_routes.dart';
@@ -73,6 +74,13 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(movementListNotifierProvider);
     final notifier = ref.read(movementListNotifierProvider.notifier);
+    // La sincronización automática trajo movimientos nuevos o borrados: se actualiza la lista.
+    ref.listen<SyncState>(syncControllerProvider, (prev, next) {
+      final pulled = next.lastResult;
+      if (syncFinished(prev, next) && pulled != null && pulled.movementsApplied + pulled.deletedApplied > 0) {
+        notifier.cargarMovimientos(silencioso: true);
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(

@@ -8,6 +8,7 @@ import '../../../../core/utils/app_feedback.dart';
 import '../../data/tickets_repository.dart';
 import '../../domain/entities/ticket_parse_result.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../../core/network/server_reachability.dart';
 
 class QrScannerScreen extends ConsumerStatefulWidget {
   const QrScannerScreen({super.key});
@@ -68,7 +69,10 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       if (mounted) {
         setState(() => _isProcessing = false);
         debugPrint('[TICKET] No se pudo leer el QR: $e');
-        _mostrarDialogoFalloQr(ErrorMessages.describe(e, context.l10n) + (ErrorMessages.codeOf(e) != null ? ' (${ErrorMessages.codeOf(e)})' : ''));
+        // El servidor descarga y analiza el ticket: sin conexión no se puede leer.
+        _mostrarDialogoFalloQr(ServerReachability.isOfflineError(e)
+            ? context.l10n.qrNeedsConnection
+            : ErrorMessages.describe(e, context.l10n) + (ErrorMessages.codeOf(e) != null ? ' (${ErrorMessages.codeOf(e)})' : ''));
         await _controller.start();
       }
     }

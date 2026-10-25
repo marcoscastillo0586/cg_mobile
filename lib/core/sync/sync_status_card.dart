@@ -32,6 +32,7 @@ class _SyncStatusCardState extends ConsumerState<SyncStatusCard> {
       SyncStatus.complete => (context.l10n.completeMatchesServer, AppColors.emerald),
       SyncStatus.attention => (context.l10n.notEverythingWasAppliedSee, AppColors.rose),
       SyncStatus.mismatch => (context.l10n.doesNotMatchServer, AppColors.rose),
+      SyncStatus.offline => (context.l10n.syncOfflineSaved, AppColors.lightTextSecondary),
       SyncStatus.error => (context.l10n.syncFailed, AppColors.rose),
     };
     final last = s.lastCompleteAt == null ? '—' : AppDateUtils.formatDateTimeString(DateTime.parse(s.lastCompleteAt!).toLocal().toIso8601String());

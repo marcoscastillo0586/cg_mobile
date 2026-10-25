@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/money/money.dart';
@@ -25,12 +26,19 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => ref.read(limitsAdminNotifierProvider.notifier).cargarLimites());
+    // Con conexión trae primero lo que cambió en el servidor; sin conexión muestra lo guardado.
+    Future.microtask(() async {
+      await ref.read(syncControllerProvider.notifier).refreshIfOnline();
+      if (mounted) await ref.read(limitsAdminNotifierProvider.notifier).cargarLimites();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(limitsAdminNotifierProvider);
+    ref.listen<SyncState>(syncControllerProvider, (prev, next) {
+      if (syncFinished(prev, next)) ref.read(limitsAdminNotifierProvider.notifier).cargarLimites(silencioso: true);
+    });
     final notifier = ref.read(limitsAdminNotifierProvider.notifier);
 
     Widget chip(String key, String label) => ChoiceChip(

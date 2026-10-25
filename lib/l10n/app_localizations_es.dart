@@ -1595,4 +1595,19 @@ class AppLocalizationsEs extends AppLocalizations {
   String ticketRecordedNotOnPhoneYet(String error) {
     return 'Ticket registrado en el servidor, pero no se pudo traer al celular: $error. Va a aparecer en la próxima sincronización.';
   }
+
+  @override
+  String get syncOfflineSaved =>
+      'Sin conexión con el servidor: lo que cargues se guarda en el celular y se envía cuando vuelva.';
+
+  @override
+  String get qrNeedsConnection => 'La lectura por QR necesita conexión';
+
+  @override
+  String savedThing(String what) {
+    return '$what guardado.';
+  }
+
+  @override
+  String get changesSaved => 'Cambios guardados.';
 }

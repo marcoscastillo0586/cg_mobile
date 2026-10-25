@@ -98,6 +98,20 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
     }
   }
 
+  /// Tras traer lo del servidor al abrir: actualiza cuentas (saldos) y categorías sin tocar lo cargado.
+  Future<void> recargarCatalogo() async {
+    await _loaded;
+    try {
+      final catalog = await _catalog;
+      final cuentas = await catalog.activeAccounts();
+      final categorias = await catalog.expenseCategories();
+      if (mounted) state = state.copyWith(cuentas: cuentas, categorias: categorias);
+    } catch (e) {
+      debugPrint('[EGRESO] No se pudo leer la base local: $e');
+      if (mounted) state = state.copyWith(error: e);
+    }
+  }
+
   static int? _defaultCategoria(List<LocalCategory> categorias) => categorias.isEmpty ? null : categorias.first.localId;
 
   void setCuenta(int localId) => state = state.copyWith(selectedCuentaId: localId, clearError: true);

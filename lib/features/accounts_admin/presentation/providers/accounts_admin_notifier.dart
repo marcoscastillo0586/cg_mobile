@@ -14,8 +14,9 @@ class AccountsAdminNotifier extends StateNotifier<AccountsAdminState> {
 
   AccountsAdminNotifier(this._repository) : super(AccountsAdminState.initial());
 
-  Future<void> cargarCuentas() async {
-    state = state.copyWith(status: AccountsAdminStatus.loading, clearError: true);
+  /// [silencioso]: recarga tras una sincronización, sin mostrar "cargando".
+  Future<void> cargarCuentas({bool silencioso = false}) async {
+    if (!silencioso) state = state.copyWith(status: AccountsAdminStatus.loading, clearError: true);
     try {
       final cuentas = await (await _repository).list();
       if (!mounted) return;

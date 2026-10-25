@@ -13,6 +13,7 @@ import '../../../../core/widgets/account_picker.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
 import '../../domain/entities/ticket_parse_result.dart';
+import '../../../../core/network/server_reachability.dart';
 import '../providers/expense_form_notifier.dart';
 import '../providers/expense_form_state.dart';
 import '../widgets/renglon_gasto_card.dart';
@@ -33,6 +34,10 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
   @override
   void initState() {
     super.initState();
+    // Se muestra enseguida con lo guardado; con conexión se actualiza al llegar lo del servidor.
+    ref.read(syncControllerProvider.notifier).refreshIfOnline().then((_) {
+      if (mounted) ref.read(expenseFormNotifierProvider.notifier).recargarCatalogo();
+    });
     _conceptoGeneralController.addListener(() {
       ref
           .read(expenseFormNotifierProvider.notifier)
@@ -77,11 +82,25 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
     }
   }
 
+  /// Evita un segundo guardado mientras se espera la respuesta del servidor.
+  bool _guardando = false;
+
   void _guardarGasto() async {
+    if (_guardando) return;
+    _guardando = true;
+    try {
+      await _guardarGastoAhora();
+    } finally {
+      _guardando = false;
+    }
+  }
+
+  Future<void> _guardarGastoAhora() async {
     final st = ref.read(expenseFormNotifierProvider);
     final cuenta = st.cuentaSeleccionada;
     // Sin fondos se puede guardar igual (el dinero puede no estar cargado), pero se avisa y se confirma.
-    if (cuenta != null && st.fondosInsuficientes) {
+    // Solo con conexión (saldo recién traído del servidor); sin conexión se guarda sin diálogos.
+    if (cuenta != null && st.fondosInsuficientes && !ServerReachability.offline.value) {
       final seguir = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -116,8 +135,7 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
       }
       context.pop(true);
     } else if (ok) {
-      await afterLocalWrite(context, ref, context.l10n.expense);
-      if (mounted) context.pop(true);
+      if (await afterLocalWrite(context, ref, context.l10n.expense) && mounted) context.pop(true);
     } else {
       final error = ref.read(expenseFormNotifierProvider).error;
       if (error == null) return;

@@ -1585,4 +1585,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String ticketRecordedNotOnPhoneYet(String error) {
     return 'Receipt recorded on the server, but it could not be loaded on the phone: $error. It will appear on the next sync.';
   }
+
+  @override
+  String get syncOfflineSaved =>
+      'No connection to the server: what you enter is saved on the phone and sent when it is back.';
+
+  @override
+  String get qrNeedsConnection => 'QR reading needs a connection';
+
+  @override
+  String savedThing(String what) {
+    return '$what saved.';
+  }
+
+  @override
+  String get changesSaved => 'Changes saved.';
 }

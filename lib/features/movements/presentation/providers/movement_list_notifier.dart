@@ -27,9 +27,10 @@ class MovementListNotifier extends StateNotifier<MovementListState> {
         offset: offset,
       );
 
-  Future<void> cargarMovimientos() async {
+  /// [silencioso]: recarga tras una sincronización que trajo cambios, sin mostrar "cargando".
+  Future<void> cargarMovimientos({bool silencioso = false}) async {
     final id = ++_requestId;
-    state = state.copyWith(status: MovementListStatus.loading, clearError: true);
+    if (!silencioso) state = state.copyWith(status: MovementListStatus.loading, clearError: true);
     try {
       final page = await _repository.getMovements(_query(0));
       if (!mounted || id != _requestId) return;

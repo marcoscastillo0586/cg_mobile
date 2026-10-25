@@ -2,9 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/database/local_database.dart';
 import '../../../core/errors/error_messages.dart';
-import '../../../core/sync/outbox.dart';
 import '../../../core/sync/sync_controller.dart';
 import '../../../core/utils/app_feedback.dart';
 import '../../dashboard/presentation/providers/dashboard_notifier.dart';
@@ -17,25 +15,20 @@ String describeWithCode(Object error, AppLocalizations l) {
   return ErrorMessages.describe(error, l) + (code != null && code != 'VALIDATION_ERROR' ? ' ($code)' : '');
 }
 
-/// Después de guardar en el celular: refresca los saldos locales y avisa, sin decir que llegó
-/// al servidor (eso lo hace la sincronización).
-Future<void> afterLocalWrite(BuildContext context, WidgetRef ref, String what) async {
-  int? pending;
-  try {
-    pending = await Outbox.pendingCount(await ref.read(localDatabaseProvider));
-  } catch (e) {
-    debugPrint('[OUTBOX] No se pudo contar lo pendiente: $e');
-  }
+/// Después de guardar: se envía ya al servidor, detrás de lo pendiente. Si el servidor lo
+/// rechaza por una regla de negocio, muestra el error y devuelve false (no queda guardado).
+/// Sin conexión queda en la cola y se envía solo cuando vuelva, sin avisar.
+Future<bool> afterLocalWrite(BuildContext context, WidgetRef ref, String what) async {
+  final rejection = await ref.read(syncControllerProvider.notifier).sendNow();
   unawaited(ref.read(dashboardNotifierProvider.notifier).cargarDashboard());
   unawaited(ref.read(novedadesNotifierProvider.notifier).calcularNovedades());
-  // Si hay red se envía ya; si no, queda en la cola (el resultado se ve en Ajustes).
-  unawaited(ref.read(syncControllerProvider.notifier).sync());
-  if (!context.mounted) return;
-  final suffix = pending == null ? '' : (context.l10n.pending(pending));
-  AppFeedback.showSuccess(
-    context,
-    context.l10n.savedPhoneWillSentServer(what, suffix),
-  );
+  if (!context.mounted) return rejection == null;
+  if (rejection != null) {
+    AppFeedback.showError(context, describeWithCode(rejection, context.l10n));
+    return false;
+  }
+  AppFeedback.showSuccess(context, context.l10n.savedThing(what));
+  return true;
 }
 
 /// Pantalla de error cuando el formulario no puede leer la base local.
@@ -71,18 +64,18 @@ class LocalDataError extends StatelessWidget {
   }
 }
 
-/// Resultado de una alta/baja/cambio local (cuentas, categorías, límites): muestra el error
-/// traducido, o avisa que quedó en el celular, refresca saldos y novedades y envía si hay red.
+/// Resultado de una alta/baja/cambio (cuentas, categorías, límites): muestra el error traducido
+/// (validación local o rechazo del servidor, que no deja el cambio guardado) o confirma.
+/// Sin conexión queda en la cola y se envía solo, sin avisar.
 Future<bool> reportLocalAction(BuildContext context, WidgetRef ref, Object? error, {required String ok}) async {
-  if (error != null) {
-    if (context.mounted) AppFeedback.showError(context, describeWithCode(error, context.l10n));
+  final problem = error ?? await ref.read(syncControllerProvider.notifier).sendNow();
+  if (problem != null) {
+    if (context.mounted) AppFeedback.showError(context, describeWithCode(problem, context.l10n));
+    if (error == null) unawaited(ref.read(dashboardNotifierProvider.notifier).cargarDashboard());
     return false;
   }
   unawaited(ref.read(dashboardNotifierProvider.notifier).cargarDashboard());
   unawaited(ref.read(novedadesNotifierProvider.notifier).calcularNovedades());
-  unawaited(ref.read(syncControllerProvider.notifier).sync());
-  if (context.mounted) {
-    AppFeedback.showSuccess(context, context.l10n.savedPhoneSending(ok));
-  }
+  if (context.mounted) AppFeedback.showSuccess(context, ok);
   return true;
 }

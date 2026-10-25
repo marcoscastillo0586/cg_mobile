@@ -454,5 +454,9 @@
   "cameraError": "Could not use the camera.",
   "errInsecureTransport": "The server address does not use HTTPS: this version of the app only connects over HTTPS.",
   "ticketAlreadyRegistered": "This receipt was already recorded; it was not added again.",
-  "ticketRecordedNotOnPhoneYet": "Receipt recorded on the server, but it could not be loaded on the phone: {error}. It will appear on the next sync."
+  "ticketRecordedNotOnPhoneYet": "Receipt recorded on the server, but it could not be loaded on the phone: {error}. It will appear on the next sync.",
+  "syncOfflineSaved": "No connection to the server: what you enter is saved on the phone and sent when it is back.",
+  "qrNeedsConnection": "QR reading needs a connection",
+  "savedThing": "{what} saved.",
+  "changesSaved": "Changes saved."
 }

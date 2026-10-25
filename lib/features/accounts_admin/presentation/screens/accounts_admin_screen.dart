@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/money/money.dart';
@@ -23,12 +24,19 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => ref.read(accountsAdminNotifierProvider.notifier).cargarCuentas());
+    // Con conexión trae primero lo que cambió en el servidor; sin conexión muestra lo guardado.
+    Future.microtask(() async {
+      await ref.read(syncControllerProvider.notifier).refreshIfOnline();
+      if (mounted) await ref.read(accountsAdminNotifierProvider.notifier).cargarCuentas();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(accountsAdminNotifierProvider);
+    ref.listen<SyncState>(syncControllerProvider, (prev, next) {
+      if (syncFinished(prev, next)) ref.read(accountsAdminNotifierProvider.notifier).cargarCuentas(silencioso: true);
+    });
     final notifier = ref.read(accountsAdminNotifierProvider.notifier);
 
     return Scaffold(
