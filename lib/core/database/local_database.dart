@@ -21,6 +21,9 @@ class LocalDatabase {
   static const _uuid = Uuid();
   static String newId() => _uuid.v4();
 
+  /// Id fijo derivado de [name] (UUID v5): el mismo ticket QR genera siempre el mismo clientSyncId.
+  static String idFor(String name) => _uuid.v5(Namespace.url.value, name);
+
   static Database? _db;
 
   static Future<Database> get instance async => _db ??= await open(path: await _defaultPath());

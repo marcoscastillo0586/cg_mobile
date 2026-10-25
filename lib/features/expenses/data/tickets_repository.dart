@@ -15,11 +15,18 @@ class TicketsRepository {
 
   Future<QrTicket> parseUrl(String url) async => parse(await _client.post('/tickets/parse-url', data: {'url': url}));
 
-  /// Devuelve el id del comprobante creado (o el existente, si era un reintento).
-  Future<int> confirm(QrTicketConfirmation c) async {
+  /// Id del comprobante creado o, si ese clientSyncId ya estaba registrado, el existente (`duplicate`).
+  Future<({int headerId, bool duplicate})> confirm(QrTicketConfirmation c) async {
     final body = await _client.post('/tickets/confirm', data: c.toJson());
     if (body is! Map<String, dynamic> || body['headerId'] is! int) throw _bad('tickets/confirm');
-    return body['headerId'] as int;
+    return (headerId: body['headerId'] as int, duplicate: body['duplicate'] == true);
+  }
+
+  /// Comprobante completo (`GET /movements/:id`, mismo formato que el pull, sin version/clientId).
+  Future<Map<String, dynamic>> movement(int id) async {
+    final body = await _client.get('/movements/$id');
+    if (body is! Map<String, dynamic> || body['id'] != id) throw _bad('movements/$id');
+    return body;
   }
 
   static QrTicket parse(Object? json) {

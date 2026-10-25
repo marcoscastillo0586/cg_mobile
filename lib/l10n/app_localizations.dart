@@ -2820,6 +2820,18 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'La dirección del servidor no usa HTTPS: esta versión de la app solo se conecta por HTTPS.'**
   String get errInsecureTransport;
+
+  /// No description provided for @ticketAlreadyRegistered.
+  ///
+  /// In es, this message translates to:
+  /// **'Este ticket ya estaba registrado; no se cargó de nuevo.'**
+  String get ticketAlreadyRegistered;
+
+  /// No description provided for @ticketRecordedNotOnPhoneYet.
+  ///
+  /// In es, this message translates to:
+  /// **'Ticket registrado en el servidor, pero no se pudo traer al celular: {error}. Va a aparecer en la próxima sincronización.'**
+  String ticketRecordedNotOnPhoneYet(String error);
 }
 
 class _AppLocalizationsDelegate

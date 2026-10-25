@@ -1576,4 +1576,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errInsecureTransport =>
       'The server address does not use HTTPS: this version of the app only connects over HTTPS.';
+
+  @override
+  String get ticketAlreadyRegistered =>
+      'This receipt was already recorded; it was not added again.';
+
+  @override
+  String ticketRecordedNotOnPhoneYet(String error) {
+    return 'Receipt recorded on the server, but it could not be loaded on the phone: $error. It will appear on the next sync.';
+  }
 }

@@ -100,12 +100,20 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
       if (seguir != true || !mounted) return;
     }
     final esQr = st.ticketParseResult?.qr != null;
-    final ok = await ref.read(expenseFormNotifierProvider.notifier).guardarEgreso();
+    final notifier = ref.read(expenseFormNotifierProvider.notifier);
+    final ok = await notifier.guardarEgreso();
     if (!mounted) return;
     if (ok && esQr) {
-      // Quedó registrado en el servidor: se descarga en la sincronización.
+      // Quedó registrado en el servidor y ya se trajo al celular; la sincronización trae el resto.
       unawaited(ref.read(syncControllerProvider.notifier).sync());
-      AppFeedback.showSuccess(context, context.l10n.ticketRecordedServer);
+      final localError = notifier.ticketLocalCopyError;
+      if (notifier.ticketAlreadyRegistered) {
+        AppFeedback.showInfo(context, context.l10n.ticketAlreadyRegistered);
+      } else if (localError != null) {
+        AppFeedback.showError(context, context.l10n.ticketRecordedNotOnPhoneYet(describeWithCode(localError, context.l10n)));
+      } else {
+        AppFeedback.showSuccess(context, context.l10n.ticketRecordedServer);
+      }
       context.pop(true);
     } else if (ok) {
       await afterLocalWrite(context, ref, context.l10n.expense);

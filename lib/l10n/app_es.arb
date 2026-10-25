@@ -925,5 +925,14 @@
   "cameraPermissionDenied": "Sin permiso para usar la cámara. Habilitalo en los ajustes del celular para leer el QR.",
   "cameraUnsupported": "Este celular no permite leer códigos QR.",
   "cameraError": "No se pudo usar la cámara.",
-  "errInsecureTransport": "La dirección del servidor no usa HTTPS: esta versión de la app solo se conecta por HTTPS."
+  "errInsecureTransport": "La dirección del servidor no usa HTTPS: esta versión de la app solo se conecta por HTTPS.",
+  "ticketAlreadyRegistered": "Este ticket ya estaba registrado; no se cargó de nuevo.",
+  "ticketRecordedNotOnPhoneYet": "Ticket registrado en el servidor, pero no se pudo traer al celular: {error}. Va a aparecer en la próxima sincronización.",
+  "@ticketRecordedNotOnPhoneYet": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
 }

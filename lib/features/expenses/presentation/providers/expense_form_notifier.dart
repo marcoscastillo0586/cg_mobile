@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/local_catalog.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/sync/pull_service.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/sync/outbox_repository.dart';
 import '../../data/tickets_repository.dart';
@@ -17,6 +19,10 @@ final expenseFormNotifierProvider =
     ref.watch(localCatalogProvider),
     ref.watch(localMovementWriterProvider),
     tickets: () => ref.read(ticketsRepositoryProvider),
+    saveServerMovement: (m) async {
+      final db = await ref.read(localDatabaseProvider);
+      await db.transaction((txn) => PullService(db, ref.read(dioClientProvider)).upsertMovement(txn, m));
+    },
   );
 });
 
@@ -29,16 +35,27 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
   /// Solo para tickets QR (se crea al usarse: requiere el cliente HTTP).
   final TicketsRepository Function()? _tickets;
 
+  /// Guarda en el celular un comprobante recibido del servidor (el del ticket QR recién confirmado).
+  final Future<void> Function(Map<String, dynamic> movement)? _saveServerMovement;
+
   /// Id estable de la confirmación del ticket QR: un reintento no duplica el egreso.
   String? _ticketClientSyncId;
+
+  /// Resultado del último ticket QR confirmado: ya estaba registrado (no se creó otro).
+  bool ticketAlreadyRegistered = false;
+
+  /// Por qué no se pudo traer al celular el ticket ya registrado en el servidor (null si se trajo).
+  Object? ticketLocalCopyError;
 
   late final Future<void> _loaded;
 
   /// Alta rechazada que este formulario corrige (se reemplaza al guardar).
   int? _replacingSeq;
 
-  ExpenseFormNotifier(this._catalog, this._writer, {TicketsRepository Function()? tickets})
+  ExpenseFormNotifier(this._catalog, this._writer,
+      {TicketsRepository Function()? tickets, Future<void> Function(Map<String, dynamic> movement)? saveServerMovement})
       : _tickets = tickets,
+        _saveServerMovement = saveServerMovement,
         super(ExpenseFormState.initial()) {
     _loaded = inicializar();
   }
@@ -143,7 +160,8 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
           unitPriceCents: qr?.items[i].unitPriceCents,
         ),
     ];
-    _ticketClientSyncId = qr == null ? null : LocalDatabase.newId();
+    // Mismo QR → mismo id: el servidor no registra dos veces el mismo ticket (devuelve el existente).
+    _ticketClientSyncId = qr == null ? null : (qr.sourceUrl.isEmpty ? LocalDatabase.newId() : LocalDatabase.idFor(qr.sourceUrl));
 
     state = state.copyWith(
       status: ExpenseFormStatus.ready,
@@ -234,14 +252,29 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
         ));
       }
       final f = state.fecha;
-      await tickets().confirm(QrTicketConfirmation(
+      final clientSyncId = _ticketClientSyncId ??= LocalDatabase.newId();
+      final confirmed = await tickets().confirm(QrTicketConfirmation(
         accountServerId: cuenta.serverId!,
         date: '${f.year.toString().padLeft(4, '0')}-${f.month.toString().padLeft(2, '0')}-${f.day.toString().padLeft(2, '0')}',
         generalConcept: general,
         items: items,
         ticket: qr,
-        clientSyncId: _ticketClientSyncId ??= LocalDatabase.newId(),
+        clientSyncId: clientSyncId,
       ));
+      ticketAlreadyRegistered = confirmed.duplicate;
+      ticketLocalCopyError = null;
+      // Ya está en el servidor: se trae al celular ahora (sin esperar al próximo pull, que por su
+      // margen de 2 s todavía no lo incluye). Si falla, el egreso igual quedó registrado.
+      final save = _saveServerMovement;
+      if (save != null) {
+        try {
+          final m = await tickets().movement(confirmed.headerId);
+          await save({...m, 'clientId': clientSyncId, 'version': m['version'] ?? 1});
+        } catch (e) {
+          debugPrint('[TICKET] Registrado en el servidor pero no se trajo al celular: $e');
+          ticketLocalCopyError = e;
+        }
+      }
       if (mounted) state = state.copyWith(status: ExpenseFormStatus.success);
       return true;
     } catch (e) {
