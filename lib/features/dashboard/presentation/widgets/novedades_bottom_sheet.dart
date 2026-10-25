@@ -149,12 +149,16 @@ class NovedadesBottomSheet extends ConsumerWidget {
                                 .read(novedadesNotifierProvider.notifier)
                                 .marcarComoVista(item);
 
+                            // El router y la ruta se leen ANTES de cerrar el panel: el panel no es
+                            // una ruta de go_router (GoRouterState.of fallaba) y al cerrarlo su
+                            // contexto deja de servir para navegar.
+                            final router = GoRouter.of(context);
+                            final currentRoute = router.routerDelegate.currentConfiguration.uri.path;
                             Navigator.of(context).pop();
 
-                            // Navegar a la solapa de Límites y Presupuestos
-                            final currentRoute = GoRouterState.of(context).matchedLocation;
+                            // Todas las novedades son de límites: se abre Límites y Presupuestos.
                             if (currentRoute != AppRoutes.limitsAdmin) {
-                              context.push(AppRoutes.limitsAdmin);
+                              router.push(AppRoutes.limitsAdmin);
                             }
                           },
                           borderRadius: BorderRadius.circular(14),
