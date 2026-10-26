@@ -3,11 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/auth/session_providers.dart';
-import '../../../../core/config/api_config.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/network/dio_client.dart';
-import '../../../../core/sync/sync_status_card.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import 'package:gastos_mobile/routes/app_routes.dart';
@@ -194,11 +192,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Datos guardados en el celular y sincronización.
-          _buildSectionHeader(context.l10n.offlineData),
-          const SyncStatusCard(),
-          const SizedBox(height: 20),
-
           // Solo en debug: diagnóstico de la sesión (verificación de la etapa 1).
           if (kDebugMode) ...[
             Card(
@@ -216,27 +209,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 20),
           ],
-
-          // 3. Sección: Servidor (solo lectura; se fija al compilar)
-          _buildSectionHeader(context.l10n.server),
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-            ),
-            child: ListTile(
-              leading: const Icon(Icons.dns_rounded),
-              title: Text(context.l10n.apiAddress),
-              subtitle: Text(
-                ApiConfig.isConfigured
-                    ? ApiConfig.baseUrl
-                    : (context.l10n.notConfiguredApiBaseUrl),
-                style: const TextStyle(fontSize: 12),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
 
           // 4. Sección: Módulos de Administración
           _buildSectionHeader(context.l10n.management),
