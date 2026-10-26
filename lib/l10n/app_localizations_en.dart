@@ -250,24 +250,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Local data does not match the server; a full download will run next time.';
 
   @override
-  String get lastRate => 'Last rate';
-
-  @override
-  String get exchangeRateOfflineUsdNot =>
-      'Exchange rate: offline · USD not converted';
-
-  @override
-  String get exchangeRateUnavailableUsdNot =>
-      'Exchange rate unavailable · USD not converted';
-
-  @override
   String get showingLastLoadedData => 'Showing the last loaded data';
 
   @override
   String get recordIncome => 'Record an income';
-
-  @override
-  String get noExchangeRate => 'no exchange rate';
 
   @override
   String get notifications => 'Notifications';
@@ -1274,7 +1260,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cannotTransferBetweenAccountsDifferent2 =>
-      'Cannot transfer between accounts in different currencies. Record an expense and an income with the rate used.';
+      'Cannot transfer between accounts in different currencies. Record an expense and an income.';
 
   @override
   String conceptCannotExceedConceptmaxCharacters(Object conceptMax) {

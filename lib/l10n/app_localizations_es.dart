@@ -249,25 +249,11 @@ class AppLocalizationsEs extends AppLocalizations {
       'Los datos locales no coinciden con el servidor; la próxima vez se descarga todo.';
 
   @override
-  String get lastRate => 'Última cotización';
-
-  @override
-  String get exchangeRateOfflineUsdNot =>
-      'Cotización: sin conexión · USD sin convertir';
-
-  @override
-  String get exchangeRateUnavailableUsdNot =>
-      'Cotización no disponible · USD sin convertir';
-
-  @override
   String get showingLastLoadedData =>
       'Se muestran los datos de la última carga';
 
   @override
   String get recordIncome => 'Registrá un ingreso';
-
-  @override
-  String get noExchangeRate => 'sin cotización';
 
   @override
   String get notifications => 'Novedades';
@@ -1283,7 +1269,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get cannotTransferBetweenAccountsDifferent2 =>
-      'No se puede transferir entre cuentas de distinta moneda. Registrá un egreso y un ingreso con la cotización usada.';
+      'No se puede transferir entre cuentas de distinta moneda. Registrá un egreso y un ingreso.';
 
   @override
   String conceptCannotExceedConceptmaxCharacters(Object conceptMax) {

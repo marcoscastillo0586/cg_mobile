@@ -112,12 +112,8 @@
     }
   },
   "localDataDoesNotMatch": "Los datos locales no coinciden con el servidor; la próxima vez se descarga todo.",
-  "lastRate": "Última cotización",
-  "exchangeRateOfflineUsdNot": "Cotización: sin conexión · USD sin convertir",
-  "exchangeRateUnavailableUsdNot": "Cotización no disponible · USD sin convertir",
   "showingLastLoadedData": "Se muestran los datos de la última carga",
   "recordIncome": "Registrá un ingreso",
-  "noExchangeRate": "sin cotización",
   "notifications": "Novedades",
   "limitNearTop": "Límite '{titulo}' cercano al tope ({porcentaje}%)",
   "@limitNearTop": {
@@ -702,7 +698,7 @@
   "selectDestinationAccount2": "Debe seleccionar la cuenta de destino",
   "selectSourceAccount2": "Seleccione la cuenta de origen",
   "selectDestinationAccount3": "Seleccione la cuenta de destino",
-  "cannotTransferBetweenAccountsDifferent2": "No se puede transferir entre cuentas de distinta moneda. Registrá un egreso y un ingreso con la cotización usada.",
+  "cannotTransferBetweenAccountsDifferent2": "No se puede transferir entre cuentas de distinta moneda. Registrá un egreso y un ingreso.",
   "conceptCannotExceedConceptmaxCharacters": "El concepto no puede superar {conceptMax} caracteres",
   "@conceptCannotExceedConceptmaxCharacters": {
     "placeholders": {

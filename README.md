@@ -4,7 +4,7 @@ App Android (Flutter) para el control de gastos de CG (paquete `io.github.marcos
 
 > **Estado: adaptación en curso a la API nueva de CG (`/api/v1`).**
 > Etapas 1 a 10: sesión, base local (SQLite) con outbox y sincronización, altas, ediciones, ABM,
-> límites, cotización sin conexión, tickets (QR por el servidor; fotos con ML Kit en el celular),
+> límites, tickets (QR por el servidor; fotos con ML Kit en el celular),
 > endurecimiento de release e idiomas español/inglés.
 > El plan por etapas y el diagnóstico de partida están en [docs/auditoria_mobile.md](docs/auditoria_mobile.md).
 
@@ -147,11 +147,9 @@ CG_LIVE_API=http://192.168.0.50:3000/api/v1 CG_LIVE_TTL=20 CG_LIVE_EMAIL=... CG_
   Validan como el servidor contra el saldo local (que incluye lo pendiente): fondos, categorías reservadas o
   inactivas, cuenta inactiva, misma moneda en transferencias. Los formularios avisan la falta de fondos antes de
   guardar. Cuentas, categorías y sugerencias salen de SQLite.
-- Dashboard: saldos calculados de la base local con la regla de `GET /accounts/balances`; solo la cotización
-  viene del servidor. Cada cotización recibida se guarda en `sync_state` (nombre, venta en centavos y fecha);
-  sin conexión se usa la última con su fecha ("Última cotización (dd/mm/aaaa hh:mm) …"). Si nunca se recibió
-  una, las cuentas en USD no se convierten ni suman al total y se muestra "Cotización: sin conexión".
-  La contingencia del servidor (`available: false`) nunca se guarda.
+- Dashboard: saldos calculados de la base local con la regla de `GET /accounts/balances` (no consulta al
+  servidor). Sin cotización ni conversión entre monedas: un total por moneda con las cuentas tildadas; el de
+  la moneda principal (elegida en el primer ingreso) va grande y el de la otra, si tiene cuentas, más chico.
 - Edición y borrado (`lib/features/movements/data/local_movement_editor.dart`, pantalla "Editar comprobante"):
   encabezado (concepto, fecha, cuenta), cada renglón (concepto, categoría, monto; por `serverId`, sin `baseVersion`),
   transferencia como par, borrar renglón (solo si hay más de uno y no es transferencia: `LAST_DETAIL`/`TRANSFER_EDIT`)

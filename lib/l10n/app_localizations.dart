@@ -549,24 +549,6 @@ abstract class AppLocalizations {
   /// **'Los datos locales no coinciden con el servidor; la próxima vez se descarga todo.'**
   String get localDataDoesNotMatch;
 
-  /// No description provided for @lastRate.
-  ///
-  /// In es, this message translates to:
-  /// **'Última cotización'**
-  String get lastRate;
-
-  /// No description provided for @exchangeRateOfflineUsdNot.
-  ///
-  /// In es, this message translates to:
-  /// **'Cotización: sin conexión · USD sin convertir'**
-  String get exchangeRateOfflineUsdNot;
-
-  /// No description provided for @exchangeRateUnavailableUsdNot.
-  ///
-  /// In es, this message translates to:
-  /// **'Cotización no disponible · USD sin convertir'**
-  String get exchangeRateUnavailableUsdNot;
-
   /// No description provided for @showingLastLoadedData.
   ///
   /// In es, this message translates to:
@@ -578,12 +560,6 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Registrá un ingreso'**
   String get recordIncome;
-
-  /// No description provided for @noExchangeRate.
-  ///
-  /// In es, this message translates to:
-  /// **'sin cotización'**
-  String get noExchangeRate;
 
   /// No description provided for @notifications.
   ///
@@ -2330,7 +2306,7 @@ abstract class AppLocalizations {
   /// No description provided for @cannotTransferBetweenAccountsDifferent2.
   ///
   /// In es, this message translates to:
-  /// **'No se puede transferir entre cuentas de distinta moneda. Registrá un egreso y un ingreso con la cotización usada.'**
+  /// **'No se puede transferir entre cuentas de distinta moneda. Registrá un egreso y un ingreso.'**
   String get cannotTransferBetweenAccountsDifferent2;
 
   /// No description provided for @conceptCannotExceedConceptmaxCharacters.

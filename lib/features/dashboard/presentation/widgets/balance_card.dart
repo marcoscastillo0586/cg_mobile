@@ -5,10 +5,12 @@ import '../../../../core/utils/date_utils.dart';
 import '../../../../l10n/l10n.dart';
 
 class BalanceCard extends StatelessWidget {
-  final int totalArsCents;
+  /// Moneda principal: su total va grande. Sin conversión entre monedas.
+  final Currency monedaPrincipal;
+  final int totalPrincipalCents;
 
-  /// Texto de la cotización usada (p. ej. "Blue: $ 1.250,00" o "sin conexión").
-  final String? cotizacionTexto;
+  /// Totales de las otras monedas con cuentas, más chicos debajo del principal.
+  final List<(Currency, int)> otrosTotales;
   final bool ocultarMontos;
   final VoidCallback onToggleOcultar;
   final VoidCallback onSelectFecha;
@@ -19,8 +21,9 @@ class BalanceCard extends StatelessWidget {
 
   const BalanceCard({
     super.key,
-    required this.totalArsCents,
-    this.cotizacionTexto,
+    required this.monedaPrincipal,
+    required this.totalPrincipalCents,
+    this.otrosTotales = const [],
     required this.ocultarMontos,
     required this.onToggleOcultar,
     required this.onSelectFecha,
@@ -31,7 +34,7 @@ class BalanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fechaFormatted = AppDateUtils.formatDateString(fechaFiltro);
-    final montoFormateado = Money.format(totalArsCents, hidden: ocultarMontos);
+    final montoFormateado = Money.format(totalPrincipalCents, currency: monedaPrincipal, hidden: ocultarMontos);
 
     return Container(
       width: double.infinity,
@@ -127,7 +130,7 @@ class BalanceCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Monto Principal (Saldo Consolidado con símbolo al inicio: "$ 1.200,00")
+          // Total de la moneda principal (símbolo al inicio: "$ 1.200,00")
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -142,12 +145,12 @@ class BalanceCard extends StatelessWidget {
               ),
             ),
           ),
-          if (cotizacionTexto != null) ...[
-            const SizedBox(height: 6),
+          for (final (moneda, cents) in otrosTotales) ...[
+            const SizedBox(height: 4),
             Text(
-              cotizacionTexto!,
-              key: const ValueKey('cotizacion'),
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
+              Money.format(cents, currency: moneda, hidden: ocultarMontos),
+              key: ValueKey('saldo-${moneda.code}'),
+              style: const TextStyle(color: Colors.white70, fontSize: 18, fontWeight: FontWeight.w600),
             ),
           ],
 

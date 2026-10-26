@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/money/money.dart';
 import '../../domain/entities/balances.dart';
 
 enum DashboardStatus { initial, loading, loaded, error }
@@ -55,13 +56,12 @@ class DashboardState extends Equatable {
     return b.accounts.map((c) => c.id).where((id) => !cuentasExcluidasIds.contains(id)).toSet();
   }
 
-  /// Consolidado en ARS de las cuentas seleccionadas (F1.11). Sin cotización conocida las
-  /// cuentas USD no suman (no se inventa una conversión). Con todas coincide con totalArsCents.
-  int get totalSeleccionadoArsCents {
+  /// Total de las cuentas seleccionadas de esa moneda (F1.11). Sin conversión entre monedas.
+  int totalSeleccionadoCents(Currency moneda) {
     final b = balances;
     if (b == null) return 0;
     final ids = idsSeleccionados;
-    return b.accounts.where((c) => ids.contains(c.id)).fold(0, (sum, c) => sum + (c.balanceArsCents ?? 0));
+    return b.accounts.where((c) => c.currency == moneda && ids.contains(c.id)).fold(0, (sum, c) => sum + c.balanceCents);
   }
 
   @override

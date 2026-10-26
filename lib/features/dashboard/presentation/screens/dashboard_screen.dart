@@ -7,10 +7,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/database/local_database.dart';
 import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/errors/error_messages.dart';
-import '../../../../core/errors/exceptions.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
-import '../../../../core/utils/date_utils.dart';
 import '../../../../core/widgets/dashboard_skeleton.dart';
 import 'package:gastos_mobile/routes/app_routes.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
@@ -290,23 +288,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
             if (balances == null) {
               return const SizedBox.shrink();
             }
-            final rate = balances.exchangeRate;
-            final rateError = balances.rateError;
-            final String? cotizacion;
-            if (rate.isNotApplicable) {
-              cotizacion = null; // ninguna cuenta en USD: no hace falta cotización
-            } else if (rate.available && !rate.isStale) {
-              cotizacion = '${rate.name}: ${Money.format(rate.sellCents)}';
-            } else if (rate.available) {
-              // Última cotización recibida, con su fecha (no hay cotización fija).
-              final cuando = AppDateUtils.formatDateTimeString(DateTime.parse(rate.receivedAt!).toLocal().toIso8601String());
-              cotizacion = '${context.l10n.lastRate} ($cuando) ${rate.name}: ${Money.format(rate.sellCents)}';
-            } else {
-              cotizacion = rateError == null || rateError is NetworkException
-                  ? (context.l10n.exchangeRateOfflineUsdNot)
-                  : '${context.l10n.exchangeRateUnavailableUsdNot}: '
-                      '${ErrorMessages.describe(rateError, context.l10n)}';
-            }
+            // Moneda principal (elegida en el primer ingreso): total grande; las otras monedas con
+            // cuentas, más chicas. Sin conversión entre monedas.
+            final principal = Currency.parse(ref.watch(settingsProvider.select((s) => s.defaultCurrency)));
 
             return ListView(
               padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
@@ -321,8 +305,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
                     ),
                   ),
                 BalanceCard(
-                  totalArsCents: dashboardState.totalSeleccionadoArsCents,
-                  cotizacionTexto: cotizacion,
+                  monedaPrincipal: principal,
+                  totalPrincipalCents: dashboardState.totalSeleccionadoCents(principal),
+                  otrosTotales: [
+                    for (final moneda in Currency.values)
+                      if (moneda != principal && balances.currencies.contains(moneda)) (moneda, dashboardState.totalSeleccionadoCents(moneda)),
+                  ],
                   ocultarMontos: dashboardState.ocultarMontos,
                   fechaFiltro: dashboardState.fechaFiltro,
                   nombreDashboard: currentDashboard == null ? null : dashboards.label(currentDashboard, context.l10n),

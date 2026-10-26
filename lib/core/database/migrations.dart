@@ -175,6 +175,22 @@ CREATE TABLE sync_state (
     // Lo ya descargado no trae autor: la próxima descarga es completa y lo completa.
     'UPDATE sync_state SET cursor = NULL',
   ]),
+  Migration(6, 'Sin cotización: se quitan las columnas de la última cotización', [
+    // Ya no hay cotización ni conversión entre monedas. SQLite de Android viejos no tiene
+    // DROP COLUMN: se reconstruye sync_state con el resto de sus datos (cursor, fechas y dispositivo).
+    '''
+CREATE TABLE sync_state_new (
+  id           INTEGER PRIMARY KEY CHECK (id = 1),
+  cursor       TEXT,
+  last_pull_at TEXT,
+  last_push_at TEXT,
+  device_id    TEXT
+)''',
+    'INSERT INTO sync_state_new (id, cursor, last_pull_at, last_push_at, device_id) '
+        'SELECT id, cursor, last_pull_at, last_push_at, device_id FROM sync_state',
+    'DROP TABLE sync_state',
+    'ALTER TABLE sync_state_new RENAME TO sync_state',
+  ]),
 ];
 
 /// Versión de esquema que espera esta compilación de la app.

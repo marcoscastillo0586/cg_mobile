@@ -89,13 +89,6 @@ class AccountCard extends StatelessWidget {
                         key: ValueKey('cuenta-negativa-${account.id}'),
                         style: const TextStyle(fontSize: 11, color: AppColors.rose, fontWeight: FontWeight.w600),
                       ),
-                    if (isUsd && !ocultarMontos)
-                      Text(
-                        account.balanceArsCents == null
-                            ? (context.l10n.noExchangeRate)
-                            : Money.format(account.balanceArsCents!),
-                        style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
-                      ),
                   ],
                 ),
               ),
