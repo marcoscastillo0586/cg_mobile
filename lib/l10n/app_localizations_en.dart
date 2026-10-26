@@ -1794,4 +1794,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mainCurrencySaved => 'Main currency saved.';
+
+  @override
+  String get budgetCurrency => 'Limit currency';
+
+  @override
+  String get mixedCurrencies => 'Mixed currencies';
+
+  @override
+  String get budgetMixedCurrency =>
+      'All accounts of a limit must be in the same currency.';
 }

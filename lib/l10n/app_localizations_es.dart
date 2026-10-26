@@ -1805,4 +1805,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get mainCurrencySaved => 'Se guardó la moneda principal.';
+
+  @override
+  String get budgetCurrency => 'Moneda del límite';
+
+  @override
+  String get mixedCurrencies => 'Mezcla monedas';
+
+  @override
+  String get budgetMixedCurrency =>
+      'Todas las cuentas de un límite deben ser de la misma moneda.';
 }

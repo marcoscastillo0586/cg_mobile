@@ -3186,6 +3186,24 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Se guardó la moneda principal.'**
   String get mainCurrencySaved;
+
+  /// No description provided for @budgetCurrency.
+  ///
+  /// In es, this message translates to:
+  /// **'Moneda del límite'**
+  String get budgetCurrency;
+
+  /// No description provided for @mixedCurrencies.
+  ///
+  /// In es, this message translates to:
+  /// **'Mezcla monedas'**
+  String get mixedCurrencies;
+
+  /// No description provided for @budgetMixedCurrency.
+  ///
+  /// In es, this message translates to:
+  /// **'Todas las cuentas de un límite deben ser de la misma moneda.'**
+  String get budgetMixedCurrency;
 }
 
 class _AppLocalizationsDelegate

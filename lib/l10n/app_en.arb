@@ -513,5 +513,8 @@
   "dashboardSharedCount": "Shared · {count} members",
   "mainCurrency": "Main currency",
   "mainCurrencyHint": "It is preselected and shown first.",
-  "mainCurrencySaved": "Main currency saved."
+  "mainCurrencySaved": "Main currency saved.",
+  "budgetCurrency": "Limit currency",
+  "mixedCurrencies": "Mixed currencies",
+  "budgetMixedCurrency": "All accounts of a limit must be in the same currency."
 }

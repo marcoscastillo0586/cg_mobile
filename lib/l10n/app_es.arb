@@ -1099,5 +1099,8 @@
   },
   "mainCurrency": "Moneda principal",
   "mainCurrencyHint": "Es la que se preselecciona y se muestra primero.",
-  "mainCurrencySaved": "Se guardó la moneda principal."
+  "mainCurrencySaved": "Se guardó la moneda principal.",
+  "budgetCurrency": "Moneda del límite",
+  "mixedCurrencies": "Mezcla monedas",
+  "budgetMixedCurrency": "Todas las cuentas de un límite deben ser de la misma moneda."
 }

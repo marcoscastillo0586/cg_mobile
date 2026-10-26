@@ -14,6 +14,7 @@ import '../../domain/budget.dart';
 import '../providers/limits_admin_notifier.dart';
 import '../providers/limits_admin_state.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../settings/presentation/providers/settings_provider.dart';
 
 class LimitsAdminScreen extends ConsumerStatefulWidget {
   const LimitsAdminScreen({super.key});
@@ -95,7 +96,7 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
       children: [
-        _Resumen(state: state),
+        _Resumen(state: state, principal: Currency.parse(ref.watch(settingsProvider.select((s) => s.defaultCurrency)))),
         const SizedBox(height: 12),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -177,7 +178,7 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
                 key: const ValueKey('limite-monto'),
                 controller: c[0],
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(labelText: context.l10n.limit, prefixText: r'$ '),
+                decoration: InputDecoration(labelText: context.l10n.limit, prefixText: '${(b.currency ?? Currency.ars).symbol} '),
               ),
             ]),
             actions: [
@@ -223,6 +224,8 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
     var desde = '${hoy.substring(0, 8)}01';
     var hasta = LocalBudgetsRepository.lastDayOfMonth(hoy);
     final cats = <int>{}, accs = <int>{};
+    // Una sola moneda por límite: arranca en la principal y solo se ofrecen las cuentas de esa moneda.
+    var moneda = Currency.parse(ref.read(settingsProvider).defaultCurrency);
     final montoTexto = await showDialog<String>(
       context: context,
       builder: (ctx) => DialogControllers(
@@ -234,11 +237,25 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
               child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _fecha(ctx, context.l10n.from, desde, (v) => setLocal(() => desde = v)),
                 _fecha(ctx, context.l10n.to, hasta, (v) => setLocal(() => hasta = v)),
+                const SizedBox(height: 8),
+                Text(context.l10n.budgetCurrency, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Wrap(spacing: 6, children: [
+                  for (final m in Currency.values)
+                    ChoiceChip(
+                      key: ValueKey('limite-moneda-${m.code}'),
+                      label: Text(m.code),
+                      selected: moneda == m,
+                      onSelected: (_) => setLocal(() {
+                        if (moneda != m) accs.clear();
+                        moneda = m;
+                      }),
+                    ),
+                ]),
                 TextField(
                   key: const ValueKey('limite-monto'),
                   controller: c[0],
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(labelText: context.l10n.limit, prefixText: r'$ '),
+                  decoration: InputDecoration(labelText: context.l10n.limit, prefixText: '${moneda.symbol} '),
                 ),
                 const SizedBox(height: 10),
                 Text('${context.l10n.categories2} (${cats.length}/$budgetMaxCategories)',
@@ -256,7 +273,7 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
                 const SizedBox(height: 10),
                 Text(context.l10n.accounts2, style: const TextStyle(fontWeight: FontWeight.w600)),
                 Wrap(spacing: 6, children: [
-                  for (final a in cuentas)
+                  for (final a in cuentas.where((a) => a.currency == moneda))
                     FilterChip(
                       key: ValueKey('limite-cuenta-${a.name}'),
                       label: Text(a.name.toUpperCase()),
@@ -289,18 +306,23 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
 
 class _Resumen extends StatelessWidget {
   final LimitsAdminState state;
-  const _Resumen({required this.state});
+
+  /// Moneda principal: su fila va primero. Una fila por moneda, sin conversión.
+  final Currency principal;
+  const _Resumen({required this.state, required this.principal});
+
+  String _key(String base, Currency m) => m == principal ? base : '$base-${m.code}';
 
   @override
   Widget build(BuildContext context) {
-    Widget col(String label, int cents, Color color, String key) => Expanded(
+    Widget col(String label, int cents, Currency moneda, Color color, String key) => Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(label, style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
             const SizedBox(height: 4),
             FittedBox(
               fit: BoxFit.scaleDown,
               child:
-                  Text(Money.format(cents), key: ValueKey(key), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: color)),
+                  Text(Money.format(cents, currency: moneda), key: ValueKey(key), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: color)),
             ),
           ]),
         );
@@ -310,12 +332,18 @@ class _Resumen extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(context.l10n.currentBudgets, style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          Row(children: [
-            col(context.l10n.limits, state.totalPresupuestadoCents, AppColors.primary, 'total-topes'),
-            col(context.l10n.spent, state.totalConsumidoCents, AppColors.rose, 'total-gastado'),
-            col(context.l10n.remaining, state.totalRestoCents, state.totalRestoCents < 0 ? AppColors.rose : AppColors.emerald,
-                'total-restante'),
-          ]),
+          for (final m in [principal, ...Currency.values.where((c) => c != principal)])
+            if (m == principal || state.monedasVigentes.contains(m))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(children: [
+                  // La fila principal mantiene las claves de antes; las otras llevan la moneda.
+                  col(context.l10n.limits, state.totalPresupuestadoCents(m), m, AppColors.primary, _key('total-topes', m)),
+                  col(context.l10n.spent, state.totalConsumidoCents(m), m, AppColors.rose, _key('total-gastado', m)),
+                  col(context.l10n.remaining, state.totalRestoCents(m), m,
+                      state.totalRestoCents(m) < 0 ? AppColors.rose : AppColors.emerald, _key('total-restante', m)),
+                ]),
+              ),
         ]),
       ),
     );
@@ -340,6 +368,8 @@ class _BudgetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = budget.percent;
     final color = colorFor(p);
+    // Los que mezclan monedas (anteriores a la regla) siguen como antes, en pesos y con aviso.
+    final moneda = budget.currency ?? Currency.ars;
     final progreso = p == null ? 0.0 : (p / 100).clamp(0.0, 1.0).toDouble();
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -362,6 +392,10 @@ class _BudgetCard extends StatelessWidget {
               ],
             ),
           ]),
+          if (budget.currency == null)
+            Text(context.l10n.mixedCurrencies,
+                key: ValueKey('limite-mezcla-${budget.id}'),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.amber)),
           Text(
             '${AppDateUtils.formatDateString(budget.startDate)} – ${AppDateUtils.formatDateString(budget.endDate)} · '
             '${budget.accounts.map((a) => a.name).join(', ')}',
@@ -373,15 +407,15 @@ class _BudgetCard extends StatelessWidget {
           Row(children: [
             Expanded(
               child: Text(
-                '${Money.format(budget.consumedCents)} / ${Money.format(budget.limitCents)}',
+                '${Money.format(budget.consumedCents, currency: moneda)} / ${Money.format(budget.limitCents, currency: moneda)}',
                 key: ValueKey('presupuesto-consumo-${budget.id}'),
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ),
             Text(
               budget.exceeded
-                  ? '${context.l10n.excess}: ${Money.format(-budget.remainingCents)}'
-                  : '${context.l10n.left}: ${Money.format(budget.remainingCents)}',
+                  ? '${context.l10n.excess}: ${Money.format(-budget.remainingCents, currency: moneda)}'
+                  : '${context.l10n.left}: ${Money.format(budget.remainingCents, currency: moneda)}',
               key: ValueKey('presupuesto-resto-${budget.id}'),
               style: TextStyle(fontSize: 12, color: budget.exceeded ? AppColors.rose : AppColors.emerald),
             ),

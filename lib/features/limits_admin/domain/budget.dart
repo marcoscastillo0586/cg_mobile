@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../core/money/money.dart';
 
 class BudgetRef extends Equatable {
   /// Id LOCAL de la categoría o cuenta.
@@ -31,6 +32,9 @@ class Budget extends Equatable {
   final bool dueForRenewal;
   final List<BudgetRef> categories;
   final List<BudgetRef> accounts;
+
+  /// Moneda del límite (la de sus cuentas); null si mezcla monedas (límites anteriores a esa regla).
+  final Currency? currency;
   final int? version;
 
   const Budget({
@@ -44,6 +48,7 @@ class Budget extends Equatable {
     required this.dueForRenewal,
     required this.categories,
     required this.accounts,
+    this.currency,
     this.version,
   });
 
@@ -60,5 +65,5 @@ class Budget extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, serverId, startDate, endDate, limitCents, consumedCents, percentHundredths, dueForRenewal, categories, accounts, version];
+      [id, serverId, startDate, endDate, limitCents, consumedCents, percentHundredths, dueForRenewal, categories, accounts, currency, version];
 }

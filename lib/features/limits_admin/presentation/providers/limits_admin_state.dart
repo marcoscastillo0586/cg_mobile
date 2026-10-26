@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/money/money.dart';
 import '../../domain/budget.dart';
 
 enum LimitsAdminStatus { initial, loading, loaded, error }
@@ -30,10 +31,13 @@ class LimitsAdminState extends Equatable {
 
   Iterable<Budget> get _vigentes => limits.where((l) => !l.dueForRenewal);
 
-  /// Totales de los presupuestos vigentes (centavos).
-  int get totalPresupuestadoCents => _vigentes.fold(0, (a, l) => a + l.limitCents);
-  int get totalConsumidoCents => _vigentes.fold(0, (a, l) => a + l.consumedCents);
-  int get totalRestoCents => _vigentes.fold(0, (a, l) => a + l.remainingCents);
+  /// Monedas con presupuestos vigentes (los que mezclan monedas no entran en los totales).
+  Set<Currency> get monedasVigentes => {for (final l in _vigentes) if (l.currency != null) l.currency!};
+
+  /// Totales de los presupuestos vigentes de esa moneda (centavos). Sin conversión entre monedas.
+  int totalPresupuestadoCents(Currency moneda) => _vigentes.where((l) => l.currency == moneda).fold(0, (a, l) => a + l.limitCents);
+  int totalConsumidoCents(Currency moneda) => _vigentes.where((l) => l.currency == moneda).fold(0, (a, l) => a + l.consumedCents);
+  int totalRestoCents(Currency moneda) => _vigentes.where((l) => l.currency == moneda).fold(0, (a, l) => a + l.remainingCents);
 
   int get activosCount => _vigentes.length;
   int get vencidosCount => limits.where((l) => l.dueForRenewal).length;

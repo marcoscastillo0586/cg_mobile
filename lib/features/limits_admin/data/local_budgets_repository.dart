@@ -38,9 +38,11 @@ class LocalBudgetsRepository {
     final cats = (await _db.rawQuery('''
         SELECT c.local_id, c.name FROM budget_categories bc JOIN categories c ON c.local_id = bc.category_local_id
         WHERE bc.budget_local_id = ? ORDER BY c.name COLLATE NOCASE''', [id])).map((c) => BudgetRef(c['local_id']! as int, c['name']! as String)).toList();
-    final accs = (await _db.rawQuery('''
-        SELECT a.local_id, a.name FROM budget_accounts ba JOIN accounts a ON a.local_id = ba.account_local_id
-        WHERE ba.budget_local_id = ? ORDER BY a.name COLLATE NOCASE''', [id])).map((a) => BudgetRef(a['local_id']! as int, a['name']! as String)).toList();
+    final accRows = await _db.rawQuery('''
+        SELECT a.local_id, a.name, a.currency FROM budget_accounts ba JOIN accounts a ON a.local_id = ba.account_local_id
+        WHERE ba.budget_local_id = ? ORDER BY a.name COLLATE NOCASE''', [id]);
+    final accs = accRows.map((a) => BudgetRef(a['local_id']! as int, a['name']! as String)).toList();
+    final currencies = {for (final a in accRows) Currency.parse(a['currency'])};
     final start = r['start_date']! as String, end = r['end_date']! as String;
     final limit = r['limit_cents']! as int;
     final consumed = await consumption(_db, start, end, accs.map((a) => a.id).toList(), cats.map((c) => c.id).toList());
@@ -55,6 +57,7 @@ class LocalBudgetsRepository {
       dueForRenewal: LocalOps.todayAr(_now()).compareTo(end) >= 0,
       categories: cats,
       accounts: accs,
+      currency: currencies.length == 1 ? currencies.single : null,
       version: r['version'] as int?,
     );
   }
@@ -98,7 +101,12 @@ class LocalBudgetsRepository {
           }
           catRefs.add(LocalOps.ref(c));
         }
-        final accRefs = [for (final id in accs) LocalOps.ref(await LocalOps.require(txn, 'accounts', id, (l) => l.account))];
+        final accRows = [for (final id in accs) await LocalOps.require(txn, 'accounts', id, (l) => l.account)];
+        // Una sola moneda por límite (regla del servidor: BUDGET_MIXED_CURRENCY).
+        if (accRows.map((a) => a['currency']).toSet().length > 1) {
+          throw ValidationFailure.t((l) => l.budgetMixedCurrency, 'BUDGET_MIXED_CURRENCY');
+        }
+        final accRefs = [for (final a in accRows) LocalOps.ref(a)];
         final clientId = LocalDatabase.newId();
         final localId = await txn.insert('budgets', {
           'client_id': clientId, 'start_date': startDate, 'end_date': endDate, 'limit_cents': limitCents, 'updated_at': LocalOps.stamp(),

@@ -13,6 +13,7 @@ class ErrorMessages {
         'INVALID_CREDENTIALS' => l.errInvalidCredentials,
         'ACCOUNT_LOCKED' => l.errAccountLocked,
         'RATE_LIMITED' => l.errRateLimited,
+        'BUDGET_MIXED_CURRENCY' => l.budgetMixedCurrency,
         'INVALID_REFRESH' => l.errInvalidRefresh,
         'INVALID_TOKEN' => l.errInvalidToken,
         'UNAUTHORIZED' => l.errUnauthorized,
