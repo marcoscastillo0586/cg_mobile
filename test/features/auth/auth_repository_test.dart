@@ -16,7 +16,9 @@ class _Setup {
   final FakeAuthServer server;
   final SecureStorageService storage;
   final AuthRepositoryImpl repo;
-  int dbDeletes = 0;
+
+  /// Dueños a los que se pasaron los archivos locales de antes de separar por cuenta.
+  final adoptedFor = <int>[];
   _Setup(this.server, this.storage, this.repo);
 }
 
@@ -44,39 +46,43 @@ _Setup _build({Map<String, String> initial = const {}}) {
   client.dio.options.baseUrl = 'http://api.fake/api/v1';
   client.dio.interceptors.insert(0, AuthInterceptor(session, client.dio));
   late _Setup setup;
-  final repo = AuthRepositoryImpl(AuthRemoteDataSource(session, client), storage, () async => setup.dbDeletes++);
+  final repo = AuthRepositoryImpl(AuthRemoteDataSource(session, client), storage, (owner) async => setup.adoptedFor.add(owner));
   setup = _Setup(server, storage, repo);
   return setup;
 }
 
 void main() {
-  test('logout borra la base local y la sesión, y conserva los ajustes', () async {
-    final s = _build(initial: {'app_theme_mode': 'dark', 'app_language': 'en', 'is_first_launch_done': 'true'});
+  test('logout borra solo la sesión: conserva los datos locales, los pendientes y los ajustes', () async {
+    final s = _build(initial: {'app_theme_mode': 'dark', 'app_language': 'en', 'is_first_launch_done_u7': 'true'});
     await s.repo.login('ana@test.com', 'clave-larga-123');
 
     final outcome = await s.repo.logout();
 
     expect(outcome.revokedOnServer, isTrue);
-    expect(s.dbDeletes, 1);
     expect(await s.storage.getRefreshToken(), isNull);
     expect(await s.storage.getUserJson(), isNull);
-    expect(await s.storage.getOwnerUserId(), isNull);
+    // Ningún borrado de bases: los archivos de la cuenta siguen en el celular.
     expect(await s.storage.getThemeMode(), 'dark');
     expect(await s.storage.getLanguage(), 'en');
-    expect(await s.storage.isFirstLaunchDone(), isTrue);
+    expect(await s.storage.isFirstLaunchDone(7), isTrue);
   });
 
-  test('login de otro usuario borra la base local del anterior', () async {
-    final s = _build(initial: {'local_data_owner_user_id': '99'});
+  test('login de otra cuenta no borra nada: los datos de antes pasan a su dueño registrado', () async {
+    final s = _build(initial: {'local_data_owner_user_id': '99', 'app_default_currency': 'USD', 'is_first_launch_done': 'true'});
     await s.repo.login('ana@test.com', 'clave-larga-123');
-    expect(s.dbDeletes, 1);
-    expect(await s.storage.getOwnerUserId(), 7);
+    expect(s.adoptedFor, [99]);
+    // Moneda y primer ingreso del celular quedan para el dueño (99), no para la cuenta que entra (7).
+    expect(await s.storage.getDefaultCurrency(99), 'USD');
+    expect(await s.storage.isFirstLaunchDone(99), isTrue);
+    expect(await s.storage.getDefaultCurrency(7), isNull);
+    expect(await s.storage.isFirstLaunchDone(7), isFalse);
+    expect(await s.storage.getOwnerUserId(), isNull, reason: 'ya no hace falta: cada cuenta tiene sus archivos');
   });
 
-  test('login del mismo usuario conserva la base local', () async {
-    final s = _build(initial: {'local_data_owner_user_id': '7'});
+  test('sin dueño registrado ni sesión guardada: los datos de antes son de la cuenta que entra', () async {
+    final s = _build();
     await s.repo.login('ana@test.com', 'clave-larga-123');
-    expect(s.dbDeletes, 0);
+    expect(s.adoptedFor, [7]);
   });
 
   test('sin sesión guardada no hay usuario (no se inventa uno)', () async {

@@ -1,9 +1,11 @@
-// Cierre de sesión sin cerrar la app: ningún provider conserva datos del usuario anterior.
-// Repositorio de auth SIMULADO; el borrado real de la base se prueba en el celular.
+// Cierre de sesión sin cerrar la app: ningún provider conserva datos del usuario anterior en memoria
+// y la cuenta conectada (sus archivos locales) cambia. Repositorio de auth SIMULADO; que los archivos
+// de cada cuenta se conserven se prueba en el celular.
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gastos_mobile/core/auth/current_account.dart';
 import 'package:gastos_mobile/core/auth/session_manager.dart';
 import 'package:gastos_mobile/core/auth/session_scope.dart';
 import 'package:gastos_mobile/features/auth/data/repositories/auth_repository_impl.dart';
@@ -36,6 +38,9 @@ class _FakeAuth implements AuthRepository {
 
   @override
   Future<UserEntity> updateDisplayName(String name) async => throw UnimplementedError();
+
+  @override
+  Future<UserEntity> updateMainCurrency(String currency) async => throw UnimplementedError();
 }
 
 /// Datos del usuario en memoria (como los notifiers de saldos o la base local abierta).
@@ -71,6 +76,7 @@ void main() {
     _databasesOpened = 0;
     await pump(tester);
     expect(find.text('authenticated 1 null'), findsOneWidget);
+    expect(CurrentAccount.id, 1, reason: 'se usan los archivos locales de la cuenta 1');
     container().read(_userData.notifier).state = 'saldos del usuario 1';
     await tester.pump();
     expect(find.text('authenticated 1 saldos del usuario 1'), findsOneWidget);
@@ -87,10 +93,12 @@ void main() {
     expect(s.notice, AuthNotice.logoutNotRevoked, reason: 'el aviso de logout sin red no se pierde');
     expect(auth.restores, 1, reason: 'el contenedor nuevo no vuelve a consultar la sesión guardada');
     expect(_databasesOpened, 2, reason: 'la base se vuelve a abrir en el contenedor nuevo');
+    expect(CurrentAccount.id, isNull, reason: 'sin sesión no se usa la base de ninguna cuenta');
 
     await container().read(authNotifierProvider.notifier).login('b@x', 'x');
     await tester.pump();
     expect(find.text('authenticated 5 null'), findsOneWidget);
+    expect(CurrentAccount.id, 5, reason: 'otra cuenta usa sus propios archivos, no los de la 1');
   });
 
   testWidgets('sesión expirada durante el uso: también se descarta el estado', (tester) async {

@@ -135,10 +135,10 @@ if (!foreground()) throw new Error('La app no está en primer plano: abrila con 
 // Dashboard
 const balances = await get('/accounts/balances');
 let s = await collect();
-check('Dashboard', 'consolidado (todas las cuentas)', money(balances.totalArsCents), s);
+// Un total por moneda (todas las cuentas tildadas), sin conversión.
+for (const t of balances.totals) check('Dashboard', `total ${t.currency}`, money(t.balanceCents, t.currency), s);
 for (const a of balances.accounts) {
   check('Dashboard', `saldo ${a.name}`, money(a.balanceCents, a.currency), s);
-  if (a.currency === 'USD') check('Dashboard', `saldo ${a.name} en ARS`, money(a.balanceArsCents), s);
 }
 check('Dashboard', 'cantidad de cuentas', `Mis Cuentas (${balances.accounts.length})`, s);
 adb('shell', 'input', 'swipe', '540', '700', '540', '2000', '300');
@@ -153,12 +153,18 @@ s = await collect();
 for (const b of budgets) {
   const name = b.categories.map((c) => c.name).sort().join(', ');
   check('Presupuestos', `% ${name}`, b.percent == null ? '—' : percent(b.percent), s);
-  check('Presupuestos', `consumo/límite ${name}`, `${money(b.consumedCents)} / ${money(b.limitCents)}`, s);
+  // Cada límite en la moneda de sus cuentas (los que mezclan monedas, como antes: en pesos).
+  const cur = b.currency ?? 'ARS';
+  check('Presupuestos', `consumo/límite ${name}`, `${money(b.consumedCents, cur)} / ${money(b.limitCents, cur)}`, s);
 }
-const vig = budgets.filter((b) => !b.dueForRenewal);
-check('Presupuestos', 'total topes vigentes', money(vig.reduce((a, b) => a + b.limitCents, 0)), s);
-check('Presupuestos', 'total gastado vigentes', money(vig.reduce((a, b) => a + b.consumedCents, 0)), s);
-check('Presupuestos', 'total restante vigentes', money(vig.reduce((a, b) => a + b.remainingCents, 0)), s);
+// Totales de vigentes: uno por moneda (los que mezclan monedas no suman).
+const vig = budgets.filter((b) => !b.dueForRenewal && b.currency);
+for (const cur of [...new Set(vig.map((b) => b.currency))]) {
+  const of = vig.filter((b) => b.currency === cur);
+  check('Presupuestos', `total topes vigentes ${cur}`, money(of.reduce((a, b) => a + b.limitCents, 0), cur), s);
+  check('Presupuestos', `total gastado vigentes ${cur}`, money(of.reduce((a, b) => a + b.consumedCents, 0), cur), s);
+  check('Presupuestos', `total restante vigentes ${cur}`, money(of.reduce((a, b) => a + b.remainingCents, 0), cur), s);
+}
 await backToDashboard();
 
 // Campana: novedades esperadas según GET /budgets con la regla de la web (percent, dueForRenewal;
