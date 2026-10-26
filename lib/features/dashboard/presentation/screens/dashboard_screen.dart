@@ -11,6 +11,7 @@ import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/dashboard_skeleton.dart';
 import 'package:gastos_mobile/routes/app_routes.dart';
+import '../../../auth/presentation/providers/auth_notifier.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../../settings/presentation/widgets/onboarding_dialog.dart';
 import '../providers/dashboard_notifier.dart';
@@ -111,37 +112,53 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
     _startAutoSync();
     _events = LiveEvents(ref.read(dioClientProvider), _onLiveEvent)..start();
     CurrentDashboard.notice.addListener(_showNotice);
-    Future.microtask(() {
+    Future.microtask(() async {
       _showNotice();
+      await ref.read(settingsProvider.notifier).listo;
+      if (!mounted) return;
       final settings = ref.read(settingsProvider);
-      if (settings.isFirstLaunch && mounted) {
-        showDialog<void>(
+      final monedaServidor = ref.read(authNotifierProvider).user?.monedaPrincipal;
+      if (settings.isFirstLaunch) {
+        unawaited(showDialog<void>(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => OnboardingDialog(
-            initialMoneda: settings.defaultCurrency,
+            // Si ya la eligió en la web u otro celular, viene preseleccionada.
+            initialMoneda: monedaServidor ?? settings.defaultCurrency,
             initialIdioma: settings.language,
             onConfirmar: ({required String moneda, required String idioma, required String nombreDashboard}) {
               ref.read(settingsProvider.notifier).guardarConfiguracionInicial(
                     moneda: moneda,
                     idioma: idioma,
                   );
+              // Moneda principal en el servidor; sin conexión se envía en el próximo ingreso (abajo).
+              ref.read(authNotifierProvider.notifier).updateMainCurrency(moneda);
               // Sin conexión queda pendiente y se envía en la próxima carga de la lista.
               ref.read(dashboardsNotifierProvider.notifier).namePrincipal(nombreDashboard);
             },
           ),
-        );
+        ));
+      } else if (monedaServidor != null) {
+        // La del servidor manda (pudo cambiarse en la web u otro celular).
+        if (monedaServidor != settings.defaultCurrency) {
+          await ref.read(settingsProvider.notifier).cambiarMonedaDefault(monedaServidor);
+        }
+      } else {
+        // Primer ingreso hecho en este celular pero el servidor todavía no la tiene (instalaciones
+        // anteriores o elegida sin conexión): se envía la de este celular.
+        unawaited(ref.read(authNotifierProvider.notifier).updateMainCurrency(settings.defaultCurrency));
       }
-      ref.read(novedadesNotifierProvider.notifier).calcularNovedades();
+      if (!mounted) return;
+      unawaited(ref.read(novedadesNotifierProvider.notifier).calcularNovedades());
 
       // Crea o migra la base local al entrar; si no se puede abrir, se avisa.
       // Crea o migra la base local y descarga los cambios del servidor (pull).
-      ref.read(localDatabaseProvider).then<void>((_) {
+      unawaited(ref.read(localDatabaseProvider).then<void>((_) {
         if (mounted) ref.read(syncControllerProvider.notifier).sync();
       }, onError: (Object e) {
         debugPrint('[DB] No se pudo abrir la base local: $e');
         if (mounted) AppFeedback.showError(context, context.l10n.couldNotOpenLocalDatabase(e));
-      });
+      }));
     });
   }
 

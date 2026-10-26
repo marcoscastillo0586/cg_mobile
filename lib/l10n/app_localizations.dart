@@ -2339,12 +2339,6 @@ abstract class AppLocalizations {
   /// **'Idioma de la Aplicación'**
   String get appLanguage;
 
-  /// No description provided for @defaultCurrencyNewAccounts.
-  ///
-  /// In es, this message translates to:
-  /// **'Moneda por Defecto (al crear cuentas)'**
-  String get defaultCurrencyNewAccounts;
-
   /// No description provided for @sessionDiagnosticsDebug.
   ///
   /// In es, this message translates to:
@@ -2432,7 +2426,7 @@ abstract class AppLocalizations {
   /// No description provided for @n1UsualCurrencyDefault.
   ///
   /// In es, this message translates to:
-  /// **'1. Moneda Habitual (Por Defecto)'**
+  /// **'1. Moneda principal'**
   String get n1UsualCurrencyDefault;
 
   /// No description provided for @n2PreferredLanguage.
@@ -3174,6 +3168,24 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Compartido · {count} integrantes'**
   String dashboardSharedCount(int count);
+
+  /// No description provided for @mainCurrency.
+  ///
+  /// In es, this message translates to:
+  /// **'Moneda principal'**
+  String get mainCurrency;
+
+  /// No description provided for @mainCurrencyHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Es la que se preselecciona y se muestra primero.'**
+  String get mainCurrencyHint;
+
+  /// No description provided for @mainCurrencySaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Se guardó la moneda principal.'**
+  String get mainCurrencySaved;
 }
 
 class _AppLocalizationsDelegate

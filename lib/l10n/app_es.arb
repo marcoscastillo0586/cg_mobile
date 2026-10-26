@@ -718,7 +718,6 @@
   },
   "languageDefaultCurrency": "Idioma y Moneda por Defecto",
   "appLanguage": "Idioma de la Aplicación",
-  "defaultCurrencyNewAccounts": "Moneda por Defecto (al crear cuentas)",
   "sessionDiagnosticsDebug": "Diagnóstico de sesión (debug)",
   "n2ParallelGetAuthMe": "2 GET /auth/me en paralelo",
   "management": "Módulos de Gestión Administrativa",
@@ -733,7 +732,7 @@
   "displayMode": "Modo de Visualización",
   "initialSetup": "Configuración Inicial",
   "welcomePleaseChooseInitialPreferences": "¡Bienvenido! Elegí tus preferencias iniciales:",
-  "n1UsualCurrencyDefault": "1. Moneda Habitual (Por Defecto)",
+  "n1UsualCurrencyDefault": "1. Moneda principal",
   "n2PreferredLanguage": "2. Idioma de Preferencia",
   "selectSourceDestinationAccounts": "Selecciona cuenta de origen y destino",
   "transferDate": "Fecha de la transferencia",
@@ -1097,5 +1096,8 @@
         "type": "int"
       }
     }
-  }
+  },
+  "mainCurrency": "Moneda principal",
+  "mainCurrencyHint": "Es la que se preselecciona y se muestra primero.",
+  "mainCurrencySaved": "Se guardó la moneda principal."
 }

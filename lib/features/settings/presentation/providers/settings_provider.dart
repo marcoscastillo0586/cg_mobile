@@ -8,7 +8,8 @@ import '../../../../l10n/l10n.dart';
 class SettingsState {
   final ThemeMode themeMode;
   final String language; // 'es', 'en'
-  final String defaultCurrency; // 'ARS', 'USD', 'EUR', 'PEN'
+  /// Moneda principal ('ARS' | 'USD'): copia local de la del usuario en el servidor (UserDto.mainCurrency).
+  final String defaultCurrency;
   final bool isFirstLaunch;
 
   const SettingsState({
@@ -54,9 +55,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     'en': 'English',
   };
 
+  /// Completa al terminar de leer los ajustes guardados.
+  late final Future<void> listo;
+
   SettingsNotifier(this._storageService)
       : super(const SettingsState(themeMode: ThemeMode.system)) {
-    inicializar();
+    listo = inicializar();
   }
 
   Future<void> inicializar() async {

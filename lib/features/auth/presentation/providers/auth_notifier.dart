@@ -71,6 +71,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Moneda principal ('ARS' | 'USD'). Devuelve el error (para mostrarlo traducido) o null.
+  Future<Object?> updateMainCurrency(String currency) async {
+    try {
+      final user = await _authRepository.updateMainCurrency(currency);
+      if (mounted) state = AuthState.authenticated(user);
+      return null;
+    } catch (e) {
+      debugPrint('[AUTH] No se pudo cambiar la moneda principal: $e');
+      return e;
+    }
+  }
+
   Future<void> logout() async {
     state = AuthState.loading();
     try {

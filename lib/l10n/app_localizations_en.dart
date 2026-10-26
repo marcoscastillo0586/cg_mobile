@@ -1283,10 +1283,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appLanguage => 'App Language';
 
   @override
-  String get defaultCurrencyNewAccounts =>
-      'Default Currency (for new accounts)';
-
-  @override
   String get sessionDiagnosticsDebug => 'Session diagnostics (debug)';
 
   @override
@@ -1333,7 +1329,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Welcome! Please choose your initial preferences:';
 
   @override
-  String get n1UsualCurrencyDefault => '1. Usual Currency (Default)';
+  String get n1UsualCurrencyDefault => '1. Main currency';
 
   @override
   String get n2PreferredLanguage => '2. Preferred Language';
@@ -1789,4 +1785,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String dashboardSharedCount(int count) {
     return 'Shared · $count members';
   }
+
+  @override
+  String get mainCurrency => 'Main currency';
+
+  @override
+  String get mainCurrencyHint => 'It is preselected and shown first.';
+
+  @override
+  String get mainCurrencySaved => 'Main currency saved.';
 }

@@ -39,6 +39,15 @@ class AuthRemoteDataSource {
     return UserModel.fromJson(data);
   }
 
+  /// Moneda principal del usuario ('ARS' | 'USD'): la misma en la app y en la web.
+  Future<UserModel> updateMainCurrency(String currency) async {
+    final data = await _client.patch(ApiEndpoints.me, data: {'mainCurrency': currency});
+    if (data is! Map<String, dynamic>) {
+      throw const ServerException('Respuesta inesperada de /auth/me', null, 'UNEXPECTED_RESPONSE');
+    }
+    return UserModel.fromJson(data);
+  }
+
   Future<bool> hasSession() => _session.hasSession();
 
   Future<void> refresh() => _session.refresh();

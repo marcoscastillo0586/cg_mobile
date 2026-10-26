@@ -41,6 +41,13 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<UserEntity> updateMainCurrency(String currency) async {
+    final user = await _remote.updateMainCurrency(currency);
+    await _storage.saveUserJson(jsonEncode(user.toJson()));
+    return user;
+  }
+
+  @override
   Future<UserEntity> login(String email, String password) async {
     final user = await _remote.login(email, password);
     // Si la base local era de otro usuario (p. ej. su sesión expiró sin cerrar), se borra.

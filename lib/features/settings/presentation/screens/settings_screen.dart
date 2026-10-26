@@ -25,6 +25,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  var _monedaRechazada = 0;
   String? _diagnostico;
 
   /// Dispara 2 llamadas autenticadas en paralelo y muestra cuántos refresh hubo.
@@ -119,9 +120,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  Text(context.l10n.defaultCurrencyNewAccounts, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(context.l10n.mainCurrency, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(context.l10n.mainCurrencyHint, style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
+                    // Si el servidor no la acepta, se reconstruye con la moneda que sigue vigente.
+                    key: ValueKey('moneda-principal-${settingsState.defaultCurrency}-$_monedaRechazada'),
                     initialValue: settingsState.defaultCurrency,
                     isExpanded: true,
                     decoration: InputDecoration(
@@ -138,7 +142,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onChanged: (val) {
                       if (val != null) {
                         AppFeedback.selection();
-                        ref.read(settingsProvider.notifier).cambiarMonedaDefault(val);
+                        _cambiarMonedaPrincipal(val);
                       }
                     },
                   ),
@@ -382,6 +386,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } else {
       AppFeedback.showSuccess(context, l.displayNameSaved);
     }
+  }
+
+  /// Se guarda en el servidor (la misma en la app y en la web): necesita conexión.
+  Future<void> _cambiarMonedaPrincipal(String moneda) async {
+    final l = context.l10n;
+    final error = await ref.read(authNotifierProvider.notifier).updateMainCurrency(moneda);
+    if (!mounted) return;
+    if (error != null) {
+      AppFeedback.showError(context, describeWithCode(error, l));
+      setState(() => _monedaRechazada++);
+      return;
+    }
+    await ref.read(settingsProvider.notifier).cambiarMonedaDefault(moneda);
+    if (mounted) AppFeedback.showSuccess(context, l.mainCurrencySaved);
   }
 
   Widget _buildAdminTile({

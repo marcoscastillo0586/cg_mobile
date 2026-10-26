@@ -26,6 +26,9 @@ abstract class AuthRepository {
   /// Cambia el nombre para mostrar en el servidor y en la copia guardada del usuario.
   Future<UserEntity> updateDisplayName(String name);
 
+  /// Cambia la moneda principal en el servidor y en la copia guardada del usuario.
+  Future<UserEntity> updateMainCurrency(String currency);
+
   /// Emite cuando la sesión expira durante el uso.
   Stream<Object> get onSessionExpired;
 }

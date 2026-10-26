@@ -13,6 +13,7 @@ import '../providers/accounts_admin_notifier.dart';
 import '../providers/accounts_admin_state.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
+import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../../dashboards/presentation/dashboards_notifier.dart';
 
 class AccountsAdminScreen extends ConsumerStatefulWidget {
@@ -173,7 +174,8 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
   /// Alta (item null) o edición de nombre/moneda. El ícono se elige al crear (la API de
   /// sincronización no lo cambia después).
   Future<void> _editar(BuildContext context, AccountItem? item) async {
-    var moneda = item?.currency ?? Currency.ars;
+    // Alta: se preselecciona la moneda principal.
+    var moneda = item?.currency ?? Currency.parse(ref.read(settingsProvider).defaultCurrency);
     String? icono;
     final texto = await showDialog<String>(
       context: context,

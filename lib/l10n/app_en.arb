@@ -373,7 +373,6 @@
   "systemCategoryRoleMissingSync": "The system category {role} is missing: sync online before entering data.",
   "languageDefaultCurrency": "Language and Default Currency",
   "appLanguage": "App Language",
-  "defaultCurrencyNewAccounts": "Default Currency (for new accounts)",
   "sessionDiagnosticsDebug": "Session diagnostics (debug)",
   "n2ParallelGetAuthMe": "2 parallel GET /auth/me",
   "management": "Management",
@@ -388,7 +387,7 @@
   "displayMode": "Display Mode",
   "initialSetup": "Initial Setup",
   "welcomePleaseChooseInitialPreferences": "Welcome! Please choose your initial preferences:",
-  "n1UsualCurrencyDefault": "1. Usual Currency (Default)",
+  "n1UsualCurrencyDefault": "1. Main currency",
   "n2PreferredLanguage": "2. Preferred Language",
   "selectSourceDestinationAccounts": "Select source and destination accounts",
   "transferDate": "Transfer date",
@@ -511,5 +510,8 @@
   "errNotPrincipal": "Only the main dashboard is cleared; the others are deleted.",
   "errInvitationClosed": "The invitation was already answered.",
   "dashboardIsPrincipal": "Your main dashboard",
-  "dashboardSharedCount": "Shared · {count} members"
+  "dashboardSharedCount": "Shared · {count} members",
+  "mainCurrency": "Main currency",
+  "mainCurrencyHint": "It is preselected and shown first.",
+  "mainCurrencySaved": "Main currency saved."
 }

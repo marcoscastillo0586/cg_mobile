@@ -1292,10 +1292,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get appLanguage => 'Idioma de la Aplicación';
 
   @override
-  String get defaultCurrencyNewAccounts =>
-      'Moneda por Defecto (al crear cuentas)';
-
-  @override
   String get sessionDiagnosticsDebug => 'Diagnóstico de sesión (debug)';
 
   @override
@@ -1343,7 +1339,7 @@ class AppLocalizationsEs extends AppLocalizations {
       '¡Bienvenido! Elegí tus preferencias iniciales:';
 
   @override
-  String get n1UsualCurrencyDefault => '1. Moneda Habitual (Por Defecto)';
+  String get n1UsualCurrencyDefault => '1. Moneda principal';
 
   @override
   String get n2PreferredLanguage => '2. Idioma de Preferencia';
@@ -1799,4 +1795,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String dashboardSharedCount(int count) {
     return 'Compartido · $count integrantes';
   }
+
+  @override
+  String get mainCurrency => 'Moneda principal';
+
+  @override
+  String get mainCurrencyHint =>
+      'Es la que se preselecciona y se muestra primero.';
+
+  @override
+  String get mainCurrencySaved => 'Se guardó la moneda principal.';
 }
