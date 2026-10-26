@@ -439,10 +439,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
                             .read(dashboardNotifierProvider.notifier)
                             .toggleCuentaSeleccionada(cuenta.id);
                       },
+                      // El historial filtra por el id del servidor (no el del celular). Una cuenta
+                      // todavía sin enviar no tiene: se abre el historial general.
                       onTap: () {
-                        context.push(
-                          '${AppRoutes.movements}?id_lugar=${cuenta.id}&nombre=${Uri.encodeComponent(cuenta.name)}',
-                        );
+                        final serverId = cuenta.serverId;
+                        context.push(serverId == null
+                            ? AppRoutes.movements
+                            : '${AppRoutes.movements}?id_lugar=$serverId&nombre=${Uri.encodeComponent(cuenta.name)}');
                       },
                     );
                   },

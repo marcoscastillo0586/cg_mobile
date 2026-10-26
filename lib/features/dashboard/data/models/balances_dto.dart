@@ -26,6 +26,7 @@ class BalancesDto {
 
   static BalanceAccount _account(Map<String, dynamic> a) => BalanceAccount(
         id: a['id'] is int ? a['id'] as int : throw _bad('account.id'),
+        serverId: a['id'] as int,
         name: a['name'] as String? ?? '',
         currency: Currency.parse(a['currency']),
         imageUrl: a['imageUrl'] as String?,

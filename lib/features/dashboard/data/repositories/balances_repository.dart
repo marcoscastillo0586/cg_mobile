@@ -31,7 +31,7 @@ class BalancesRepository {
     final db = await _db;
     final cutoff = until != null && until.isNotEmpty ? '$until 23:59:59' : null;
     final rows = await db.rawQuery('''
-      SELECT a.local_id, a.name, a.currency, a.image_url, a.icon_ref,
+      SELECT a.local_id, a.server_id, a.name, a.currency, a.image_url, a.icon_ref,
              COALESCE(SUM(CASE WHEN d.deleted = 0 AND h.deleted = 0 ${cutoff != null ? 'AND h.occurred_at <= ?' : ''}
                                THEN d.amount_cents END), 0) AS balance
       FROM accounts a
@@ -83,6 +83,7 @@ class BalancesRepository {
           total += ars ?? 0;
           return BalanceAccount(
             id: r['local_id']! as int,
+            serverId: r['server_id'] as int?,
             name: r['name']! as String,
             currency: currency,
             imageUrl: r['image_url'] as String?,

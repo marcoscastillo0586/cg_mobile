@@ -35,7 +35,11 @@ class ExchangeRate extends Equatable {
 /// Cuenta con saldo: solo cuentas activas con saldo ≠ 0 (misma regla que GET /accounts/balances).
 /// `id` es el id LOCAL de la cuenta.
 class BalanceAccount extends Equatable {
+  /// Id en la base del celular (selección de cuentas del total).
   final int id;
+
+  /// Id en el servidor: es el que filtra el historial. Null si la cuenta todavía no se envió.
+  final int? serverId;
   final String name;
   final Currency currency;
   final String? imageUrl;
@@ -49,6 +53,7 @@ class BalanceAccount extends Equatable {
 
   const BalanceAccount({
     required this.id,
+    this.serverId,
     required this.name,
     required this.currency,
     required this.imageUrl,
@@ -58,7 +63,7 @@ class BalanceAccount extends Equatable {
   });
 
   @override
-  List<Object?> get props => [id, name, currency, imageUrl, iconRef, balanceCents, balanceArsCents];
+  List<Object?> get props => [id, serverId, name, currency, imageUrl, iconRef, balanceCents, balanceArsCents];
 }
 
 class Balances extends Equatable {
