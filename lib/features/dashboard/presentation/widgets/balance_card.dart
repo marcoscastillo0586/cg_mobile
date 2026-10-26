@@ -14,6 +14,9 @@ class BalanceCard extends StatelessWidget {
   final VoidCallback onSelectFecha;
   final String? fechaFiltro;
 
+  /// Dashboard que se está viendo (informativo, debajo de "Saldos consolidados").
+  final String? nombreDashboard;
+
   const BalanceCard({
     super.key,
     required this.totalArsCents,
@@ -22,6 +25,7 @@ class BalanceCard extends StatelessWidget {
     required this.onToggleOcultar,
     required this.onSelectFecha,
     this.fechaFiltro,
+    this.nombreDashboard,
   });
 
   @override
@@ -58,25 +62,42 @@ class BalanceCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.shield_outlined, color: Colors.white, size: 14),
-                    const SizedBox(width: 6),
-                    Text(
-                      context.l10n.consolidatedBalances,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.shield_outlined, color: Colors.white, size: 14),
+                          const SizedBox(width: 6),
+                          Text(
+                            context.l10n.consolidatedBalances,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    if (nombreDashboard != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        nombreDashboard!,
+                        key: const ValueKey('nombre-dashboard'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                    ],
                   ],
                 ),
               ),

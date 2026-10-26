@@ -325,6 +325,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
                   cotizacionTexto: cotizacion,
                   ocultarMontos: dashboardState.ocultarMontos,
                   fechaFiltro: dashboardState.fechaFiltro,
+                  nombreDashboard: currentDashboard == null ? null : dashboards.label(currentDashboard, context.l10n),
                   onToggleOcultar: () {
                     AppFeedback.selection();
                     ref.read(dashboardNotifierProvider.notifier).toggleVisibilidadMontos();
