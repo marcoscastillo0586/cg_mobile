@@ -9,10 +9,12 @@ import '../domain/entities/category_expense_report_entity.dart';
 import '../domain/entities/daily_evolution_entity.dart';
 import '../domain/entities/monthly_comparison_entity.dart';
 import '../domain/entities/product_price_entity.dart';
+import '../../settings/presentation/providers/settings_provider.dart';
 import 'local_reports.dart';
 
 final reportsRepositoryProvider = Provider<ReportsRepository>((ref) {
-  return ReportsRepository(ref.watch(dioClientProvider), db: ref.watch(localDatabaseProvider));
+  return ReportsRepository(ref.watch(dioClientProvider),
+      db: ref.watch(localDatabaseProvider), currency: ref.watch(settingsProvider.select((s) => s.defaultCurrency)));
 });
 
 /// Reportes de la API (`/reports/*`). Solo lectura; importes en centavos.
@@ -22,7 +24,12 @@ class ReportsRepository {
 
   /// Base local para calcular sin conexión (null: solo servidor).
   final Future<Database>? _db;
-  ReportsRepository(this._client, {Future<Database>? db}) : _db = db;
+
+  /// Moneda principal: el servidor ya filtra por la del usuario; sin conexión se usa esta.
+  final String _currency;
+  ReportsRepository(this._client, {Future<Database>? db, String currency = 'ARS'})
+      : _db = db,
+        _currency = currency;
 
   Future<Object?> _get(String path, {Map<String, dynamic>? queryParameters}) async {
     final db = _db;
@@ -34,7 +41,7 @@ class ReportsRepository {
         if (db == null || !ServerReachability.isOfflineError(e)) rethrow;
       }
     }
-    return LocalReports(await db).get(path, params);
+    return LocalReports(await db, currency: _currency).get(path, params);
   }
 
   /// Gasto por categoría (F8.1) y desglose por concepto de esas categorías (F8.2).

@@ -9,7 +9,13 @@ import '../../../core/errors/exceptions.dart';
 /// Los filtros de cuentas y categorías reciben esos mismos ids.
 class LocalReports {
   final DatabaseExecutor _db;
-  LocalReports(this._db);
+
+  /// Moneda principal ('ARS' | 'USD'): como el servidor, solo cuentan las cuentas de esa moneda.
+  final String currency;
+  LocalReports(this._db, {required this.currency});
+
+  /// Renglón de una cuenta en la moneda principal (parámetro: [currency]).
+  static const _inCurrency = 'EXISTS (SELECT 1 FROM accounts ac WHERE ac.local_id = d.account_local_id AND ac.currency = ?)';
 
   Future<Object> get(String path, Map<String, dynamic> params) => switch (path) {
         '/reports/by-category' => byCategory(params),
@@ -77,8 +83,8 @@ class LocalReports {
              SUM(CASE WHEN h.type = 1 THEN ABS(d.amount_cents) ELSE 0 END) AS income,
              SUM(CASE WHEN h.type = 2 THEN ABS(d.amount_cents) ELSE 0 END) AS expense
       FROM movement_details d JOIN movement_headers h ON h.local_id = d.header_local_id
-      WHERE d.deleted = 0 AND h.deleted = 0 AND substr(h.occurred_at, 1, 4) = ?
-      GROUP BY month ORDER BY month''', ['$y']);
+      WHERE $_inCurrency AND d.deleted = 0 AND h.deleted = 0 AND substr(h.occurred_at, 1, 4) = ?
+      GROUP BY month ORDER BY month''', [currency, '$y']);
     final byMonth = {for (final r in rows) int.parse(r['month']! as String): r};
     final months = [
       for (var m = 1; m <= 12; m++)
@@ -110,8 +116,8 @@ class LocalReports {
     final top = await _db.rawQuery('''
       SELECT c.server_id AS c_sid, c.local_id AS c_lid, c.name, SUM(ABS(d.amount_cents)) AS amount
       $_from
-      WHERE d.deleted = 0 AND h.deleted = 0 AND h.type = 2 AND substr(h.occurred_at, 1, 4) = ?
-      GROUP BY c.local_id ORDER BY amount DESC LIMIT 5''', ['$y']);
+      WHERE $_inCurrency AND d.deleted = 0 AND h.deleted = 0 AND h.type = 2 AND substr(h.occurred_at, 1, 4) = ?
+      GROUP BY c.local_id ORDER BY amount DESC LIMIT 5''', [currency, '$y']);
     return {
       'year': y,
       'years': years,
@@ -148,8 +154,8 @@ class LocalReports {
              SUM(CASE WHEN h.type = 1 THEN ABS(d.amount_cents) ELSE 0 END) AS income,
              SUM(CASE WHEN h.type = 2 THEN ABS(d.amount_cents) ELSE 0 END) AS expense
       FROM movement_details d JOIN movement_headers h ON h.local_id = d.header_local_id
-      WHERE d.deleted = 0 AND h.deleted = 0 AND substr(h.occurred_at, 1, 7) = ?
-      GROUP BY day ORDER BY day''', [prefix]);
+      WHERE $_inCurrency AND d.deleted = 0 AND h.deleted = 0 AND substr(h.occurred_at, 1, 7) = ?
+      GROUP BY day ORDER BY day''', [currency, prefix]);
     final byDay = {for (final r in rows) int.parse(r['day']! as String): r};
     return {
       'year': y,
@@ -178,9 +184,9 @@ class LocalReports {
       FROM movement_details d
       JOIN movement_headers h ON h.local_id = d.header_local_id
       JOIN accounts a ON a.local_id = d.account_local_id
-      WHERE d.deleted = 0 AND h.deleted = 0 AND h.type = 2 AND d.concept IS NOT NULL AND TRIM(d.concept) <> ''
+      WHERE $_inCurrency AND d.deleted = 0 AND h.deleted = 0 AND h.type = 2 AND d.concept IS NOT NULL AND TRIM(d.concept) <> ''
         ${like == null ? '' : "AND (d.concept LIKE ? ESCAPE '\\' OR d.plu LIKE ? ESCAPE '\\')"}
-      ORDER BY h.occurred_at, $_detailOrder''', [if (like != null) ...[like, like]]);
+      ORDER BY h.occurred_at, $_detailOrder''', [currency, if (like != null) ...[like, like]]);
     final map = <String, Map<String, dynamic>>{};
     for (final r in rows) {
       final key = _groupKey(r['concept']! as String);
@@ -239,8 +245,8 @@ class LocalReports {
       JOIN movement_headers h ON h.local_id = d.header_local_id
       JOIN accounts a ON a.local_id = d.account_local_id
       LEFT JOIN categories c ON c.local_id = d.category_local_id
-      WHERE d.deleted = 0 AND h.deleted = 0 AND h.type = 2 AND ${plu != null ? 'd.plu = ?' : 'd.concept IS NOT NULL'}
-      ORDER BY h.occurred_at, $_detailOrder''', [if (plu != null) plu]);
+      WHERE $_inCurrency AND d.deleted = 0 AND h.deleted = 0 AND h.type = 2 AND ${plu != null ? 'd.plu = ?' : 'd.concept IS NOT NULL'}
+      ORDER BY h.occurred_at, $_detailOrder''', [currency, if (plu != null) plu]);
     final filtered = plu != null ? rows : rows.where((r) => _groupKey((r['concept'] as String?) ?? '') == _groupKey(concept ?? '')).toList();
     final prices = [for (final r in filtered) r['unit']! as int];
     final first = prices.isEmpty ? 0 : prices.first;
@@ -343,9 +349,9 @@ class LocalReports {
   static const _detailOrder = 'COALESCE(d.server_id, 1000000000000 + d.local_id)';
 
   /// Egresos de categorías activas en el período (y cuentas, si se eligieron).
-  static (String, List<Object?>) _expenseWhere(({String from, String to}) p, List<int> accountIds) {
-    final conds = ['d.deleted = 0', 'h.deleted = 0', 'h.type = 2', 'c.active = 1', 'h.occurred_at >= ?', 'h.occurred_at <= ?'];
-    final args = <Object?>['${p.from} 00:00:00', '${p.to} 23:59:59'];
+  (String, List<Object?>) _expenseWhere(({String from, String to}) p, List<int> accountIds) {
+    final conds = [_inCurrency, 'd.deleted = 0', 'h.deleted = 0', 'h.type = 2', 'c.active = 1', 'h.occurred_at >= ?', 'h.occurred_at <= ?'];
+    final args = <Object?>[currency, '${p.from} 00:00:00', '${p.to} 23:59:59'];
     if (accountIds.isNotEmpty) {
       final (sql, a) = _idFilter('a', accountIds);
       conds.add(sql);
@@ -389,7 +395,9 @@ class LocalReports {
   Future<List<int>> _years() async => [
         for (final r in await _db.rawQuery('''
           SELECT DISTINCT substr(occurred_at, 1, 4) AS y FROM movement_headers
-          WHERE deleted = 0 AND substr(occurred_at, 1, 4) > '2000' ORDER BY y DESC'''))
+          WHERE deleted = 0 AND substr(occurred_at, 1, 4) > '2000'
+            AND EXISTS (SELECT 1 FROM movement_details d WHERE d.header_local_id = movement_headers.local_id AND d.deleted = 0 AND $_inCurrency)
+          ORDER BY y DESC''', [currency]))
           int.parse(r['y']! as String),
       ];
 

@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../domain/entities/monthly_comparison_entity.dart';
 import '../../../../l10n/l10n.dart';
+import '../report_currency.dart';
 
 class MonthlyBarChart extends StatefulWidget {
   final MonthlyComparisonReportEntity report;
@@ -66,7 +67,7 @@ class _MonthlyBarChartState extends State<MonthlyBarChart> {
                     final valor = isIngreso ? mesData.ingresosCents : mesData.egresosCents;
 
                     return BarTooltipItem(
-                      context.l10n.chartMonthTooltip(context.monthName(mesData.mes), tipo, Money.format(valor), Money.format(mesData.balanceCents)),
+                      context.l10n.chartMonthTooltip(context.monthName(mesData.mes), tipo, Money.format(valor, currency: reportCurrency(context)), Money.format(mesData.balanceCents, currency: reportCurrency(context))),
                       const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                     );
                   },

@@ -11,6 +11,7 @@ import '../../data/reports_repository.dart';
 import '../../domain/entities/product_price_entity.dart';
 import '../providers/analytics_notifier.dart';
 import '../../../../l10n/l10n.dart';
+import '../report_currency.dart';
 
 class ProductPriceTrackerView extends ConsumerStatefulWidget {
   const ProductPriceTrackerView({super.key});
@@ -222,7 +223,7 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  Money.format(item.ultimoPrecioCents),
+                                  Money.format(item.ultimoPrecioCents, currency: reportCurrency(context)),
                                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 4),
@@ -404,7 +405,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                               Expanded(
                                 child: _buildKpiCard(
                                   context.l10n.currentPrice,
-                                  Money.format(_history!.precioActualCents),
+                                  Money.format(_history!.precioActualCents, currency: reportCurrency(context)),
                                   AppColors.primary,
                                   isDark,
                                 ),
@@ -426,7 +427,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                               Expanded(
                                 child: _buildKpiCard(
                                   context.l10n.historicalLow,
-                                  Money.format(_history!.precioMinimoCents),
+                                  Money.format(_history!.precioMinimoCents, currency: reportCurrency(context)),
                                   AppColors.emerald,
                                   isDark,
                                 ),
@@ -435,7 +436,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                               Expanded(
                                 child: _buildKpiCard(
                                   context.l10n.historicalHigh,
-                                  Money.format(_history!.precioMaximoCents),
+                                  Money.format(_history!.precioMaximoCents, currency: reportCurrency(context)),
                                   AppColors.rose,
                                   isDark,
                                 ),
@@ -535,7 +536,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                               child: ListTile(
                                 dense: true,
                                 title: Text(
-                                  Money.format(compra.precioUnitarioCents),
+                                  Money.format(compra.precioUnitarioCents, currency: reportCurrency(context)),
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                 ),
                                 subtitle: Text(
@@ -543,7 +544,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                                   style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
                                 ),
                                 trailing: Text(
-                                  'Total ${Money.format(compra.montoTotalCents)}',
+                                  'Total ${Money.format(compra.montoTotalCents, currency: reportCurrency(context))}',
                                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                                 ),
                               ),
@@ -791,7 +792,7 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
                                                 overflow: TextOverflow.ellipsis),
                                             const SizedBox(height: 4),
                                             Text(
-                                              context.l10n.beforePrecio1centsNowPrecio2cents(Money.format(item.precio1Cents), Money.format(item.precio2Cents)),
+                                              context.l10n.beforePrecio1centsNowPrecio2cents(Money.format(item.precio1Cents, currency: reportCurrency(context)), Money.format(item.precio2Cents, currency: reportCurrency(context))),
                                               style: const TextStyle(
                                                   fontSize: 12, color: AppColors.lightTextSecondary),
                                             ),

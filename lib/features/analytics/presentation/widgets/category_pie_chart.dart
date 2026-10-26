@@ -5,6 +5,7 @@ import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../domain/entities/category_expense_report_entity.dart';
 import '../../../../l10n/l10n.dart';
+import '../report_currency.dart';
 
 class CategoryPieChart extends StatefulWidget {
   final CategoryExpenseReportEntity report;
@@ -152,8 +153,8 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
                   const SizedBox(height: 2),
                   Text(
                     _touchedIndex >= 0 && _touchedIndex < categorias.length
-                        ? Money.format(categorias[_touchedIndex].montoCents)
-                        : Money.format(widget.report.totalCents),
+                        ? Money.format(categorias[_touchedIndex].montoCents, currency: reportCurrency(context))
+                        : Money.format(widget.report.totalCents, currency: reportCurrency(context)),
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -231,7 +232,7 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          Money.format(cat.montoCents),
+                          Money.format(cat.montoCents, currency: reportCurrency(context)),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,

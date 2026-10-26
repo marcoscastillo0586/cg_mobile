@@ -13,6 +13,7 @@ import '../widgets/daily_line_chart.dart';
 import '../widgets/monthly_bar_chart.dart';
 import '../widgets/product_price_tracker_view.dart';
 import '../../../../l10n/l10n.dart';
+import '../report_currency.dart';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
   const AnalyticsScreen({super.key});
@@ -227,7 +228,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            Money.format(sub.montoCents),
+                            Money.format(sub.montoCents, currency: reportCurrency(context)),
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                           ),
                           Text(
@@ -337,7 +338,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 Expanded(
                   child: _buildKpiCard(
                     title: context.l10n.annualIncome,
-                    value: Money.format(report.totalesAnuales.totalIngresosCents),
+                    value: Money.format(report.totalesAnuales.totalIngresosCents, currency: reportCurrency(context)),
                     icon: Icons.arrow_downward_rounded,
                     color: AppColors.emerald,
                     isDark: isDark,
@@ -347,7 +348,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 Expanded(
                   child: _buildKpiCard(
                     title: context.l10n.annualExpenses,
-                    value: Money.format(report.totalesAnuales.totalEgresosCents),
+                    value: Money.format(report.totalesAnuales.totalEgresosCents, currency: reportCurrency(context)),
                     icon: Icons.arrow_upward_rounded,
                     color: AppColors.rose,
                     isDark: isDark,
@@ -361,7 +362,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 Expanded(
                   child: _buildKpiCard(
                     title: context.l10n.netBalance,
-                    value: Money.format(report.totalesAnuales.balanceNetoCents),
+                    value: Money.format(report.totalesAnuales.balanceNetoCents, currency: reportCurrency(context)),
                     icon: Icons.savings_outlined,
                     color: report.totalesAnuales.balanceNetoCents >= 0 ? AppColors.emerald : AppColors.rose,
                     isDark: isDark,
@@ -427,12 +428,12 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                     subtitle: Row(
                       children: [
                         Text(
-                          context.l10n.incIngresoscents(Money.format(m.ingresosCents)),
+                          context.l10n.incIngresoscents(Money.format(m.ingresosCents, currency: reportCurrency(context))),
                           style: const TextStyle(fontSize: 11, color: AppColors.emerald),
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          context.l10n.expEgresoscents(Money.format(m.egresosCents)),
+                          context.l10n.expEgresoscents(Money.format(m.egresosCents, currency: reportCurrency(context))),
                           style: const TextStyle(fontSize: 11, color: AppColors.rose),
                         ),
                       ],
@@ -442,7 +443,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          Money.format(m.balanceCents),
+                          Money.format(m.balanceCents, currency: reportCurrency(context)),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
@@ -582,7 +583,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 Expanded(
                   child: _buildKpiCard(
                     title: context.l10n.monthTotal,
-                    value: Money.format(report.totalEgresosMesCents),
+                    value: Money.format(report.totalEgresosMesCents, currency: reportCurrency(context)),
                     icon: Icons.payments_outlined,
                     color: AppColors.primary,
                     isDark: isDark,
@@ -592,7 +593,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
                 Expanded(
                   child: _buildKpiCard(
                     title: context.l10n.highestPeak,
-                    value: Money.format(report.maximoGastoDiarioCents),
+                    value: Money.format(report.maximoGastoDiarioCents, currency: reportCurrency(context)),
                     icon: Icons.trending_up_rounded,
                     color: AppColors.rose,
                     isDark: isDark,
