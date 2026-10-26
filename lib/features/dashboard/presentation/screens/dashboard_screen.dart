@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -40,6 +41,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
   /// con que aparece en el celular un cambio hecho en la web.
   static const _autoSync = Duration(seconds: 30);
   Timer? _timer;
+
+  /// Apenas el celular recupera una red (wifi o datos) se sincroniza, sin esperar el ciclo de 30 s.
+  StreamSubscription<List<ConnectivityResult>>? _network;
+  var _hadNetwork = true;
+
+  void _onNetworkChanged(List<ConnectivityResult> results) {
+    final hasNetwork = results.any((r) => r != ConnectivityResult.none);
+    final visible = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    // sync() fuerza el intento: no espera la ventana de "sin conexión" recordada (30 s).
+    if (hasNetwork && !_hadNetwork && visible && mounted) ref.read(syncControllerProvider.notifier).sync();
+    _hadNetwork = hasNetwork;
+  }
 
   /// Avisos en vivo (invitaciones, cambios de otros integrantes) mientras la app está visible.
   LiveEvents? _events;
@@ -92,6 +105,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _network?.cancel();
     _events?.stop();
     CurrentDashboard.notice.removeListener(_showNotice);
     super.dispose();
@@ -110,6 +124,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _startAutoSync();
+    final connectivity = Connectivity();
+    connectivity.checkConnectivity().then((r) => _hadNetwork = r.any((x) => x != ConnectivityResult.none), onError: (Object e) {
+      debugPrint('[RED] No se pudo leer el estado de la red: $e');
+    });
+    _network = connectivity.onConnectivityChanged.listen(_onNetworkChanged, onError: (Object e) {
+      // Sin aviso de cambios de red quedan el ciclo de 30 s y la vuelta a la app.
+      debugPrint('[RED] No se pueden escuchar los cambios de red: $e');
+    });
     _events = LiveEvents(ref.read(dioClientProvider), _onLiveEvent)..start();
     CurrentDashboard.notice.addListener(_showNotice);
     Future.microtask(() async {
