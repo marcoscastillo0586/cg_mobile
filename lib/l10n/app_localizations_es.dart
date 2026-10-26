@@ -590,7 +590,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get allDataStoredPhoneWill =>
-      'Se borrarán todos los datos guardados en este celular. Lo que ya está en el servidor no se toca.';
+      'Tus datos quedan guardados en este celular: si volvés a entrar con esta cuenta, los vas a encontrar (también lo que falte enviar).';
 
   @override
   String get signOut2 => 'Cerrar sesión';

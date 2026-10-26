@@ -114,10 +114,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
     CurrentDashboard.notice.addListener(_showNotice);
     Future.microtask(() async {
       _showNotice();
-      await ref.read(settingsProvider.notifier).listo;
+      final settingsNotifier = ref.read(settingsProvider.notifier);
+      await settingsNotifier.listo;
+      final usuario = ref.read(authNotifierProvider).user;
+      // Moneda principal y primer ingreso son de cada cuenta (otra cuenta del celular tiene los suyos).
+      if (usuario != null) await settingsNotifier.cargarCuenta(usuario.idUsuario);
       if (!mounted) return;
       final settings = ref.read(settingsProvider);
-      final monedaServidor = ref.read(authNotifierProvider).user?.monedaPrincipal;
+      final monedaServidor = usuario?.monedaPrincipal;
       if (settings.isFirstLaunch) {
         unawaited(showDialog<void>(
           context: context,

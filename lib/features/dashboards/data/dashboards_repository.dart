@@ -5,6 +5,7 @@ import '../../../core/errors/exceptions.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../domain/dashboard.dart';
+import '../../../core/auth/current_account.dart';
 
 final dashboardsRepositoryProvider = Provider<DashboardsRepository>(
   (ref) => DashboardsRepository(ref.watch(dioClientProvider), ref.watch(secureStorageServiceProvider)),
@@ -18,7 +19,8 @@ class DashboardsRepository {
   final SecureStorageService _storage;
   DashboardsRepository(this._client, this._storage);
 
-  static const cacheKey = 'dashboards_cache';
+  /// Copia de la lista, propia de la cuenta conectada (otra cuenta del celular tiene la suya).
+  static String get cacheKey => CurrentAccount.key('dashboards_cache');
 
   /// Lista del servidor; la guarda para usarla sin conexión.
   Future<List<Dashboard>> list() async {

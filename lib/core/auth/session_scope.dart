@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/presentation/providers/auth_notifier.dart';
 import '../../features/auth/presentation/providers/auth_state.dart';
 import '../dashboards/current_dashboard.dart';
+import '../database/local_database.dart';
+import 'current_account.dart';
 import '../dashboards/dashboard_switch.dart';
 
 /// Estado de sesión con el que arranca un contenedor nuevo (después de cerrar sesión o de cambiar
@@ -11,7 +14,7 @@ final initialAuthStateProvider = Provider<AuthState?>((ref) => null);
 
 /// Raíz de providers de la app. Descarta TODO el contenedor y crea uno nuevo cuando:
 ///  - la sesión deja de estar autenticada (cierre de sesión o sesión expirada): ningún provider
-///    conserva datos del usuario anterior ni la base local ya cerrada y borrada;
+///    conserva datos del usuario anterior; su base local se cierra pero no se borra;
 ///  - cambia el dashboard elegido ([CurrentDashboard]): ningún provider conserva datos del dashboard
 ///    anterior y el contenedor nuevo abre la base local del elegido.
 /// El contenedor nuevo arranca con el estado de sesión ya resuelto.
@@ -61,6 +64,7 @@ class _SessionScopeState extends State<SessionScope> {
         _wasAuthenticated = true;
         final userId = next.user?.idUsuario;
         DashboardSwitch.userId = userId;
+        CurrentAccount.id = userId; // sus bases y datos locales (cada cuenta tiene los suyos)
         // La elección guardada era de otro usuario: vuelve a su principal.
         if (_choiceOwner != null && userId != null && _choiceOwner != userId) {
           _choiceOwner = userId;
@@ -82,6 +86,9 @@ class _SessionScopeState extends State<SessionScope> {
   void _reset(AuthState state) {
     _resetting = true;
     DashboardSwitch.userId = null;
+    // Se cierra la base de la cuenta que salió; sus datos y pendientes quedan en el celular.
+    CurrentAccount.id = null;
+    unawaited(LocalDatabase.close());
     _choiceOwner = null;
     CurrentDashboard.id.value = null; // el próximo inicio de sesión arranca en su principal
     _resetting = false;

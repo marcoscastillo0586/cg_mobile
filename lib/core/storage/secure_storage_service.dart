@@ -84,7 +84,7 @@ class SecureStorageService {
     }
   }
 
-  /// Usuario dueño de los datos de la base local (para no mezclar usuarios).
+  /// Dueño de los datos locales de antes de separarlos por cuenta (solo para adoptarlos una vez).
   Future<void> saveOwnerUserId(int userId) async {
     try {
       await _storage.write(key: _keyOwnerUserId, value: userId.toString());
@@ -150,44 +150,64 @@ class SecureStorageService {
     }
   }
 
-  Future<void> saveDefaultCurrency(String currency) async {
+  /// Moneda principal de una cuenta (copia de la del servidor; cada cuenta del celular tiene la suya).
+  Future<void> saveDefaultCurrency(int userId, String currency) async {
     try {
-      await _storage.write(key: _keyDefaultCurrency, value: currency);
+      await _storage.write(key: '${_keyDefaultCurrency}_u$userId', value: currency);
     } catch (e) {
       throw CacheException('No se pudo guardar la moneda por defecto: $e');
     }
   }
 
-  Future<String?> getDefaultCurrency() async {
+  Future<String?> getDefaultCurrency(int userId) async {
     try {
-      return await _storage.read(key: _keyDefaultCurrency);
+      return await _storage.read(key: '${_keyDefaultCurrency}_u$userId');
     } catch (e) {
       throw CacheException('No se pudo leer la moneda por defecto: $e');
     }
   }
 
-  Future<void> saveFirstLaunchDone() async {
+  /// Primer ingreso (moneda, idioma y nombre del principal) hecho por esa cuenta en este celular.
+  Future<void> saveFirstLaunchDone(int userId) async {
     try {
-      await _storage.write(key: _keyFirstLaunch, value: 'true');
+      await _storage.write(key: '${_keyFirstLaunch}_u$userId', value: 'true');
     } catch (e) {
       throw CacheException('No se pudo guardar estado del primer inicio: $e');
     }
   }
 
-  Future<bool> isFirstLaunchDone() async {
+  Future<bool> isFirstLaunchDone(int userId) async {
     try {
-      final val = await _storage.read(key: _keyFirstLaunch);
+      final val = await _storage.read(key: '${_keyFirstLaunch}_u$userId');
       return val == 'true';
     } catch (e) {
       throw CacheException('No se pudo leer el estado del primer inicio: $e');
     }
   }
 
-  /// Borra todo lo de la sesión y de los datos del usuario. Conserva los ajustes
-  /// del dispositivo (tema, idioma, moneda, onboarding).
+  /// Una sola vez, al separar los datos por cuenta: la moneda y el primer ingreso guardados para todo
+  /// el celular pasan a ser de [ownerId] (el dueño de los datos locales). No pisa valores de esa cuenta.
+  Future<void> adoptLegacyAccountSettings(int ownerId) async {
+    try {
+      for (final base in [_keyDefaultCurrency, _keyFirstLaunch]) {
+        final legacy = await _storage.read(key: base);
+        if (legacy == null) continue;
+        final own = '${base}_u$ownerId';
+        if (await _storage.read(key: own) == null) await _storage.write(key: own, value: legacy);
+        await _storage.delete(key: base);
+      }
+      await _storage.delete(key: _keyOwnerUserId); // ya no hace falta: cada cuenta tiene sus archivos
+    } catch (e) {
+      throw CacheException('No se pudieron pasar los ajustes a la cuenta: $e');
+    }
+  }
+
+  /// Cierre de sesión: borra solo la sesión (tokens y usuario conectado). Los datos locales de cada
+  /// cuenta, sus pendientes y los ajustes del dispositivo se conservan.
   Future<void> clearSessionData() async {
     try {
-      for (final key in [_keyRefreshToken, _keyUser, _keyOwnerUserId, _keyLastSyncedAt, 'dashboards_cache']) {
+      // dashboards_cache y last_synced_at sin cuenta son claves viejas (hoy cada cuenta tiene la suya).
+      for (final key in [_keyRefreshToken, _keyUser, _keyLastSyncedAt, 'dashboards_cache']) {
         await _storage.delete(key: key);
       }
     } catch (e) {

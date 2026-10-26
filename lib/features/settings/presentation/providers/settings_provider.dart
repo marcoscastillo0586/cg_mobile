@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/auth/current_account.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../../../l10n/l10n.dart';
 
-/// Ajustes locales del dispositivo. Se conservan al cerrar sesión.
+/// Ajustes locales. Tema e idioma son del dispositivo; moneda principal y primer ingreso, de la cuenta
+/// conectada ([cargarCuenta]). Todo se conserva al cerrar sesión.
 /// El servidor no se configura acá: se fija al compilar (`API_BASE_URL`).
 class SettingsState {
   final ThemeMode themeMode;
@@ -80,18 +82,25 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       if (savedLang != null && savedLang.isNotEmpty) {
         state = state.copyWith(language: savedLang);
       }
-
-      final savedCurrency = await _storageService.getDefaultCurrency();
-      if (savedCurrency != null && savedCurrency.isNotEmpty) {
-        // Una moneda guardada que ya no se ofrece (EUR, PEN…) vuelve a ARS.
-        state = state.copyWith(defaultCurrency: monedasDisponibles.contains(savedCurrency) ? savedCurrency : 'ARS');
-      }
-
-      final firstDone = await _storageService.isFirstLaunchDone();
-      state = state.copyWith(isFirstLaunch: !firstDone);
     } catch (e) {
       // Ajustes ilegibles: se usan los valores por defecto y se registra el motivo.
       debugPrint('[AJUSTES] No se pudieron leer los ajustes guardados: $e');
+    }
+  }
+
+  /// Ajustes de la cuenta que inició sesión: su moneda principal y si ya hizo el primer ingreso en
+  /// este celular (cada cuenta tiene los suyos; tema e idioma son del dispositivo).
+  Future<void> cargarCuenta(int userId) async {
+    try {
+      final saved = await _storageService.getDefaultCurrency(userId);
+      // Sin moneda guardada (o una que ya no se ofrece, como EUR o PEN): pesos hasta que la elija.
+      final currency = saved != null && monedasDisponibles.contains(saved) ? saved : 'ARS';
+      final firstDone = await _storageService.isFirstLaunchDone(userId);
+      state = state.copyWith(defaultCurrency: currency, isFirstLaunch: !firstDone);
+    } catch (e) {
+      // Ajustes ilegibles: pesos y sin repetir el primer ingreso; se registra el motivo.
+      debugPrint('[AJUSTES] No se pudieron leer los ajustes de la cuenta $userId: $e');
+      state = state.copyWith(defaultCurrency: 'ARS', isFirstLaunch: false);
     }
   }
 
@@ -102,7 +111,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   Future<void> cambiarMonedaDefault(String currency) async {
     state = state.copyWith(defaultCurrency: currency);
-    await _storageService.saveDefaultCurrency(currency);
+    await _storageService.saveDefaultCurrency(CurrentAccount.requireId(), currency);
   }
 
   Future<void> guardarConfiguracionInicial({
@@ -114,9 +123,10 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       language: idioma,
       isFirstLaunch: false,
     );
-    await _storageService.saveDefaultCurrency(moneda);
+    final account = CurrentAccount.requireId();
+    await _storageService.saveDefaultCurrency(account, moneda);
     await _storageService.saveLanguage(idioma);
-    await _storageService.saveFirstLaunchDone();
+    await _storageService.saveFirstLaunchDone(account);
   }
 
   Future<void> cambiarThemeMode(ThemeMode mode) async {

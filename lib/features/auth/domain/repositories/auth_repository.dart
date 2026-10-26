@@ -20,7 +20,8 @@ abstract class AuthRepository {
   /// null si no hay sesión guardada. Lanza [SessionExpiredException] si el servidor la rechazó.
   Future<RestoredSession?> restoreSession();
 
-  /// Revoca en el servidor, borra la base local y los datos de sesión. Conserva los ajustes.
+  /// Revoca en el servidor y borra los tokens. Conserva los datos locales de la cuenta, sus pendientes
+  /// y los ajustes del dispositivo.
   Future<LogoutOutcome> logout();
 
   /// Cambia el nombre para mostrar en el servidor y en la copia guardada del usuario.

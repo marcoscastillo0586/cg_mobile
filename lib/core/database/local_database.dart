@@ -5,21 +5,20 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
+import '../auth/current_account.dart';
 import '../dashboards/current_dashboard.dart';
 import 'migrations.dart';
 
-/// Base local de un dashboard: copia de sus datos del servidor más su cola de operaciones
-/// pendientes. Una base por dashboard: `cg_local.db` el principal del usuario y
-/// `cg_local_<id>.db` los demás (dashboards compartidos), así sus datos nunca se mezclan.
+/// Base local de un dashboard de una cuenta: copia de sus datos del servidor más su cola de
+/// operaciones pendientes. Una base por cuenta y por dashboard: `cg_u<usuario>.db` el principal y
+/// `cg_u<usuario>_d<dashboard>.db` los compartidos. Así nunca se mezclan cuentas ni dashboards, y
+/// cerrar sesión no borra nada: al volver, la cuenta encuentra sus datos y sus pendientes.
 /// Ver `migrations.dart` para el esquema.
 class LocalDatabase {
   LocalDatabase._();
 
-  static const fileName = 'cg_local.db';
-
-  /// Base del esquema viejo (contrato PHP). No se abre ni se migra: solo se borra al
-  /// cerrar sesión, después de haberla revisado.
-  static const legacyFileName = 'gastos_offline.db';
+  /// Archivos de antes de separar por cuenta (`cg_local.db`, `cg_local_<dashboard>.db`).
+  static final _legacyFile = RegExp(r'^cg_local(?:_(\d+))?\.db(-journal|-wal|-shm)?$');
 
   static const _uuid = Uuid();
   static String newId() => _uuid.v4();
@@ -27,26 +26,47 @@ class LocalDatabase {
   /// Id fijo derivado de [name] (UUID v5): el mismo ticket QR genera siempre el mismo clientSyncId.
   static String idFor(String name) => _uuid.v5(Namespace.url.value, name);
 
-  /// Base abierta y para qué dashboard (null = principal). Solo una abierta a la vez.
+  /// Base abierta y de qué cuenta y dashboard (`usuario:dashboard`). Solo una abierta a la vez.
   static Future<Database>? _current;
-  static int? _currentFor;
+  static String? _currentFor;
 
-  /// Base del dashboard elegido ([CurrentDashboard]); si había otra abierta, la cierra antes.
+  /// Base de la cuenta conectada ([CurrentAccount]) y del dashboard elegido ([CurrentDashboard]);
+  /// si había otra abierta, la cierra antes.
   static Future<Database> get instance {
-    final want = CurrentDashboard.id.value;
+    final user = CurrentAccount.requireId();
+    final dashboard = CurrentDashboard.id.value;
+    final want = '$user:${dashboard ?? ''}';
     final current = _current;
     if (current != null && _currentFor == want) return current;
     _currentFor = want;
     return _current = () async {
       await _close(current);
-      return open(path: await pathFor(want));
+      return open(path: await pathFor(user, dashboard));
     }();
   }
 
-  /// Archivo de la base de un dashboard (null = el principal del usuario).
-  static Future<String> pathFor(int? dashboardId) async {
+  /// Archivo de la base de una cuenta y un dashboard (null = el principal de la cuenta).
+  static Future<String> pathFor(int userId, int? dashboardId) async {
     final dir = await getApplicationDocumentsDirectory();
-    return p.join(dir.path, dashboardId == null ? fileName : 'cg_local_$dashboardId.db');
+    return p.join(dir.path, dashboardId == null ? 'cg_u$userId.db' : 'cg_u${userId}_d$dashboardId.db');
+  }
+
+  /// Una sola vez, al pasar a una base por cuenta: los archivos de antes pasan a ser de [ownerId]
+  /// (el dueño registrado). No pisa archivos que ya existan.
+  static Future<void> adoptLegacyFiles(int ownerId) async {
+    final dir = await getApplicationDocumentsDirectory();
+    for (final file in Directory(dir.path).listSync().whereType<File>()) {
+      final m = _legacyFile.firstMatch(p.basename(file.path));
+      if (m == null) continue;
+      final dashboard = m.group(1) == null ? null : int.parse(m.group(1)!);
+      final target = '${await pathFor(ownerId, dashboard)}${m.group(2) ?? ''}';
+      if (await File(target).exists()) {
+        debugPrint('[DB] No se adopta ${p.basename(file.path)}: ya existe ${p.basename(target)}');
+        continue;
+      }
+      await file.rename(target);
+      debugPrint('[DB] ${p.basename(file.path)} → ${p.basename(target)} (cuenta $ownerId)');
+    }
   }
 
   static Future<void> _close(Future<Database>? db) async {
@@ -68,10 +88,11 @@ class LocalDatabase {
     await _close(current);
   }
 
-  /// Borra la base local de un dashboard (se perdió el acceso o se eliminó).
+  /// Borra la base local de un dashboard de la cuenta conectada (se perdió el acceso o se eliminó).
   static Future<void> deleteFor(int dashboardId) async {
-    if (_currentFor == dashboardId) await close();
-    final path = await pathFor(dashboardId);
+    final user = CurrentAccount.requireId();
+    if (_currentFor == '$user:$dashboardId') await close();
+    final path = await pathFor(user, dashboardId);
     if (await File(path).exists() || await databaseExists(path)) await deleteDatabase(path);
   }
 
@@ -103,27 +124,9 @@ class LocalDatabase {
       }
     }
   }
-
-  /// Cierra y borra las bases locales de todos los dashboards y la base vieja (cierre de sesión).
-  static Future<void> deleteAll() async {
-    await close();
-    final dir = await getApplicationDocumentsDirectory();
-    final names = {
-      fileName,
-      legacyFileName,
-      for (final f in Directory(dir.path).listSync().whereType<File>())
-        if (RegExp(r'^cg_local_\d+\.db$').hasMatch(p.basename(f.path))) p.basename(f.path),
-    };
-    for (final name in names) {
-      final path = p.join(dir.path, name);
-      if (await File(path).exists() || await databaseExists(path)) {
-        await deleteDatabase(path);
-      }
-    }
-  }
 }
 
-/// Base local abierta (creada o migrada). El provider guarda el Future: tras un cierre de sesión
-/// [SessionScope] descarta el contenedor entero y el nuevo vuelve a abrir la base con `instance`.
+/// Base local abierta (creada o migrada). El provider guarda el Future: al cambiar de sesión o de
+/// dashboard [SessionScope] descarta el contenedor entero y el nuevo vuelve a abrir la base con `instance`.
 /// Un error de apertura llega a quien la usa.
 final localDatabaseProvider = Provider<Future<Database>>((ref) => LocalDatabase.instance);

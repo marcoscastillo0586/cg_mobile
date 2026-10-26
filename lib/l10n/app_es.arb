@@ -309,7 +309,7 @@
   },
   "unit": "unit.",
   "signOut": "¿Cerrar sesión?",
-  "allDataStoredPhoneWill": "Se borrarán todos los datos guardados en este celular. Lo que ya está en el servidor no se toca.",
+  "allDataStoredPhoneWill": "Tus datos quedan guardados en este celular: si volvés a entrar con esta cuenta, los vas a encontrar (también lo que falte enviar).",
   "signOut2": "Cerrar sesión",
   "session": "Sesión",
   "offline": "sin conexión",

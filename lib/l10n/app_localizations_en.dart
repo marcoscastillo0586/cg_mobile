@@ -586,7 +586,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get allDataStoredPhoneWill =>
-      'All data stored on this phone will be deleted. Data already on the server is not affected.';
+      'Your data stays on this phone: if you sign in again with this account you will find it (including anything not yet sent).';
 
   @override
   String get signOut2 => 'Sign out';

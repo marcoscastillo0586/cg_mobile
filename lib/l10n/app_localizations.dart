@@ -1158,7 +1158,7 @@ abstract class AppLocalizations {
   /// No description provided for @allDataStoredPhoneWill.
   ///
   /// In es, this message translates to:
-  /// **'Se borrarán todos los datos guardados en este celular. Lo que ya está en el servidor no se toca.'**
+  /// **'Tus datos quedan guardados en este celular: si volvés a entrar con esta cuenta, los vas a encontrar (también lo que falte enviar).'**
   String get allDataStoredPhoneWill;
 
   /// No description provided for @signOut2.

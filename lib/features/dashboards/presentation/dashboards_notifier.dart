@@ -8,6 +8,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../auth/presentation/providers/auth_notifier.dart';
 import '../data/dashboards_repository.dart';
 import '../domain/dashboard.dart';
+import '../../../core/auth/current_account.dart';
 
 class DashboardsState {
   final List<Dashboard> dashboards;
@@ -70,7 +71,8 @@ class DashboardsNotifier extends StateNotifier<DashboardsState> {
 
   Future<void> select(Dashboard d) => DashboardSwitch.select(isMyPrincipal(d) ? null : d.id);
 
-  static const _pendingNameKey = 'pending_principal_name';
+  /// Nombre del principal elegido sin conexión, propio de la cuenta conectada.
+  static String get _pendingNameKey => CurrentAccount.key('pending_principal_name');
 
   /// Nombre del principal elegido en la primera vista. Se envía ya si hay conexión; si no, queda
   /// guardado y se envía en la próxima carga de la lista ([refresh]).

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/auth/session_manager.dart';
 import '../../../../core/database/local_database.dart';
@@ -9,26 +8,22 @@ import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
 import '../models/user_model.dart';
-import '../../../../core/dashboards/current_dashboard.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(
     ref.watch(authRemoteDataSourceProvider),
     ref.watch(secureStorageServiceProvider),
-    () async {
-      // Todas las bases locales (una por dashboard) y el dashboard elegido; se conservan los ajustes.
-      await LocalDatabase.deleteAll();
-      await CurrentDashboard.forget();
-    },
+    LocalDatabase.adoptLegacyFiles,
   );
 });
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource _remote;
   final SecureStorageService _storage;
-  final Future<void> Function() _deleteLocalDatabase;
+  /// Pasa los archivos locales de antes de separar por cuenta a la cuenta dueña.
+  final Future<void> Function(int ownerId) _adoptLegacyFiles;
 
-  AuthRepositoryImpl(this._remote, this._storage, this._deleteLocalDatabase);
+  AuthRepositoryImpl(this._remote, this._storage, this._adoptLegacyFiles);
 
   @override
   Stream<Object> get onSessionExpired => _remote.onExpired;
@@ -49,14 +44,10 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<UserEntity> login(String email, String password) async {
+    // Los datos locales de antes (sin cuenta) son del dueño registrado, aunque ahora entre otra cuenta.
+    final previous = await _readStoredUser();
     final user = await _remote.login(email, password);
-    // Si la base local era de otro usuario (p. ej. su sesión expiró sin cerrar), se borra.
-    final owner = await _storage.getOwnerUserId();
-    if (owner != null && owner != user.idUsuario) {
-      debugPrint('[AUTH] La base local pertenecía a otro usuario: se borra.');
-      await _deleteLocalDatabase();
-    }
-    await _storage.saveOwnerUserId(user.idUsuario);
+    await _adoptLegacy(previous?.idUsuario ?? user.idUsuario);
     await _storage.saveUserJson(jsonEncode(user.toJson()));
     return user;
   }
@@ -66,6 +57,7 @@ class AuthRepositoryImpl implements AuthRepository {
     if (!await _remote.hasSession()) return null;
 
     final stored = await _readStoredUser();
+    if (stored != null) await _adoptLegacy(stored.idUsuario);
     try {
       await _remote.refresh();
       final user = await _remote.me();
@@ -84,12 +76,21 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  /// Invalida la sesión en el servidor y borra los tokens. NO borra los datos locales de la cuenta,
+  /// sus pendientes ni los ajustes: si vuelve a entrar, los encuentra (otra cuenta usa otros archivos).
   @override
   Future<LogoutOutcome> logout() async {
     final outcome = await _remote.logout();
-    await _deleteLocalDatabase();
     await _storage.clearSessionData();
     return outcome;
+  }
+
+  /// Una sola vez: los archivos y ajustes locales de antes de separar por cuenta pasan a su dueño
+  /// (el registrado o, en instalaciones anteriores a ese registro, el usuario de la sesión guardada).
+  Future<void> _adoptLegacy(int fallbackOwner) async {
+    final owner = await _storage.getOwnerUserId() ?? fallbackOwner;
+    await _adoptLegacyFiles(owner);
+    await _storage.adoptLegacyAccountSettings(owner);
   }
 
   Future<UserModel?> _readStoredUser() async {
