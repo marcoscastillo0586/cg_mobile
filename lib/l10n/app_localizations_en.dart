@@ -1810,7 +1810,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get longTicketHint =>
-      'Photograph the receipt from top to bottom, in parts. Each photo must repeat a few lines from the end of the previous one.';
+      'Photograph the receipt from top to bottom, in parts. Each photo must repeat at least 2 products from the end of the previous one: the app tells you right away if it chained.';
 
   @override
   String longTicketPartsCount(int count, int max) {
@@ -1864,5 +1864,64 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String longTicketPartAmbiguous(int number) {
     return 'Part $number matched the previous one in more than one place: it was joined at the best match. Check the lines.';
+  }
+
+  @override
+  String longTicketPartStart(int rows) {
+    return 'Start of the receipt ($rows rows read)';
+  }
+
+  @override
+  String get longTicketPartReading => 'Reading this part…';
+
+  @override
+  String longTicketPartChainedCodes(int rows) {
+    return '✓ Chained by codes ($rows repeated rows discarded)';
+  }
+
+  @override
+  String longTicketPartChainedText(int rows) {
+    return '✓ Chained by text ($rows repeated rows discarded)';
+  }
+
+  @override
+  String get longTicketPartAmbiguousShort =>
+      '⚠ Matches in more than one place: check the lines';
+
+  @override
+  String get longTicketPartNoChainShort =>
+      '✗ No repeated lines found with the previous part: redo it';
+
+  @override
+  String get longTicketPartPending =>
+      'Pending: the previous part has to chain first';
+
+  @override
+  String get longTicketPartReadFailed => '✗ Could not be read: redo it';
+
+  @override
+  String get longTicketSeeDetail => 'See details';
+
+  @override
+  String longTicketDetailTitle(int number) {
+    return 'Part $number: what the app read';
+  }
+
+  @override
+  String get longTicketDetailPrevEnd => 'End of the previous parts';
+
+  @override
+  String get longTicketDetailThisStart => 'Start of this part';
+
+  @override
+  String get longTicketDetailHint =>
+      'To chain, the start of this part must repeat at least 2 products (with their code) or 3 lines from the end of the previous one.';
+
+  @override
+  String get longTicketWaitReading => 'Wait until the parts finish reading.';
+
+  @override
+  String longTicketFixPart(int number) {
+    return 'Redo part $number before finishing.';
   }
 }

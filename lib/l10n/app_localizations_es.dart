@@ -1821,7 +1821,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get longTicketHint =>
-      'Fotografiá el ticket de arriba hacia abajo, por partes. Cada foto tiene que repetir algunas líneas del final de la anterior.';
+      'Fotografiá el ticket de arriba hacia abajo, por partes. Cada foto tiene que repetir al menos 2 productos del final de la anterior: la app te avisa enseguida si encadenó.';
 
   @override
   String longTicketPartsCount(int count, int max) {
@@ -1875,5 +1875,65 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String longTicketPartAmbiguous(int number) {
     return 'La parte $number coincidía en más de un lugar con la anterior: se unió con la mejor coincidencia. Revisá los renglones.';
+  }
+
+  @override
+  String longTicketPartStart(int rows) {
+    return 'Inicio del ticket ($rows filas leídas)';
+  }
+
+  @override
+  String get longTicketPartReading => 'Leyendo esta parte…';
+
+  @override
+  String longTicketPartChainedCodes(int rows) {
+    return '✓ Encadenada por códigos ($rows filas repetidas descartadas)';
+  }
+
+  @override
+  String longTicketPartChainedText(int rows) {
+    return '✓ Encadenada por texto ($rows filas repetidas descartadas)';
+  }
+
+  @override
+  String get longTicketPartAmbiguousShort =>
+      '⚠ Coincide en más de un lugar: revisá los renglones';
+
+  @override
+  String get longTicketPartNoChainShort =>
+      '✗ No encontré líneas repetidas con la parte anterior: rehacela';
+
+  @override
+  String get longTicketPartPending =>
+      'Pendiente: primero tiene que encadenar la parte anterior';
+
+  @override
+  String get longTicketPartReadFailed => '✗ No se pudo leer: rehacela';
+
+  @override
+  String get longTicketSeeDetail => 'Ver detalle';
+
+  @override
+  String longTicketDetailTitle(int number) {
+    return 'Parte $number: lo que leyó la app';
+  }
+
+  @override
+  String get longTicketDetailPrevEnd => 'Final de lo anterior';
+
+  @override
+  String get longTicketDetailThisStart => 'Comienzo de esta parte';
+
+  @override
+  String get longTicketDetailHint =>
+      'Para encadenar, el comienzo de esta parte tiene que repetir al menos 2 productos (con su código) o 3 líneas del final de lo anterior.';
+
+  @override
+  String get longTicketWaitReading =>
+      'Esperá a que termine la lectura de las partes.';
+
+  @override
+  String longTicketFixPart(int number) {
+    return 'Rehacé la parte $number antes de terminar.';
   }
 }

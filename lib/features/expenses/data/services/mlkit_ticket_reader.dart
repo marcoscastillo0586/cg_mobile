@@ -125,22 +125,23 @@ class MlKitTicketReader implements TicketReader {
   /// Ticket largo: lee cada parte POR SEPARADO (foto completa, sin unir imágenes) con el mismo
   /// reconocedor y devuelve sus filas reconstruidas por posición ([ReceiptSpatialParser.filasDeFoto]),
   /// en el orden de las partes. La unión de las partes es aparte.
-  Future<List<List<SpatialRow>>> readLongTicketParts(List<String> partPaths) async {
+  Future<List<List<SpatialRow>>> readLongTicketParts(List<String> partPaths) async => [
+        for (final (i, path) in partPaths.indexed) await readLongTicketPart(path, i + 1),
+      ];
+
+  /// Una parte del ticket largo (se lee apenas se saca, para verificar enseguida si encadena).
+  Future<List<SpatialRow>> readLongTicketPart(String path, int partNumber) async {
     final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
-    final parts = <List<SpatialRow>>[];
     try {
-      for (final (i, path) in partPaths.indexed) {
-        final recognizedText = await textRecognizer.processImage(InputImage.fromFilePath(path));
-        final rows = ReceiptSpatialParser.filasDeFoto(recognizedText, i + 1);
-        debugPrint('[TICKET-LARGO] Parte #${i + 1}: ${rows.length} filas');
-        for (final row in rows) {
-          debugPrint('[TICKET-LARGO]   [${row.index.toString().padLeft(2, '0')}] ${row.fullText}');
-        }
-        parts.add(rows);
+      final recognizedText = await textRecognizer.processImage(InputImage.fromFilePath(path));
+      final rows = ReceiptSpatialParser.filasDeFoto(recognizedText, partNumber);
+      debugPrint('[TICKET-LARGO] Parte #$partNumber: ${rows.length} filas');
+      for (final row in rows) {
+        debugPrint('[TICKET-LARGO]   [${row.index.toString().padLeft(2, '0')}] ${row.fullText}');
       }
+      return rows;
     } finally {
       await textRecognizer.close();
     }
-    return parts;
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +7,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../l10n/l10n.dart';
 import '../../data/services/mlkit_ticket_reader.dart';
+import '../../data/services/receipt_spatial_parser.dart';
 import '../../data/services/ticket_row_merger.dart';
 
 /// Ticket largo: se fotografía por partes, de arriba hacia abajo, repitiendo algunas líneas entre una
@@ -23,10 +25,20 @@ class LongTicketCaptureScreen extends StatefulWidget {
 
 class _LongTicketCaptureScreenState extends State<LongTicketCaptureScreen> {
   final List<String> _parts = [];
+
+  /// Filas leídas de cada parte (null mientras se lee) y error de lectura, en el orden de [_parts].
+  final List<List<SpatialRow>?> _rows = [];
+  final List<Object?> _readErrors = [];
   final ImagePicker _picker = ImagePicker();
-  var _reading = false;
+  final MlKitTicketReader _reader = MlKitTicketReader();
+  static const _merger = TicketRowMerger();
+
+  /// Unión de las partes ya leídas (hasta la primera que falta leer o no se pudo leer).
+  TicketMergeResult? _merge;
 
   bool get _full => _parts.length >= LongTicketCaptureScreen.maxParts;
+
+  bool get _reading => [for (var i = 0; i < _parts.length; i++) _rows[i] == null && _readErrors[i] == null].any((x) => x);
 
   @override
   void dispose() {
@@ -49,15 +61,61 @@ class _LongTicketCaptureScreenState extends State<LongTicketCaptureScreen> {
 
   void _avisarMaximo() => AppFeedback.showError(context, context.l10n.longTicketMaxParts(LongTicketCaptureScreen.maxParts));
 
+  /// Une las partes ya leídas, en orden, hasta la primera que todavía no se leyó o no se pudo leer.
+  void _remerge() {
+    final ready = <List<SpatialRow>>[];
+    for (var i = 0; i < _parts.length; i++) {
+      final rows = _rows[i];
+      if (rows == null) break;
+      ready.add(rows);
+    }
+    _merge = ready.isEmpty ? null : _merger.merge(ready);
+  }
+
+  /// Agrega la parte y la lee enseguida: así se sabe en el momento si encadena con la anterior.
+  Future<void> _addPart(String path) async {
+    AppFeedback.selection();
+    setState(() {
+      _parts.add(path);
+      _rows.add(null);
+      _readErrors.add(null);
+    });
+    final number = _parts.length;
+    try {
+      final rows = await _reader.readLongTicketPart(path, number);
+      if (!mounted) return;
+      final i = _parts.indexOf(path);
+      if (i < 0) return; // se descartó mientras se leía
+      setState(() {
+        _rows[i] = rows;
+        _remerge();
+      });
+      final join = _joinOf(i);
+      if (join?.status == TicketJoinStatus.noOverlap) {
+        AppFeedback.showError(context, context.l10n.longTicketPartNotChained(i + 1));
+      }
+    } catch (e, st) {
+      debugPrint('[TICKET-LARGO] Error al leer la parte $number: $e\n$st');
+      if (!mounted) return;
+      final i = _parts.indexOf(path);
+      if (i < 0) return;
+      setState(() => _readErrors[i] = e);
+      AppFeedback.showError(context, context.l10n.longTicketReadError(e));
+    }
+  }
+
+  /// Cómo se encadenó la parte [index] (0 = la primera); null si todavía no se pudo verificar.
+  TicketPartJoin? _joinOf(int index) {
+    final joins = _merge?.joins;
+    return joins != null && index < joins.length ? joins[index] : null;
+  }
+
   Future<void> _addFromCamera() async {
     if (_full) return _avisarMaximo();
     final path = await Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => LongTicketCameraScreen(previousPartPath: _parts.isEmpty ? null : _parts.last)),
     );
-    if (path != null && mounted) {
-      AppFeedback.selection();
-      setState(() => _parts.add(path));
-    }
+    if (path != null && mounted) await _addPart(path);
   }
 
   Future<void> _addFromGallery() async {
@@ -65,10 +123,7 @@ class _LongTicketCaptureScreenState extends State<LongTicketCaptureScreen> {
     try {
       // Sin achicar: la lectura de cada parte necesita la resolución completa.
       final image = await _picker.pickImage(source: ImageSource.gallery);
-      if (image != null && mounted) {
-        AppFeedback.selection();
-        setState(() => _parts.add(image.path));
-      }
+      if (image != null && mounted) await _addPart(image.path);
     } catch (e) {
       debugPrint('[TICKET-LARGO] No se pudo abrir la galería: $e');
       if (mounted) AppFeedback.showError(context, context.l10n.couldNotAccessGalleryCheck);
@@ -79,49 +134,93 @@ class _LongTicketCaptureScreenState extends State<LongTicketCaptureScreen> {
   Future<void> _redoLast() async {
     if (_parts.isEmpty) return;
     AppFeedback.light();
-    setState(() => _deleteFile(_parts.removeLast()));
+    setState(() {
+      _deleteFile(_parts.removeLast());
+      _rows.removeLast();
+      _readErrors.removeLast();
+      _remerge();
+    });
     await _addFromCamera();
   }
 
-  /// Lee cada parte por separado, las une sin repetir la superposición y pasa las filas unidas al parser
-  /// como si fueran una sola captura. El ticket sigue igual que el de una sola foto: misma pantalla de
-  /// revisión (con la verificación contra el total impreso) y mismo guardado. Si una parte no se encadena
-  /// con la anterior, no se une y se pide rehacerla.
-  Future<void> _finish() async {
-    if (_parts.isEmpty || _reading) return;
-    setState(() => _reading = true);
+  /// Las partes ya están leídas y unidas: las filas unidas pasan al parser como una sola captura y el
+  /// ticket sigue igual que el de una sola foto (misma revisión, con la verificación contra el total
+  /// impreso, y mismo guardado). No se termina con una parte sin leer o sin encadenar.
+  void _finish() {
+    if (_parts.isEmpty) return;
+    final l = context.l10n;
+    if (_reading) return AppFeedback.showInfo(context, l.longTicketWaitReading);
+    final unread = _readErrors.indexWhere((e) => e != null);
+    if (unread >= 0) return AppFeedback.showError(context, l.longTicketFixPart(unread + 1));
+    final merged = _merge;
+    if (merged == null) return;
+    final failed = merged.failed;
+    if (failed != null) return AppFeedback.showError(context, l.longTicketFixPart(failed.part));
     AppFeedback.medium();
-    try {
-      final reader = MlKitTicketReader();
-      final merged = const TicketRowMerger().merge(await reader.readLongTicketParts(_parts));
-      if (!mounted) return;
-      setState(() => _reading = false);
-      final l = context.l10n;
-      final failed = merged.failed;
-      if (failed != null) {
-        AppFeedback.showError(context, l.longTicketPartNotChained(failed.part));
-        return;
-      }
-      final result = reader.longTicketResult(merged, _parts);
-      if (result.items.isEmpty) {
-        AppFeedback.showError(context, l.noProductsWereDetectedReceipt);
-        return;
-      }
-      // Unión ambigua: se avisa para revisar los renglones en la pantalla de revisión.
-      final ambiguous = merged.ambiguous;
-      if (ambiguous.isNotEmpty) {
-        AppFeedback.showInfo(context, ambiguous.map((j) => l.longTicketPartAmbiguous(j.part)).join('\n'));
-      } else {
-        AppFeedback.showSuccess(context, l.receiptReadDeviceLines(result.items.length));
-      }
-      Navigator.of(context).pop(result);
-    } catch (e, st) {
-      debugPrint('[TICKET-LARGO] Error en la lectura de las partes: $e\n$st');
-      if (mounted) {
-        setState(() => _reading = false);
-        AppFeedback.showError(context, context.l10n.longTicketReadError(e));
-      }
+    final result = _reader.longTicketResult(merged, _parts);
+    if (result.items.isEmpty) return AppFeedback.showError(context, l.noProductsWereDetectedReceipt);
+    // Unión ambigua: se avisa para revisar los renglones en la pantalla de revisión.
+    final ambiguous = merged.ambiguous;
+    if (ambiguous.isNotEmpty) {
+      AppFeedback.showInfo(context, ambiguous.map((j) => l.longTicketPartAmbiguous(j.part)).join('\n'));
+    } else {
+      AppFeedback.showSuccess(context, l.receiptReadDeviceLines(result.items.length));
     }
+    Navigator.of(context).pop(result);
+  }
+
+  /// Estado de la parte [index] para su tarjeta: texto y color.
+  (String, Color) _status(int index) {
+    final l = context.l10n;
+    if (_readErrors[index] != null) return (l.longTicketPartReadFailed, AppColors.rose);
+    final rows = _rows[index];
+    if (rows == null) return (l.longTicketPartReading, AppColors.lightTextSecondary);
+    if (index == 0) return (l.longTicketPartStart(rows.length), AppColors.emerald);
+    final join = _joinOf(index);
+    if (join == null) return (l.longTicketPartPending, AppColors.lightTextSecondary);
+    return switch (join.status) {
+      TicketJoinStatus.ok => (
+          join.method == TicketJoinMethod.codes ? l.longTicketPartChainedCodes(join.overlapRows) : l.longTicketPartChainedText(join.overlapRows),
+          AppColors.emerald,
+        ),
+      TicketJoinStatus.ambiguous => (l.longTicketPartAmbiguousShort, AppColors.amberDark),
+      TicketJoinStatus.noOverlap => (l.longTicketPartNoChainShort, AppColors.rose),
+    };
+  }
+
+  /// Por qué la parte [index] no encadena: final de lo anterior y comienzo de esta parte, tal como se leyeron.
+  Future<void> _showDetail(int index) {
+    final l = context.l10n;
+    final previous = _merger.merge([for (var i = 0; i < index; i++) _rows[i] ?? const []]).rows;
+    final current = _rows[index] ?? const [];
+    Widget rowsOf(List<SpatialRow> rows) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [for (final r in rows) Text(r.fullText, style: const TextStyle(fontSize: 11, fontFamily: 'monospace'))],
+        );
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.longTicketDetailTitle(index + 1)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              Text(l.longTicketDetailHint, style: const TextStyle(fontSize: 12)),
+              const SizedBox(height: 12),
+              Text(l.longTicketDetailPrevEnd, style: const TextStyle(fontWeight: FontWeight.bold)),
+              rowsOf(previous.skip(max(0, previous.length - 10)).toList()),
+              const SizedBox(height: 12),
+              Text(l.longTicketDetailThisStart, style: const TextStyle(fontWeight: FontWeight.bold)),
+              rowsOf(current.take(10).toList()),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(MaterialLocalizations.of(ctx).closeButtonLabel)),
+        ],
+      ),
+    );
   }
 
   @override
@@ -131,134 +230,158 @@ class _LongTicketCaptureScreenState extends State<LongTicketCaptureScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(l.longTicket)),
-      body: _reading
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(strokeWidth: 3),
-                  const SizedBox(height: 20),
-                  Text(l.readingReceiptDevice, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ],
-              ),
-            )
-          : Column(
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+            ),
+            child: Row(
               children: [
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 22),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          l.longTicketHint,
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? Colors.white70 : AppColors.primaryDark),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  l.longTicketPartsCount(_parts.length, LongTicketCaptureScreen.maxParts),
-                  key: const ValueKey('ticket-largo-contador'),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
+                const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 22),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: _parts.length,
-                    itemBuilder: (context, index) => Card(
-                      key: ValueKey(_parts[index]),
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Row(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.file(File(_parts[index]), width: 56, height: 72, fit: BoxFit.cover),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(l.longTicketPart(index + 1), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              key: const ValueKey('ticket-largo-agregar'),
-                              onPressed: _full ? null : _addFromCamera,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(0, 48),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              icon: const Icon(Icons.add_a_photo_rounded, size: 18),
-                              label: Text(l.longTicketAddPart, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _full ? null : _addFromGallery,
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size(0, 48),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              icon: const Icon(Icons.photo_library_rounded, size: 18),
-                              label: Text(l.longTicketAddFromGallery, textAlign: TextAlign.center),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (_parts.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        OutlinedButton.icon(
-                          key: const ValueKey('ticket-largo-rehacer'),
-                          onPressed: _redoLast,
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 46),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          icon: const Icon(Icons.replay_rounded, size: 18),
-                          label: Text(l.longTicketRedoLast),
-                        ),
-                        const SizedBox(height: 10),
-                        ElevatedButton.icon(
-                          key: const ValueKey('ticket-largo-terminar'),
-                          onPressed: _finish,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.emerald,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(double.infinity, 52),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          icon: const Icon(Icons.check_circle_rounded, size: 20),
-                          label: Text(l.longTicketFinish, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ],
+                  child: Text(
+                    l.longTicketHint,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? Colors.white70 : AppColors.primaryDark),
                   ),
                 ),
               ],
             ),
+          ),
+          Text(
+            l.longTicketPartsCount(_parts.length, LongTicketCaptureScreen.maxParts),
+            key: const ValueKey('ticket-largo-contador'),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: _parts.length,
+              itemBuilder: (context, index) {
+                final (status, color) = _status(index);
+                final join = _joinOf(index);
+                final failed = _readErrors[index] != null || join?.status == TicketJoinStatus.noOverlap;
+                return Card(
+                  key: ValueKey(_parts[index]),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(File(_parts[index]), width: 56, height: 72, fit: BoxFit.cover),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(l.longTicketPart(index + 1), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  if (_rows[index] == null && _readErrors[index] == null) ...[
+                                    const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+                                    const SizedBox(width: 6),
+                                  ],
+                                  Expanded(
+                                    child: Text(
+                                      status,
+                                      key: ValueKey('ticket-largo-estado-${index + 1}'),
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (failed && index > 0 && _rows[index] != null)
+                                TextButton(
+                                  key: ValueKey('ticket-largo-detalle-${index + 1}'),
+                                  onPressed: () => _showDetail(index),
+                                  style: TextButton.styleFrom(minimumSize: const Size(0, 32), padding: EdgeInsets.zero),
+                                  child: Text(l.longTicketSeeDetail),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        key: const ValueKey('ticket-largo-agregar'),
+                        onPressed: _full ? null : _addFromCamera,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(0, 48),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.add_a_photo_rounded, size: 18),
+                        label: Text(l.longTicketAddPart, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _full ? null : _addFromGallery,
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 48),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.photo_library_rounded, size: 18),
+                        label: Text(l.longTicketAddFromGallery, textAlign: TextAlign.center),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_parts.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    key: const ValueKey('ticket-largo-rehacer'),
+                    onPressed: _redoLast,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 46),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.replay_rounded, size: 18),
+                    label: Text(l.longTicketRedoLast),
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    key: const ValueKey('ticket-largo-terminar'),
+                    onPressed: _finish,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.emerald,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 52),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.check_circle_rounded, size: 20),
+                    label: Text(l.longTicketFinish, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -45,7 +45,9 @@ void main() {
     final r = merger.merge([a, b]);
 
     expect(r.failed, isNull);
-    expect(r.joins[1].overlapRows, 3);
+    // Encadena por códigos de barras: se descarta el comienzo de B hasta el último código repetido
+    // (la fila cortada "HITOS", el código, "GALLETITAS 0REO" y su código).
+    expect((r.joins[1].method, r.joins[1].overlapRows), (TicketJoinMethod.codes, 4));
     expect(r.rows.map((x) => x.fullText), [
       'COTO C.I.C.S.A.',
       'SUC 123',
@@ -107,5 +109,59 @@ void main() {
     expect(TicketRowMerger.normalize('  galletitas   oreo '), 'GALLETITAS OREO');
     expect(TicketRowMerger.similarity('GALLETITAS OREO', 'GALLETITAS OREO'), 1);
     expect(TicketRowMerger.similarity('GALLETITAS OREO', 'GALLETITAS 0REO'), closeTo(14 / 15, 1e-9));
+  });
+
+  test('filas sueltas en los bordes (sombras, medias líneas) no impiden encadenar por texto', () {
+    final a = _part(1, ['COTO', 'LECHE ENTERA', 'PAN LACTAL', 'GALLETITAS', 'YERBA', '~~ ..', 'iI']);
+    final b = _part(2, ['\'', '-- -', 'PAN LACTAL', 'GALLETITAS', 'YERBA', 'AZUCAR', 'TOTAL 10,00']);
+
+    final r = merger.merge([a, b]);
+
+    expect(r.failed, isNull);
+    expect(r.joins[1].method, TicketJoinMethod.text);
+    expect(r.rows.map((x) => x.fullText), ['COTO', 'LECHE ENTERA', 'PAN LACTAL', 'GALLETITAS', 'YERBA', 'AZUCAR', 'TOTAL 10,00']);
+  });
+
+  test('por códigos: encadena aunque las filas se hayan agrupado distinto en cada foto', () {
+    // En la parte 1 nombre y código quedaron en filas separadas; en la 2 (foto inclinada) en la misma fila.
+    final a = _part(1, [
+      'COTO',
+      'LECHE ENTERA',
+      '0000011111 07790001111111 1500,00',
+      'PAN LACTAL',
+      '0000022222 07790002222222 900,00',
+      'YERBA',
+      '0000033333 07790003333333 2500,00',
+    ]);
+    final b = _part(2, [
+      'LECHE ENTERA 0000011111 07790001111111 1500,00',
+      'PAN LACTAL 0000022222 07790002222222 900,00',
+      'YERBA 0000033333 07790003333333 2500,00',
+      'AZUCAR',
+      '0000044444 07790004444444 1200,00',
+      'TOTAL 6100,00',
+    ]);
+
+    final r = merger.merge([a, b]);
+
+    expect(r.joins[1].method, TicketJoinMethod.codes);
+    expect(r.rows.map((x) => x.fullText).toList().sublist(7), ['AZUCAR', '0000044444 07790004444444 1200,00', 'TOTAL 6100,00']);
+    expect(r.rows.where((x) => x.fullText.contains('07790003333333')).length, 1, reason: 'YERBA una sola vez');
+  });
+
+  test('por códigos: tolera un dígito mal leído en un código repetido', () {
+    final a = _part(1, ['A', '0000011111 07790001111111 1,00', 'B', '0000022222 07790002222222 2,00']);
+    final b = _part(2, ['A', '0000011111 07790001111117 1,00', 'B', '0000022222 07790002222222 2,00', 'C', '0000033333 07790003333333 3,00']);
+
+    final r = merger.merge([a, b]);
+
+    expect(r.joins[1].method, TicketJoinMethod.codes);
+    expect(r.rows.map((x) => x.fullText).last, '0000033333 07790003333333 3,00');
+    expect(r.rows.length, 6);
+  });
+
+  test('código de barras de una fila: la secuencia de 12 a 14 dígitos más larga', () {
+    expect(TicketRowMerger.barcode('0000012345 07794520868969 2965,99'), '07794520868969');
+    expect(TicketRowMerger.barcode('KRACHITOS 2520,00'), isNull);
   });
 }
