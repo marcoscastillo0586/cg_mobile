@@ -1863,19 +1863,31 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get longTicketRowsTitle => 'Filas leídas por parte';
-
-  @override
-  String longTicketPartRows(int number, int rows) {
-    return 'Parte $number: $rows filas';
-  }
-
-  @override
   String get longTicketMergePending =>
-      'La unión de las partes (sin repetir las líneas superpuestas) se agrega en el próximo paso.';
+      'La unión ya está hecha; el paso a la pantalla de revisión se agrega en el próximo paso.';
 
   @override
   String longTicketReadError(Object error) {
     return 'No se pudieron leer las partes: $error';
+  }
+
+  @override
+  String longTicketMergedTitle(int rows) {
+    return 'Ticket unido: $rows filas';
+  }
+
+  @override
+  String longTicketPartOverlap(int number, int rows) {
+    return 'Parte $number: $rows filas repetidas descartadas';
+  }
+
+  @override
+  String longTicketPartNotChained(int number) {
+    return 'La parte $number no se pudo encadenar con la anterior (no repite líneas suficientes). Rehacela con más superposición.';
+  }
+
+  @override
+  String longTicketPartAmbiguous(int number) {
+    return 'La parte $number coincide en más de un lugar con la anterior. Rehacela con más superposición.';
   }
 }

@@ -1119,10 +1119,15 @@
   "longTicketTakePhoto": "Sacar foto",
   "longTicketCameraError": "No se pudo usar la cámara: {error}",
   "@longTicketCameraError": {"placeholders": {"error": {"type": "Object"}}},
-  "longTicketRowsTitle": "Filas leídas por parte",
-  "longTicketPartRows": "Parte {number}: {rows} filas",
-  "@longTicketPartRows": {"placeholders": {"number": {"type": "int"}, "rows": {"type": "int"}}},
-  "longTicketMergePending": "La unión de las partes (sin repetir las líneas superpuestas) se agrega en el próximo paso.",
+  "longTicketMergePending": "La unión ya está hecha; el paso a la pantalla de revisión se agrega en el próximo paso.",
   "longTicketReadError": "No se pudieron leer las partes: {error}",
-  "@longTicketReadError": {"placeholders": {"error": {"type": "Object"}}}
+  "@longTicketReadError": {"placeholders": {"error": {"type": "Object"}}},
+  "longTicketMergedTitle": "Ticket unido: {rows} filas",
+  "@longTicketMergedTitle": {"placeholders": {"rows": {"type": "int"}}},
+  "longTicketPartOverlap": "Parte {number}: {rows} filas repetidas descartadas",
+  "@longTicketPartOverlap": {"placeholders": {"number": {"type": "int"}, "rows": {"type": "int"}}},
+  "longTicketPartNotChained": "La parte {number} no se pudo encadenar con la anterior (no repite líneas suficientes). Rehacela con más superposición.",
+  "@longTicketPartNotChained": {"placeholders": {"number": {"type": "int"}}},
+  "longTicketPartAmbiguous": "La parte {number} coincide en más de un lugar con la anterior. Rehacela con más superposición.",
+  "@longTicketPartAmbiguous": {"placeholders": {"number": {"type": "int"}}}
 }

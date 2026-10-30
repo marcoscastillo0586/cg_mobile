@@ -6,7 +6,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../l10n/l10n.dart';
 import '../../data/services/mlkit_ticket_reader.dart';
-import '../../data/services/receipt_spatial_parser.dart';
+import '../../data/services/ticket_row_merger.dart';
 
 /// Ticket largo: se fotografía por partes, de arriba hacia abajo, repitiendo algunas líneas entre una
 /// foto y la siguiente. Cada parte se guarda a resolución completa (cámara propia o galería sin achicar).
@@ -83,16 +83,27 @@ class _LongTicketCaptureScreenState extends State<LongTicketCaptureScreen> {
     await _addFromCamera();
   }
 
-  /// Lee cada parte por separado. R2: muestra las filas de cada parte; su unión (R3) todavía no está.
+  /// Lee cada parte por separado y las une sin repetir la superposición. Si una parte no se encadena
+  /// con la anterior, no se une y se pide rehacerla. R3: muestra las filas unidas (el paso al parser es R5).
   Future<void> _finish() async {
     if (_parts.isEmpty || _reading) return;
     setState(() => _reading = true);
     AppFeedback.medium();
     try {
       final parts = await MlKitTicketReader().readLongTicketParts(_parts);
+      final merged = const TicketRowMerger().merge(parts);
       if (!mounted) return;
       setState(() => _reading = false);
-      await _showRows(parts);
+      final failed = merged.failed;
+      if (failed != null) {
+        final l = context.l10n;
+        AppFeedback.showError(
+          context,
+          failed.status == TicketJoinStatus.ambiguous ? l.longTicketPartAmbiguous(failed.part) : l.longTicketPartNotChained(failed.part),
+        );
+        return;
+      }
+      await _showRows(merged);
     } catch (e, st) {
       debugPrint('[TICKET-LARGO] Error en la lectura de las partes: $e\n$st');
       if (mounted) {
@@ -102,24 +113,21 @@ class _LongTicketCaptureScreenState extends State<LongTicketCaptureScreen> {
     }
   }
 
-  Future<void> _showRows(List<List<SpatialRow>> parts) {
+  Future<void> _showRows(TicketMergeResult merged) {
     final l = context.l10n;
     return showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l.longTicketRowsTitle),
+        title: Text(l.longTicketMergedTitle(merged.rows.length)),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView(
             shrinkWrap: true,
             children: [
-              for (final (i, rows) in parts.indexed) ...[
-                Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 4),
-                  child: Text(l.longTicketPartRows(i + 1, rows.length), style: const TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                for (final row in rows) Text(row.fullText, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
-              ],
+              for (final join in merged.joins.skip(1))
+                Text(l.longTicketPartOverlap(join.part, join.overlapRows), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              for (final row in merged.rows) Text(row.fullText, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
               const SizedBox(height: 12),
               Text(l.longTicketMergePending, style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
             ],

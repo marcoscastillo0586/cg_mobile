@@ -3277,22 +3277,10 @@ abstract class AppLocalizations {
   /// **'No se pudo usar la cámara: {error}'**
   String longTicketCameraError(Object error);
 
-  /// No description provided for @longTicketRowsTitle.
-  ///
-  /// In es, this message translates to:
-  /// **'Filas leídas por parte'**
-  String get longTicketRowsTitle;
-
-  /// No description provided for @longTicketPartRows.
-  ///
-  /// In es, this message translates to:
-  /// **'Parte {number}: {rows} filas'**
-  String longTicketPartRows(int number, int rows);
-
   /// No description provided for @longTicketMergePending.
   ///
   /// In es, this message translates to:
-  /// **'La unión de las partes (sin repetir las líneas superpuestas) se agrega en el próximo paso.'**
+  /// **'La unión ya está hecha; el paso a la pantalla de revisión se agrega en el próximo paso.'**
   String get longTicketMergePending;
 
   /// No description provided for @longTicketReadError.
@@ -3300,6 +3288,30 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No se pudieron leer las partes: {error}'**
   String longTicketReadError(Object error);
+
+  /// No description provided for @longTicketMergedTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Ticket unido: {rows} filas'**
+  String longTicketMergedTitle(int rows);
+
+  /// No description provided for @longTicketPartOverlap.
+  ///
+  /// In es, this message translates to:
+  /// **'Parte {number}: {rows} filas repetidas descartadas'**
+  String longTicketPartOverlap(int number, int rows);
+
+  /// No description provided for @longTicketPartNotChained.
+  ///
+  /// In es, this message translates to:
+  /// **'La parte {number} no se pudo encadenar con la anterior (no repite líneas suficientes). Rehacela con más superposición.'**
+  String longTicketPartNotChained(int number);
+
+  /// No description provided for @longTicketPartAmbiguous.
+  ///
+  /// In es, this message translates to:
+  /// **'La parte {number} coincide en más de un lugar con la anterior. Rehacela con más superposición.'**
+  String longTicketPartAmbiguous(int number);
 }
 
 class _AppLocalizationsDelegate

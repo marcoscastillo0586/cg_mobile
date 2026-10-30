@@ -1852,19 +1852,31 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get longTicketRowsTitle => 'Rows read per part';
-
-  @override
-  String longTicketPartRows(int number, int rows) {
-    return 'Part $number: $rows rows';
-  }
-
-  @override
   String get longTicketMergePending =>
-      'Joining the parts (without repeating the overlapping lines) is added in the next step.';
+      'The parts are joined; sending them to the review screen is added in the next step.';
 
   @override
   String longTicketReadError(Object error) {
     return 'Could not read the parts: $error';
+  }
+
+  @override
+  String longTicketMergedTitle(int rows) {
+    return 'Joined receipt: $rows rows';
+  }
+
+  @override
+  String longTicketPartOverlap(int number, int rows) {
+    return 'Part $number: $rows repeated rows discarded';
+  }
+
+  @override
+  String longTicketPartNotChained(int number) {
+    return 'Part $number could not be chained to the previous one (not enough repeated lines). Redo it with more overlap.';
+  }
+
+  @override
+  String longTicketPartAmbiguous(int number) {
+    return 'Part $number matches the previous one in more than one place. Redo it with more overlap.';
   }
 }

@@ -529,8 +529,10 @@
   "longTicketAlignHint": "Line up the top with the end of the previous part",
   "longTicketTakePhoto": "Take photo",
   "longTicketCameraError": "Could not use the camera: {error}",
-  "longTicketRowsTitle": "Rows read per part",
-  "longTicketPartRows": "Part {number}: {rows} rows",
-  "longTicketMergePending": "Joining the parts (without repeating the overlapping lines) is added in the next step.",
-  "longTicketReadError": "Could not read the parts: {error}"
+  "longTicketMergePending": "The parts are joined; sending them to the review screen is added in the next step.",
+  "longTicketReadError": "Could not read the parts: {error}",
+  "longTicketMergedTitle": "Joined receipt: {rows} rows",
+  "longTicketPartOverlap": "Part {number}: {rows} repeated rows discarded",
+  "longTicketPartNotChained": "Part {number} could not be chained to the previous one (not enough repeated lines). Redo it with more overlap.",
+  "longTicketPartAmbiguous": "Part {number} matches the previous one in more than one place. Redo it with more overlap."
 }
