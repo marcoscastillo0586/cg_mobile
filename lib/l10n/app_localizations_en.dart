@@ -1852,22 +1852,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get longTicketMergePending =>
-      'Sending the receipt to the review screen is added in the next step.';
-
-  @override
   String longTicketReadError(Object error) {
     return 'Could not read the parts: $error';
-  }
-
-  @override
-  String longTicketMergedTitle(int rows) {
-    return 'Joined receipt: $rows rows';
-  }
-
-  @override
-  String longTicketPartOverlap(int number, int rows) {
-    return 'Part $number: $rows repeated rows discarded';
   }
 
   @override
@@ -1878,10 +1864,5 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String longTicketPartAmbiguous(int number) {
     return 'Part $number matched the previous one in more than one place: it was joined at the best match. Check the lines.';
-  }
-
-  @override
-  String longTicketItemsRead(int count) {
-    return 'Lines detected: $count';
   }
 }

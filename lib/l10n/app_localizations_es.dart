@@ -1863,22 +1863,8 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get longTicketMergePending =>
-      'El paso a la pantalla de revisión se agrega en el próximo paso.';
-
-  @override
   String longTicketReadError(Object error) {
     return 'No se pudieron leer las partes: $error';
-  }
-
-  @override
-  String longTicketMergedTitle(int rows) {
-    return 'Ticket unido: $rows filas';
-  }
-
-  @override
-  String longTicketPartOverlap(int number, int rows) {
-    return 'Parte $number: $rows filas repetidas descartadas';
   }
 
   @override
@@ -1889,10 +1875,5 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String longTicketPartAmbiguous(int number) {
     return 'La parte $number coincidía en más de un lugar con la anterior: se unió con la mejor coincidencia. Revisá los renglones.';
-  }
-
-  @override
-  String longTicketItemsRead(int count) {
-    return 'Renglones detectados: $count';
   }
 }

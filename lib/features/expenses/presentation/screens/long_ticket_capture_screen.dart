@@ -7,8 +7,6 @@ import '../../../../core/utils/app_feedback.dart';
 import '../../../../l10n/l10n.dart';
 import '../../data/services/mlkit_ticket_reader.dart';
 import '../../data/services/ticket_row_merger.dart';
-import '../../domain/entities/ticket_parse_result.dart';
-import '../../../../core/money/money.dart';
 
 /// Ticket largo: se fotografía por partes, de arriba hacia abajo, repitiendo algunas líneas entre una
 /// foto y la siguiente. Cada parte se guarda a resolución completa (cámara propia o galería sin achicar).
@@ -86,8 +84,9 @@ class _LongTicketCaptureScreenState extends State<LongTicketCaptureScreen> {
   }
 
   /// Lee cada parte por separado, las une sin repetir la superposición y pasa las filas unidas al parser
-  /// como si fueran una sola captura. Si una parte no se encadena con la anterior, no se une y se pide
-  /// rehacerla. R4: muestra la verificación contra el total impreso (el paso a la revisión es R5).
+  /// como si fueran una sola captura. El ticket sigue igual que el de una sola foto: misma pantalla de
+  /// revisión (con la verificación contra el total impreso) y mismo guardado. Si una parte no se encadena
+  /// con la anterior, no se une y se pide rehacerla.
   Future<void> _finish() async {
     if (_parts.isEmpty || _reading) return;
     setState(() => _reading = true);
@@ -97,12 +96,25 @@ class _LongTicketCaptureScreenState extends State<LongTicketCaptureScreen> {
       final merged = const TicketRowMerger().merge(await reader.readLongTicketParts(_parts));
       if (!mounted) return;
       setState(() => _reading = false);
+      final l = context.l10n;
       final failed = merged.failed;
       if (failed != null) {
-        AppFeedback.showError(context, context.l10n.longTicketPartNotChained(failed.part));
+        AppFeedback.showError(context, l.longTicketPartNotChained(failed.part));
         return;
       }
-      await _showRows(merged, reader.longTicketResult(merged, _parts));
+      final result = reader.longTicketResult(merged, _parts);
+      if (result.items.isEmpty) {
+        AppFeedback.showError(context, l.noProductsWereDetectedReceipt);
+        return;
+      }
+      // Unión ambigua: se avisa para revisar los renglones en la pantalla de revisión.
+      final ambiguous = merged.ambiguous;
+      if (ambiguous.isNotEmpty) {
+        AppFeedback.showInfo(context, ambiguous.map((j) => l.longTicketPartAmbiguous(j.part)).join('\n'));
+      } else {
+        AppFeedback.showSuccess(context, l.receiptReadDeviceLines(result.items.length));
+      }
+      Navigator.of(context).pop(result);
     } catch (e, st) {
       debugPrint('[TICKET-LARGO] Error en la lectura de las partes: $e\n$st');
       if (mounted) {
@@ -110,54 +122,6 @@ class _LongTicketCaptureScreenState extends State<LongTicketCaptureScreen> {
         AppFeedback.showError(context, context.l10n.longTicketReadError(e));
       }
     }
-  }
-
-  /// Mismo resumen que la pantalla de revisión: suma de renglones contra el total impreso (±0,05).
-  String _verification(TicketParseResult r) {
-    final l = context.l10n;
-    final suma = Money.format(r.sumaRenglonesCents);
-    final total = r.totalDetectadoCents;
-    if (total == null) return l.ticketSumNoTotal(suma);
-    return r.tieneDiferenciaTotal
-        ? l.ticketSumDiffers(suma, Money.format(total), Money.format(r.sumaRenglonesCents - total))
-        : l.ticketReadSumTotal(suma, Money.format(total));
-  }
-
-  Future<void> _showRows(TicketMergeResult merged, TicketParseResult result) {
-    final l = context.l10n;
-    return showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.longTicketMergedTitle(merged.rows.length)),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              Text(
-                _verification(result),
-                key: const ValueKey('ticket-largo-verificacion'),
-                style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.bold, color: result.tieneDiferenciaTotal ? AppColors.amberDark : AppColors.emeraldDark),
-              ),
-              Text(l.longTicketItemsRead(result.items.length), style: const TextStyle(fontSize: 12)),
-              for (final join in merged.ambiguous)
-                Text(l.longTicketPartAmbiguous(join.part), style: const TextStyle(fontSize: 12, color: AppColors.amberDark)),
-              const SizedBox(height: 8),
-              for (final join in merged.joins.skip(1))
-                Text(l.longTicketPartOverlap(join.part, join.overlapRows), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              for (final row in merged.rows) Text(row.fullText, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
-              const SizedBox(height: 12),
-              Text(l.longTicketMergePending, style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(MaterialLocalizations.of(ctx).closeButtonLabel)),
-        ],
-      ),
-    );
   }
 
   @override

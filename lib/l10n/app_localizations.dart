@@ -3277,29 +3277,11 @@ abstract class AppLocalizations {
   /// **'No se pudo usar la cámara: {error}'**
   String longTicketCameraError(Object error);
 
-  /// No description provided for @longTicketMergePending.
-  ///
-  /// In es, this message translates to:
-  /// **'El paso a la pantalla de revisión se agrega en el próximo paso.'**
-  String get longTicketMergePending;
-
   /// No description provided for @longTicketReadError.
   ///
   /// In es, this message translates to:
   /// **'No se pudieron leer las partes: {error}'**
   String longTicketReadError(Object error);
-
-  /// No description provided for @longTicketMergedTitle.
-  ///
-  /// In es, this message translates to:
-  /// **'Ticket unido: {rows} filas'**
-  String longTicketMergedTitle(int rows);
-
-  /// No description provided for @longTicketPartOverlap.
-  ///
-  /// In es, this message translates to:
-  /// **'Parte {number}: {rows} filas repetidas descartadas'**
-  String longTicketPartOverlap(int number, int rows);
 
   /// No description provided for @longTicketPartNotChained.
   ///
@@ -3312,12 +3294,6 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'La parte {number} coincidía en más de un lugar con la anterior: se unió con la mejor coincidencia. Revisá los renglones.'**
   String longTicketPartAmbiguous(int number);
-
-  /// No description provided for @longTicketItemsRead.
-  ///
-  /// In es, this message translates to:
-  /// **'Renglones detectados: {count}'**
-  String longTicketItemsRead(int count);
 }
 
 class _AppLocalizationsDelegate
