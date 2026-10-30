@@ -1102,5 +1102,22 @@
   "mainCurrencySaved": "Se guardó la moneda principal.",
   "budgetCurrency": "Moneda del límite",
   "mixedCurrencies": "Mezcla monedas",
-  "budgetMixedCurrency": "Todas las cuentas de un límite deben ser de la misma moneda."
+  "budgetMixedCurrency": "Todas las cuentas de un límite deben ser de la misma moneda.",
+  "longTicket": "Ticket largo",
+  "longTicketHint": "Fotografiá el ticket de arriba hacia abajo, por partes. Cada foto tiene que repetir algunas líneas del final de la anterior.",
+  "longTicketPartsCount": "{count} de {max} partes",
+  "@longTicketPartsCount": {"placeholders": {"count": {"type": "int"}, "max": {"type": "int"}}},
+  "longTicketPart": "Parte {number}",
+  "@longTicketPart": {"placeholders": {"number": {"type": "int"}}},
+  "longTicketAddPart": "Agregar parte",
+  "longTicketAddFromGallery": "Agregar desde galería",
+  "longTicketRedoLast": "Rehacer última",
+  "longTicketFinish": "Terminar",
+  "longTicketMaxParts": "Llegaste al máximo de {max} partes.",
+  "@longTicketMaxParts": {"placeholders": {"max": {"type": "int"}}},
+  "longTicketAlignHint": "Alineá el comienzo con el final de la parte anterior",
+  "longTicketTakePhoto": "Sacar foto",
+  "longTicketCameraError": "No se pudo usar la cámara: {error}",
+  "@longTicketCameraError": {"placeholders": {"error": {"type": "Object"}}},
+  "longTicketPartsReady": "Partes listas. La lectura del ticket largo se agrega en el próximo paso."
 }

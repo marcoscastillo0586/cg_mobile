@@ -8,6 +8,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../domain/entities/ticket_parse_result.dart';
 import '../../data/services/mlkit_ticket_reader.dart';
+import 'long_ticket_capture_screen.dart';
 import 'qr_scanner_screen.dart';
 import '../../../../l10n/l10n.dart';
 
@@ -33,6 +34,14 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
     if (result != null && mounted) {
       context.pop(result);
     }
+  }
+
+  /// Ticket largo: varias partes con superposición. Devuelve el ticket leído, igual que una sola foto.
+  Future<void> _abrirTicketLargo() async {
+    final result = await Navigator.of(context).push<TicketParseResult>(
+      MaterialPageRoute(builder: (_) => const LongTicketCaptureScreen()),
+    );
+    if (result != null && mounted) context.pop(result);
   }
 
   Future<void> _escanearDocumentoConMlKit() async {
@@ -373,6 +382,23 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
                         icon: const Icon(Icons.photo_library_rounded, size: 18),
                         label: Text(
                           context.l10n.gallery,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      // Botón 4: Ticket largo (por partes, con superposición)
+                      OutlinedButton.icon(
+                        key: const ValueKey('ticket-largo'),
+                        onPressed: _abrirTicketLargo,
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 46),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.view_day_rounded, size: 18),
+                        label: Text(
+                          context.l10n.longTicket,
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                         ),
                       ),

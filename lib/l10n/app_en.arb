@@ -516,5 +516,18 @@
   "mainCurrencySaved": "Main currency saved.",
   "budgetCurrency": "Limit currency",
   "mixedCurrencies": "Mixed currencies",
-  "budgetMixedCurrency": "All accounts of a limit must be in the same currency."
+  "budgetMixedCurrency": "All accounts of a limit must be in the same currency.",
+  "longTicket": "Long receipt",
+  "longTicketHint": "Photograph the receipt from top to bottom, in parts. Each photo must repeat a few lines from the end of the previous one.",
+  "longTicketPartsCount": "{count} of {max} parts",
+  "longTicketPart": "Part {number}",
+  "longTicketAddPart": "Add part",
+  "longTicketAddFromGallery": "Add from gallery",
+  "longTicketRedoLast": "Redo last",
+  "longTicketFinish": "Finish",
+  "longTicketMaxParts": "You reached the maximum of {max} parts.",
+  "longTicketAlignHint": "Line up the top with the end of the previous part",
+  "longTicketTakePhoto": "Take photo",
+  "longTicketCameraError": "Could not use the camera: {error}",
+  "longTicketPartsReady": "Parts ready. Reading the long receipt is added in the next step."
 }

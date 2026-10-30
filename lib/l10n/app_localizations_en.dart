@@ -1804,4 +1804,54 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get budgetMixedCurrency =>
       'All accounts of a limit must be in the same currency.';
+
+  @override
+  String get longTicket => 'Long receipt';
+
+  @override
+  String get longTicketHint =>
+      'Photograph the receipt from top to bottom, in parts. Each photo must repeat a few lines from the end of the previous one.';
+
+  @override
+  String longTicketPartsCount(int count, int max) {
+    return '$count of $max parts';
+  }
+
+  @override
+  String longTicketPart(int number) {
+    return 'Part $number';
+  }
+
+  @override
+  String get longTicketAddPart => 'Add part';
+
+  @override
+  String get longTicketAddFromGallery => 'Add from gallery';
+
+  @override
+  String get longTicketRedoLast => 'Redo last';
+
+  @override
+  String get longTicketFinish => 'Finish';
+
+  @override
+  String longTicketMaxParts(int max) {
+    return 'You reached the maximum of $max parts.';
+  }
+
+  @override
+  String get longTicketAlignHint =>
+      'Line up the top with the end of the previous part';
+
+  @override
+  String get longTicketTakePhoto => 'Take photo';
+
+  @override
+  String longTicketCameraError(Object error) {
+    return 'Could not use the camera: $error';
+  }
+
+  @override
+  String get longTicketPartsReady =>
+      'Parts ready. Reading the long receipt is added in the next step.';
 }

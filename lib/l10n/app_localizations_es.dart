@@ -1815,4 +1815,54 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get budgetMixedCurrency =>
       'Todas las cuentas de un límite deben ser de la misma moneda.';
+
+  @override
+  String get longTicket => 'Ticket largo';
+
+  @override
+  String get longTicketHint =>
+      'Fotografiá el ticket de arriba hacia abajo, por partes. Cada foto tiene que repetir algunas líneas del final de la anterior.';
+
+  @override
+  String longTicketPartsCount(int count, int max) {
+    return '$count de $max partes';
+  }
+
+  @override
+  String longTicketPart(int number) {
+    return 'Parte $number';
+  }
+
+  @override
+  String get longTicketAddPart => 'Agregar parte';
+
+  @override
+  String get longTicketAddFromGallery => 'Agregar desde galería';
+
+  @override
+  String get longTicketRedoLast => 'Rehacer última';
+
+  @override
+  String get longTicketFinish => 'Terminar';
+
+  @override
+  String longTicketMaxParts(int max) {
+    return 'Llegaste al máximo de $max partes.';
+  }
+
+  @override
+  String get longTicketAlignHint =>
+      'Alineá el comienzo con el final de la parte anterior';
+
+  @override
+  String get longTicketTakePhoto => 'Sacar foto';
+
+  @override
+  String longTicketCameraError(Object error) {
+    return 'No se pudo usar la cámara: $error';
+  }
+
+  @override
+  String get longTicketPartsReady =>
+      'Partes listas. La lectura del ticket largo se agrega en el próximo paso.';
 }

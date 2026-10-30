@@ -47,6 +47,8 @@ dependencies:
   mobile_scanner: ^6.0.2
   google_mlkit_text_recognition: ^0.13.0
   google_mlkit_document_scanner: ^0.2.0
+  # Cámara propia para el ticket largo (muestra encima la parte anterior para alinear)
+  camera: ^0.12.2
 
   # Red: sincronizar apenas vuelve la conexión
   connectivity_plus: ^7.3.2

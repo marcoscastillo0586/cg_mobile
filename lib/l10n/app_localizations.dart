@@ -3204,6 +3204,84 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Todas las cuentas de un límite deben ser de la misma moneda.'**
   String get budgetMixedCurrency;
+
+  /// No description provided for @longTicket.
+  ///
+  /// In es, this message translates to:
+  /// **'Ticket largo'**
+  String get longTicket;
+
+  /// No description provided for @longTicketHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Fotografiá el ticket de arriba hacia abajo, por partes. Cada foto tiene que repetir algunas líneas del final de la anterior.'**
+  String get longTicketHint;
+
+  /// No description provided for @longTicketPartsCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{count} de {max} partes'**
+  String longTicketPartsCount(int count, int max);
+
+  /// No description provided for @longTicketPart.
+  ///
+  /// In es, this message translates to:
+  /// **'Parte {number}'**
+  String longTicketPart(int number);
+
+  /// No description provided for @longTicketAddPart.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar parte'**
+  String get longTicketAddPart;
+
+  /// No description provided for @longTicketAddFromGallery.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar desde galería'**
+  String get longTicketAddFromGallery;
+
+  /// No description provided for @longTicketRedoLast.
+  ///
+  /// In es, this message translates to:
+  /// **'Rehacer última'**
+  String get longTicketRedoLast;
+
+  /// No description provided for @longTicketFinish.
+  ///
+  /// In es, this message translates to:
+  /// **'Terminar'**
+  String get longTicketFinish;
+
+  /// No description provided for @longTicketMaxParts.
+  ///
+  /// In es, this message translates to:
+  /// **'Llegaste al máximo de {max} partes.'**
+  String longTicketMaxParts(int max);
+
+  /// No description provided for @longTicketAlignHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Alineá el comienzo con el final de la parte anterior'**
+  String get longTicketAlignHint;
+
+  /// No description provided for @longTicketTakePhoto.
+  ///
+  /// In es, this message translates to:
+  /// **'Sacar foto'**
+  String get longTicketTakePhoto;
+
+  /// No description provided for @longTicketCameraError.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo usar la cámara: {error}'**
+  String longTicketCameraError(Object error);
+
+  /// No description provided for @longTicketPartsReady.
+  ///
+  /// In es, this message translates to:
+  /// **'Partes listas. La lectura del ticket largo se agrega en el próximo paso.'**
+  String get longTicketPartsReady;
 }
 
 class _AppLocalizationsDelegate
