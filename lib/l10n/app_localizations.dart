@@ -3277,11 +3277,29 @@ abstract class AppLocalizations {
   /// **'No se pudo usar la cámara: {error}'**
   String longTicketCameraError(Object error);
 
-  /// No description provided for @longTicketPartsReady.
+  /// No description provided for @longTicketRowsTitle.
   ///
   /// In es, this message translates to:
-  /// **'Partes listas. La lectura del ticket largo se agrega en el próximo paso.'**
-  String get longTicketPartsReady;
+  /// **'Filas leídas por parte'**
+  String get longTicketRowsTitle;
+
+  /// No description provided for @longTicketPartRows.
+  ///
+  /// In es, this message translates to:
+  /// **'Parte {number}: {rows} filas'**
+  String longTicketPartRows(int number, int rows);
+
+  /// No description provided for @longTicketMergePending.
+  ///
+  /// In es, this message translates to:
+  /// **'La unión de las partes (sin repetir las líneas superpuestas) se agrega en el próximo paso.'**
+  String get longTicketMergePending;
+
+  /// No description provided for @longTicketReadError.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudieron leer las partes: {error}'**
+  String longTicketReadError(Object error);
 }
 
 class _AppLocalizationsDelegate

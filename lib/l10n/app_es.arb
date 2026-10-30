@@ -1119,5 +1119,10 @@
   "longTicketTakePhoto": "Sacar foto",
   "longTicketCameraError": "No se pudo usar la cámara: {error}",
   "@longTicketCameraError": {"placeholders": {"error": {"type": "Object"}}},
-  "longTicketPartsReady": "Partes listas. La lectura del ticket largo se agrega en el próximo paso."
+  "longTicketRowsTitle": "Filas leídas por parte",
+  "longTicketPartRows": "Parte {number}: {rows} filas",
+  "@longTicketPartRows": {"placeholders": {"number": {"type": "int"}, "rows": {"type": "int"}}},
+  "longTicketMergePending": "La unión de las partes (sin repetir las líneas superpuestas) se agrega en el próximo paso.",
+  "longTicketReadError": "No se pudieron leer las partes: {error}",
+  "@longTicketReadError": {"placeholders": {"error": {"type": "Object"}}}
 }

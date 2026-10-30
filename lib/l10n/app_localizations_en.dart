@@ -1852,6 +1852,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get longTicketPartsReady =>
-      'Parts ready. Reading the long receipt is added in the next step.';
+  String get longTicketRowsTitle => 'Rows read per part';
+
+  @override
+  String longTicketPartRows(int number, int rows) {
+    return 'Part $number: $rows rows';
+  }
+
+  @override
+  String get longTicketMergePending =>
+      'Joining the parts (without repeating the overlapping lines) is added in the next step.';
+
+  @override
+  String longTicketReadError(Object error) {
+    return 'Could not read the parts: $error';
+  }
 }

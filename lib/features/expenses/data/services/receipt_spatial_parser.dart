@@ -199,6 +199,10 @@ class ReceiptSpatialParser {
     return lineasResult;
   }
 
+  /// Filas de UNA foto reconstruidas por posición vertical (elementos que se superponen verticalmente,
+  /// de izquierda a derecha). Para el ticket largo, que lee cada parte por separado.
+  static List<SpatialRow> filasDeFoto(RecognizedText recognizedText, int fotoNum) => _obtenerFilasHorizontales(recognizedText, fotoNum);
+
   static List<SpatialRow> _obtenerFilasHorizontales(RecognizedText recognizedText, int fotoNum) {
     final List<SpatialTextElement> allElements = [];
 

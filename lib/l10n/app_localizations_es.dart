@@ -1863,6 +1863,19 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get longTicketPartsReady =>
-      'Partes listas. La lectura del ticket largo se agrega en el próximo paso.';
+  String get longTicketRowsTitle => 'Filas leídas por parte';
+
+  @override
+  String longTicketPartRows(int number, int rows) {
+    return 'Parte $number: $rows filas';
+  }
+
+  @override
+  String get longTicketMergePending =>
+      'La unión de las partes (sin repetir las líneas superpuestas) se agrega en el próximo paso.';
+
+  @override
+  String longTicketReadError(Object error) {
+    return 'No se pudieron leer las partes: $error';
+  }
 }

@@ -529,5 +529,8 @@
   "longTicketAlignHint": "Line up the top with the end of the previous part",
   "longTicketTakePhoto": "Take photo",
   "longTicketCameraError": "Could not use the camera: {error}",
-  "longTicketPartsReady": "Parts ready. Reading the long receipt is added in the next step."
+  "longTicketRowsTitle": "Rows read per part",
+  "longTicketPartRows": "Part {number}: {rows} rows",
+  "longTicketMergePending": "Joining the parts (without repeating the overlapping lines) is added in the next step.",
+  "longTicketReadError": "Could not read the parts: {error}"
 }
