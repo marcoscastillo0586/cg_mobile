@@ -3280,7 +3280,7 @@ abstract class AppLocalizations {
   /// No description provided for @longTicketMergePending.
   ///
   /// In es, this message translates to:
-  /// **'La unión ya está hecha; el paso a la pantalla de revisión se agrega en el próximo paso.'**
+  /// **'El paso a la pantalla de revisión se agrega en el próximo paso.'**
   String get longTicketMergePending;
 
   /// No description provided for @longTicketReadError.
@@ -3310,8 +3310,14 @@ abstract class AppLocalizations {
   /// No description provided for @longTicketPartAmbiguous.
   ///
   /// In es, this message translates to:
-  /// **'La parte {number} coincide en más de un lugar con la anterior. Rehacela con más superposición.'**
+  /// **'La parte {number} coincidía en más de un lugar con la anterior: se unió con la mejor coincidencia. Revisá los renglones.'**
   String longTicketPartAmbiguous(int number);
+
+  /// No description provided for @longTicketItemsRead.
+  ///
+  /// In es, this message translates to:
+  /// **'Renglones detectados: {count}'**
+  String longTicketItemsRead(int count);
 }
 
 class _AppLocalizationsDelegate

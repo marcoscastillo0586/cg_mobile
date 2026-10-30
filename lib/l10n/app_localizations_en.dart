@@ -1853,7 +1853,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get longTicketMergePending =>
-      'The parts are joined; sending them to the review screen is added in the next step.';
+      'Sending the receipt to the review screen is added in the next step.';
 
   @override
   String longTicketReadError(Object error) {
@@ -1877,6 +1877,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String longTicketPartAmbiguous(int number) {
-    return 'Part $number matches the previous one in more than one place. Redo it with more overlap.';
+    return 'Part $number matched the previous one in more than one place: it was joined at the best match. Check the lines.';
+  }
+
+  @override
+  String longTicketItemsRead(int count) {
+    return 'Lines detected: $count';
   }
 }

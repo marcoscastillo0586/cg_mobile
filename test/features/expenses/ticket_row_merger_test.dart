@@ -81,14 +81,15 @@ void main() {
     expect(merger.merge([a, b]).failed?.status, TicketJoinStatus.noOverlap);
   });
 
-  test('dos superposiciones igual de buenas: ambigua, no se adivina', () {
+  test('dos superposiciones igual de buenas: ambigua, se une igual (sin descartar filas de A) y se avisa', () {
     final a = _part(1, ['COTO', 'R', 'R', 'R', 'R']);
     final b = _part(2, ['R', 'R', 'R', 'TOTAL 1,00']);
 
     final r = merger.merge([a, b]);
 
-    expect(r.failed?.part, 2);
-    expect(r.failed?.status, TicketJoinStatus.ambiguous);
+    expect(r.failed, isNull);
+    expect(r.ambiguous.map((j) => j.part), [2]);
+    expect(r.rows.map((x) => x.fullText), ['COTO', 'R', 'R', 'R', 'R', 'TOTAL 1,00']);
   });
 
   test('tres partes: cada una se encadena con lo ya unido', () {

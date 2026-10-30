@@ -1864,7 +1864,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get longTicketMergePending =>
-      'La unión ya está hecha; el paso a la pantalla de revisión se agrega en el próximo paso.';
+      'El paso a la pantalla de revisión se agrega en el próximo paso.';
 
   @override
   String longTicketReadError(Object error) {
@@ -1888,6 +1888,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String longTicketPartAmbiguous(int number) {
-    return 'La parte $number coincide en más de un lugar con la anterior. Rehacela con más superposición.';
+    return 'La parte $number coincidía en más de un lugar con la anterior: se unió con la mejor coincidencia. Revisá los renglones.';
+  }
+
+  @override
+  String longTicketItemsRead(int count) {
+    return 'Renglones detectados: $count';
   }
 }

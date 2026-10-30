@@ -109,6 +109,10 @@ class SpatialParseResult {
   final StructuredTicketTotals totales;
   final List<SpatialRow> filasConsolidadas;
 
+  /// Total IMPRESO leído de la fila "TOTAL" (centavos); null si no se leyó. A diferencia de
+  /// [totales.totalPagado], no se completa con la suma de los renglones.
+  final int? totalImpresoCents;
+
   SpatialParseResult({
     this.comercio,
     this.sucursal,
@@ -119,6 +123,7 @@ class SpatialParseResult {
     required this.items,
     required this.totales,
     this.filasConsolidadas = const [],
+    this.totalImpresoCents,
   });
 
   Map<String, dynamic> toJson() {
@@ -321,6 +326,9 @@ class ReceiptSpatialParser {
     return reindexadas;
   }
 
+  /// Extracción sobre las filas ya unidas de un ticket largo (mismo parser que una sola foto).
+  static SpatialParseResult parseFilasUnidas(List<SpatialRow> rows) => _extraerBloquesYLineas(rows);
+
   /// Extracción sobre filas ya armadas (para probar los importes sin ML Kit).
   @visibleForTesting
   static SpatialParseResult parseRows(List<SpatialRow> rows) => _extraerBloquesYLineas(rows);
@@ -495,6 +503,7 @@ class ReceiptSpatialParser {
         moneda: 'ARS',
       ),
       filasConsolidadas: spatialRows,
+      totalImpresoCents: totalDetectadoEnTicket,
     );
 
     return parseResult;

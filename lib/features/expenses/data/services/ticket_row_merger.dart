@@ -9,7 +9,7 @@ enum TicketJoinStatus {
   /// No hay una secuencia de filas consecutivas que coincida: la parte no se une.
   noOverlap,
 
-  /// Hay más de una superposición igual de buena: no se adivina, la parte no se une.
+  /// Hay más de una superposición igual de buena: se une con la mejor y se avisa para revisar.
   ambiguous,
 }
 
@@ -36,7 +36,10 @@ class TicketMergeResult {
   const TicketMergeResult({required this.rows, required this.joins});
 
   /// Primera parte que no se pudo encadenar con la anterior (null si se unieron todas).
-  TicketPartJoin? get failed => joins.where((j) => j.status != TicketJoinStatus.ok).firstOrNull;
+  TicketPartJoin? get failed => joins.where((j) => j.status == TicketJoinStatus.noOverlap).firstOrNull;
+
+  /// Partes unidas con una superposición ambigua (conviene revisar sus renglones).
+  List<TicketPartJoin> get ambiguous => joins.where((j) => j.status == TicketJoinStatus.ambiguous).toList();
 }
 
 /// Une las filas de las partes de un ticket largo (de arriba hacia abajo) eliminando solo la parte
@@ -45,8 +48,9 @@ class TicketMergeResult {
 ///  - la superposición es una secuencia de al menos [minRun] filas CONSECUTIVAS con similitud
 ///    (Levenshtein normalizada) >= [threshold]; nunca una fila aislada;
 ///  - la última fila de A y la primera de B pueden estar cortadas por el borde y no coincidir;
-///  - entre varias superposiciones, la más larga y de mejor puntaje; si queda empatada con otra, es ambigua;
-///  - sin superposición válida (o ambigua) NO se une. Un producto repetido fuera de la superposición queda.
+///  - entre varias superposiciones, la más larga y de mejor puntaje; si queda empatada con otra, es ambigua:
+///    se une igual (prefiriendo la que llega al final exacto de A, sin descartar filas) y se avisa;
+///  - sin superposición válida NO se une. Un producto repetido fuera de la superposición queda.
 class TicketRowMerger {
   final int window;
   final int minRun;
@@ -61,7 +65,7 @@ class TicketRowMerger {
     for (var p = 1; p < parts.length; p++) {
       final join = _join(rows, parts[p], p + 1);
       joins.add(join.$1);
-      if (join.$1.status != TicketJoinStatus.ok) break; // no se une: hay que rehacer esa parte
+      if (join.$1.status == TicketJoinStatus.noOverlap) break; // no se une: hay que rehacer esa parte
       rows = join.$2;
     }
     return TicketMergeResult(rows: _reindex(rows), joins: joins);
@@ -90,21 +94,22 @@ class TicketRowMerger {
         // Tiene que llegar al final de A (o a su penúltima fila, si la última está cortada).
         final reachesEnd = i + len == a.length || i + len == a.length - 1;
         if (len < minRun || !reachesEnd) continue;
-        final c = _Candidate(aStart: i, bStart: j, length: len, score: sum / len);
+        final c = _Candidate(aStart: i, bStart: j, length: len, score: sum / len, reachesExactEnd: i + len == a.length);
         if (best == null || c.betterThan(best)) {
           best = c;
           tied = false;
         } else if (c.ties(best) && c.offset != best.offset) {
           tied = true;
+          if (c.reachesExactEnd && !best.reachesExactEnd) best = c; // empate: no descartar la última fila de A
         }
       }
     }
 
     if (best == null) return (TicketPartJoin(part: part, status: TicketJoinStatus.noOverlap), a);
-    if (tied) return (TicketPartJoin(part: part, status: TicketJoinStatus.ambiguous, overlapRows: best.length, score: best.score), a);
     // A hasta el final de la superposición (sin su última fila si estaba cortada) + B después de ella.
     final merged = [...a.sublist(0, best.aStart + best.length), ...b.sublist(best.bStart + best.length)];
-    return (TicketPartJoin(part: part, status: TicketJoinStatus.ok, overlapRows: best.length, score: best.score), merged);
+    final status = tied ? TicketJoinStatus.ambiguous : TicketJoinStatus.ok;
+    return (TicketPartJoin(part: part, status: status, overlapRows: best.length, score: best.score), merged);
   }
 
   static List<SpatialRow> _reindex(List<SpatialRow> rows) => [
@@ -142,7 +147,10 @@ class _Candidate {
   final int length;
   final double score;
 
-  const _Candidate({required this.aStart, required this.bStart, required this.length, required this.score});
+  /// Termina en la última fila de A (no supone que esa fila esté cortada).
+  final bool reachesExactEnd;
+
+  const _Candidate({required this.aStart, required this.bStart, required this.length, required this.score, required this.reachesExactEnd});
 
   /// Alineación entre A y B (dos candidatos con el mismo offset son la misma superposición).
   int get offset => aStart - bStart;

@@ -4,6 +4,7 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import '../../domain/entities/ticket_parse_result.dart';
 import '../../domain/services/ticket_reader.dart';
 import 'receipt_spatial_parser.dart';
+import 'ticket_row_merger.dart';
 
 class RecognizedLineData {
   final String text;
@@ -98,6 +99,26 @@ class MlKitTicketReader implements TicketReader {
       rawTexts: rawTexts,
       imagePaths: imagePaths,
       diagnosticLog: logBuffer.toString(),
+    );
+  }
+
+  /// Ticket largo: las filas ya unidas pasan al parser existente como si fueran una sola captura.
+  /// El total es el IMPRESO (null si no se leyó), para que la verificación contra la suma de los
+  /// renglones no se compare consigo misma.
+  TicketParseResult longTicketResult(TicketMergeResult merged, List<String> partPaths) {
+    final spatial = ReceiptSpatialParser.parseFilasUnidas(merged.rows);
+    final log = StringBuffer()
+      ..writeln('[TICKET-LARGO] ${partPaths.length} partes, ${merged.rows.length} filas unidas')
+      ..writeAll([for (final j in merged.joins.skip(1)) '[TICKET-LARGO] Parte ${j.part}: ${j.status.name}, ${j.overlapRows} filas superpuestas\n'])
+      ..writeln('[TICKET-LARGO] Renglones: ${spatial.items.length}; total impreso: ${spatial.totalImpresoCents}');
+    debugPrint(log.toString());
+    return TicketParseResult(
+      readerName: 'mlkit_ticket_largo',
+      items: [for (final it in spatial.items) ParsedTicketItem(nombre: it.descripcion, precioCents: it.montoNeto)],
+      totalDetectadoCents: spatial.totalImpresoCents,
+      rawTexts: [merged.rows.map((r) => r.fullText).join('\n')],
+      imagePaths: partPaths,
+      diagnosticLog: log.toString(),
     );
   }
 
