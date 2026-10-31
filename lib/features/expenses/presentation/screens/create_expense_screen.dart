@@ -438,17 +438,6 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                         ),
                         child: Row(
                           children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: t.accent.withValues(alpha: 0.10),
-                                borderRadius: BorderRadius.circular(FormScreenTheme.innerRadius),
-                              ),
-                              child: const Text('🐷', style: TextStyle(fontSize: 20)),
-                            ),
-                            const SizedBox(width: 12),
                             Expanded(
                               flex: 3,
                               child: Column(
