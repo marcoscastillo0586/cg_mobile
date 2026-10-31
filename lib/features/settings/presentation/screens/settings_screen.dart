@@ -14,6 +14,7 @@ import '../providers/settings_provider.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../../core/widgets/dialog_controllers.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -79,7 +80,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: Text(context.l10n.settings, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
+        padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0).withBottomSafeArea(context),
         children: [
           // 2. Sección: Idioma y Moneda por Defecto
           _buildSectionHeader(context.l10n.languageDefaultCurrency),

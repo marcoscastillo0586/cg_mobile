@@ -15,6 +15,7 @@ import '../providers/limits_admin_notifier.dart';
 import '../providers/limits_admin_state.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 class LimitsAdminScreen extends ConsumerStatefulWidget {
   const LimitsAdminScreen({super.key});
@@ -94,7 +95,7 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
     }
     final lista = state.limitsFiltrados;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 90).withBottomSafeArea(context),
       children: [
         _Resumen(state: state, principal: Currency.parse(ref.watch(settingsProvider.select((s) => s.defaultCurrency)))),
         const SizedBox(height: 12),

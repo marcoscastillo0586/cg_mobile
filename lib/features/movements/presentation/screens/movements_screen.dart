@@ -15,6 +15,7 @@ import '../providers/movement_list_state.dart';
 import '../widgets/movement_card.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 class MovementsScreen extends ConsumerStatefulWidget {
   final int? initialLugarId;
@@ -167,7 +168,7 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
       onRefresh: ref.read(movementListNotifierProvider.notifier).cargarMovimientos,
       child: ListView.builder(
         controller: _scroll,
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 24).withBottomSafeArea(context),
         itemCount: state.movimientos.length + 1,
         itemBuilder: (_, i) {
           if (i == state.movimientos.length) {

@@ -14,6 +14,7 @@ import '../../../movements/presentation/local_write_feedback.dart';
 import '../providers/transfer_form_notifier.dart';
 import '../providers/transfer_form_state.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 class CreateTransferScreen extends ConsumerStatefulWidget {
   /// Alta rechazada a corregir (desde "Pendientes y rechazados").
@@ -113,7 +114,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
         title: Text(widget.correction != null ? (context.l10n.correctTransfer) : (context.l10n.transferMoney)),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 14.0),
+        padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 14.0).withBottomSafeArea(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

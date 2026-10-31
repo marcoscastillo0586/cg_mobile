@@ -10,6 +10,7 @@ import '../../../../core/sync/outbox_repository.dart';
 import '../../../../core/theme/form_screen_theme.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/date_utils.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 import '../../../../core/widgets/account_picker.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
@@ -92,6 +93,9 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
       if (result.qr != null) _conceptoGeneralController.text = ref.read(expenseFormNotifierProvider).conceptoGeneral;
     }
   }
+
+  /// Espaciado de diseño alrededor del botón inferior fijo.
+  static const _pieBoton = EdgeInsets.all(16);
 
   /// Evita un segundo guardado mientras se espera la respuesta del servidor.
   bool _guardando = false;
@@ -199,7 +203,8 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
     final textoBoton = (context.l10n.registerExpense(totalFormateado));
 
     const lateral = 20.0;
-    final pie = FormScreenTheme.bottomButtonHeight + 32 + MediaQuery.paddingOf(context).bottom;
+    // Espacio del botón fijo (con el margen del sistema): la tarjeta del total no queda oculta detrás.
+    final pie = BottomActionArea.reservedHeight(context, childHeight: FormScreenTheme.bottomButtonHeight, padding: _pieBoton);
 
     return Scaffold(
       backgroundColor: t.background,
@@ -493,79 +498,63 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
             ),
           ),
 
-          // 7. Botón inferior fijo; el contenido se desvanece por detrás.
+          // 7. Botón inferior fijo, por encima de la barra del sistema; el contenido se desvanece por detrás.
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [t.background, t.background.withValues(alpha: 0.95), t.background.withValues(alpha: 0)],
-                        ),
-                      ),
-                    ),
-                  ),
+            child: BottomActionArea(
+              padding: _pieBoton,
+              fadeColor: t.background,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(FormScreenTheme.radius),
+                  boxShadow: t.floatShadow,
                 ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.paddingOf(context).bottom),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
+                child: ElevatedButton(
+                  key: const ValueKey('guardar-egreso'),
+                  onPressed: state.isSubmitting ? null : _guardarGasto,
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    disabledForegroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(FormScreenTheme.bottomButtonHeight),
+                    shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(FormScreenTheme.radius),
-                      boxShadow: t.floatShadow,
                     ),
-                    child: ElevatedButton(
-                      key: const ValueKey('guardar-egreso'),
-                      onPressed: state.isSubmitting ? null : _guardarGasto,
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        disabledForegroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(FormScreenTheme.bottomButtonHeight),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(FormScreenTheme.radius),
-                        ),
-                      ).copyWith(
-                        backgroundColor: WidgetStateProperty.resolveWith(
-                          (states) => states.contains(WidgetState.pressed) ? t.accentPressed : t.accentStrong,
-                        ),
-                      ),
-                      child: state.isSubmitting
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.save_outlined, size: 20),
-                                const SizedBox(width: 10),
-                                Flexible(
-                                  child: Text(
-                                    textoBoton,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                  ).copyWith(
+                    backgroundColor: WidgetStateProperty.resolveWith(
+                      (states) => states.contains(WidgetState.pressed) ? t.accentPressed : t.accentStrong,
                     ),
                   ),
+                  child: state.isSubmitting
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.save_outlined, size: 20),
+                            const SizedBox(width: 10),
+                            Flexible(
+                              child: Text(
+                                textoBoton,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
-              ],
+              ),
             ),
           ),
         ],

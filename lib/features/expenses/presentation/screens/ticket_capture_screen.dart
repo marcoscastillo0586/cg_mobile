@@ -11,6 +11,7 @@ import '../../data/services/mlkit_ticket_reader.dart';
 import 'long_ticket_capture_screen.dart';
 import 'qr_scanner_screen.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 class TicketCaptureScreen extends ConsumerStatefulWidget {
   const TicketCaptureScreen({super.key});
@@ -322,7 +323,7 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
                 ),
 
                 // Botones de acción inferiores
-                Padding(
+                BottomActionArea(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   child: Column(
                     children: [

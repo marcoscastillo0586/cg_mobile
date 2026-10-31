@@ -12,6 +12,7 @@ import '../providers/categories_admin_state.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
 import '../../../dashboards/presentation/dashboards_notifier.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 class CategoriesAdminScreen extends ConsumerStatefulWidget {
   const CategoriesAdminScreen({super.key});
@@ -121,7 +122,7 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
       ]);
     }
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 90).withBottomSafeArea(context),
       itemCount: lista.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (_, i) => _CategoryTile(

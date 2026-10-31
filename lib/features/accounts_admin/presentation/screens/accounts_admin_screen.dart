@@ -15,6 +15,7 @@ import '../../../../l10n/l10n.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../../dashboards/presentation/dashboards_notifier.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 class AccountsAdminScreen extends ConsumerStatefulWidget {
   const AccountsAdminScreen({super.key});
@@ -123,7 +124,7 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
       ]);
     }
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 90).withBottomSafeArea(context),
       itemCount: cuentas.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) => _AccountTile(

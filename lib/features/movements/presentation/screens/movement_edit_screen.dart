@@ -12,6 +12,7 @@ import '../../data/local_movement_editor.dart';
 import '../../data/local_movement_writer.dart' show conceptMax;
 import '../local_write_feedback.dart';
 import '../../../../l10n/l10n.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 /// Edición de un comprobante desde la base local (funciona sin conexión): encabezado, cada
 /// renglón (editar y borrar), transferencia como par y borrado del comprobante. Todo pasa por
@@ -233,7 +234,7 @@ class _MovementEditScreenState extends ConsumerState<MovementEditScreen> {
                   : AbsorbPointer(
                       absorbing: _busy,
                       child: ListView(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(16).withBottomSafeArea(context),
                         children: [
                           _headerCard(m),
                           const SizedBox(height: 12),

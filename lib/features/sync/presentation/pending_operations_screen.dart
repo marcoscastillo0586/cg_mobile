@@ -10,6 +10,7 @@ import '../../../routes/app_routes.dart';
 import '../../dashboard/presentation/providers/dashboard_notifier.dart';
 import '../../movements/presentation/local_write_feedback.dart';
 import '../../../l10n/l10n.dart';
+import '../../../core/widgets/bottom_safe_area.dart';
 
 final _unresolvedProvider = FutureProvider.autoDispose<List<OutboxEntry>>((ref) async {
   ref.watch(syncControllerProvider.select((s) => (s.status, s.pendingOps, s.rejectedOps, s.conflictOps)));
@@ -86,7 +87,7 @@ class PendingOperationsScreen extends ConsumerWidget {
         data: (items) => items.isEmpty
             ? Center(child: Text(context.l10n.nothingPendingEverythingWasApplied))
             : ListView.separated(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16).withBottomSafeArea(context),
                 itemCount: items.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, i) {

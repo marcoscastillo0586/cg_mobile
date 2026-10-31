@@ -8,6 +8,7 @@ import '../../movements/presentation/local_write_feedback.dart';
 import '../data/dashboards_repository.dart';
 import '../domain/dashboard.dart';
 import 'dashboards_notifier.dart';
+import '../../../core/widgets/bottom_safe_area.dart';
 
 typedef _Run = Future<bool> Function(Future<void> Function(DashboardsRepository repo) action, String ok);
 typedef _Confirm = Future<bool> Function(String title, String message, String action);
@@ -94,7 +95,7 @@ class _DashboardsAdminScreenState extends ConsumerState<DashboardsAdminScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l.dashboards)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16).withBottomSafeArea(context),
         children: [
           Text(l.dashboardsNeedConnection, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 12),

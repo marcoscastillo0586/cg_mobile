@@ -13,6 +13,7 @@ import '../providers/income_form_notifier.dart';
 import '../providers/income_form_state.dart';
 import '../../../movements/data/local_movement_writer.dart' show conceptMax;
 import '../../../../l10n/l10n.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 class CreateIncomeScreen extends ConsumerStatefulWidget {
   /// Alta rechazada a corregir (desde "Pendientes y rechazados").
@@ -115,7 +116,7 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
         title: Text(tituloModulo),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 14.0),
+        padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 14.0).withBottomSafeArea(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

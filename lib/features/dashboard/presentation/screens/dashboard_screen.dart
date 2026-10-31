@@ -28,6 +28,7 @@ import '../../../dashboards/presentation/dashboards_notifier.dart';
 import '../../../../core/dashboards/current_dashboard.dart';
 import '../../../../core/dashboards/live_events.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -336,7 +337,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
             final principal = Currency.parse(ref.watch(settingsProvider.select((s) => s.defaultCurrency)));
 
             return ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0).withBottomSafeArea(context),
               children: [
                 if (dashboardState.error != null)
                   Padding(

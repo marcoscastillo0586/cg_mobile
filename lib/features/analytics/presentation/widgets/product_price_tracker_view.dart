@@ -12,6 +12,7 @@ import '../../domain/entities/product_price_entity.dart';
 import '../providers/analytics_notifier.dart';
 import '../../../../l10n/l10n.dart';
 import '../report_currency.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 class ProductPriceTrackerView extends ConsumerStatefulWidget {
   const ProductPriceTrackerView({super.key});
@@ -138,7 +139,7 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
 
 
               return ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0).withBottomSafeArea(context),
                 itemCount: state.productosPrecios.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
@@ -397,7 +398,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                     : _history == null || _history!.historial.isEmpty
                     ? Center(child: Text(context.l10n.noHistoricalDataItem))
                     : ListView(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(20).withBottomSafeArea(context),
                         children: [
                           // 4 Tarjetas de Métricas de Precio
                           Row(

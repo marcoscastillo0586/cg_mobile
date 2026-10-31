@@ -9,6 +9,7 @@ import '../../../../l10n/l10n.dart';
 import '../../data/services/mlkit_ticket_reader.dart';
 import '../../data/services/receipt_spatial_parser.dart';
 import '../../data/services/ticket_row_merger.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 /// Ticket largo: se fotografía por partes, de arriba hacia abajo, repitiendo algunas líneas entre una
 /// foto y la siguiente. Cada parte se guarda a resolución completa (cámara propia o galería sin achicar).
@@ -317,7 +318,7 @@ class _LongTicketCaptureScreenState extends State<LongTicketCaptureScreen> {
               },
             ),
           ),
-          Padding(
+          BottomActionArea(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             child: Column(
               children: [

@@ -10,6 +10,7 @@ import '../../../../l10n/l10n.dart';
 import '../../../dashboards/presentation/dashboards_notifier.dart';
 import '../../../dashboards/domain/dashboard.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 class NovedadesBottomSheet extends ConsumerWidget {
   const NovedadesBottomSheet({super.key});
@@ -136,7 +137,7 @@ class NovedadesBottomSheet extends ConsumerWidget {
                     ),
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12).withBottomSafeArea(context),
                     itemCount: avisos.length + novedades.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {

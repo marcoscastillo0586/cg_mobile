@@ -14,6 +14,7 @@ import '../widgets/monthly_bar_chart.dart';
 import '../widgets/product_price_tracker_view.dart';
 import '../../../../l10n/l10n.dart';
 import '../report_currency.dart';
+import '../../../../core/widgets/bottom_safe_area.dart';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
   const AnalyticsScreen({super.key});
@@ -155,7 +156,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
         await ref.read(analyticsNotifierProvider.notifier).cargarReporteCategorias();
       },
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16).withBottomSafeArea(context),
         children: [
           // Selector de Período
           SingleChildScrollView(
@@ -284,7 +285,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
         await ref.read(analyticsNotifierProvider.notifier).cargarComparativaMensual();
       },
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16).withBottomSafeArea(context),
         children: [
           // Selector de Año
           if (report != null)
@@ -536,7 +537,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
         await ref.read(analyticsNotifierProvider.notifier).cargarEvolucionDiaria();
       },
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16).withBottomSafeArea(context),
         children: [
           // Selector de Mes
           Row(
