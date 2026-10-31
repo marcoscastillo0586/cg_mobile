@@ -1060,7 +1060,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generalConcept2 => 'General Concept *';
 
   @override
-  String get eGSupermarketBookstore => 'E.g.: Supermarket, Bookstore...';
+  String get eGSupermarketBookstore => 'E.g.: Supermarket, Mall, Pharmacy';
 
   @override
   String get addLine => 'Add Line';
@@ -1106,6 +1106,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteLine2 => 'Delete line';
+
+  @override
+  String get lineConcept => 'Line concept';
+
+  @override
+  String get today => 'Today';
+
+  @override
+  String get yesterday => 'Yesterday';
 
   @override
   String get eGVegetablesMeatCleaning => 'E.g.: Vegetables, Meat, Cleaning...';
@@ -1501,8 +1510,8 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count lines',
-      one: '1 line',
+      other: '$count lines counted',
+      one: '1 line counted',
     );
     return '$_temp0';
   }

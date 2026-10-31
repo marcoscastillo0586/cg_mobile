@@ -1982,7 +1982,7 @@ abstract class AppLocalizations {
   /// No description provided for @eGSupermarketBookstore.
   ///
   /// In es, this message translates to:
-  /// **'Ej: Supermercado, Librería...'**
+  /// **'Ej: Supermercado Coto, Shopping, Farmacia'**
   String get eGSupermarketBookstore;
 
   /// No description provided for @addLine.
@@ -2056,6 +2056,24 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Eliminar renglón'**
   String get deleteLine2;
+
+  /// No description provided for @lineConcept.
+  ///
+  /// In es, this message translates to:
+  /// **'Concepto del renglón'**
+  String get lineConcept;
+
+  /// No description provided for @today.
+  ///
+  /// In es, this message translates to:
+  /// **'Hoy'**
+  String get today;
+
+  /// No description provided for @yesterday.
+  ///
+  /// In es, this message translates to:
+  /// **'Ayer'**
+  String get yesterday;
 
   /// No description provided for @eGVegetablesMeatCleaning.
   ///
@@ -2721,7 +2739,7 @@ abstract class AppLocalizations {
   /// No description provided for @linesCount.
   ///
   /// In es, this message translates to:
-  /// **'{count, plural, =1{1 renglón} other{{count} renglones}}'**
+  /// **'{count, plural, =1{1 renglón contabilizado} other{{count} renglones contabilizados}}'**
   String linesCount(int count);
 
   /// No description provided for @purchasesCount.

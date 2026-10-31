@@ -574,7 +574,7 @@
   "expenseDate": "Fecha del egreso",
   "sourceAccount": "Cuenta de Origen",
   "generalConcept2": "Concepto General *",
-  "eGSupermarketBookstore": "Ej: Supermercado, Librería...",
+  "eGSupermarketBookstore": "Ej: Supermercado Coto, Shopping, Farmacia",
   "addLine": "Agregar Renglón",
   "expenseTotal": "Total del Gasto",
   "scannedQrCodeNotValid": "El código QR escaneado no es una dirección web válida (http/https).",
@@ -608,6 +608,9 @@
     }
   },
   "deleteLine2": "Eliminar renglón",
+  "lineConcept": "Concepto del renglón",
+  "today": "Hoy",
+  "yesterday": "Ayer",
   "eGVegetablesMeatCleaning": "Ej: Verduras, Carne, Limpieza...",
   "selectDestinationAccount": "Selecciona una cuenta de destino",
   "incomeDate": "Fecha del ingreso",
@@ -849,7 +852,7 @@
   "light": "Claro",
   "dark": "Oscuro",
   "start": "Comenzar",
-  "linesCount": "{count, plural, =1{1 renglón} other{{count} renglones}}",
+  "linesCount": "{count, plural, =1{1 renglón contabilizado} other{{count} renglones contabilizados}}",
   "@linesCount": {
     "placeholders": {
       "count": {

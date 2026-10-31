@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/database/local_catalog.dart';
 import '../../../../core/money/money.dart';
+import '../../../../core/theme/form_screen_theme.dart';
 import '../../domain/entities/renglon_gasto.dart';
 import '../../../../l10n/l10n.dart';
+import 'egreso_field_box.dart';
 
 class RenglonGastoCard extends StatefulWidget {
   final int index;
@@ -97,126 +98,109 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final t = FormScreenTheme.of(context);
     final renglonNum = widget.index + 1;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14.0),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: t.surface,
+        borderRadius: BorderRadius.circular(FormScreenTheme.radius),
+        border: Border.all(color: t.border),
+        boxShadow: t.shadow,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Cabecera del renglón (Número y Botón de eliminar)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.receipt_outlined,
-                        size: 14,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        context.l10n.lineRenglonnum(renglonNum),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Cabecera del renglón (insignia "Renglón #N" y papelera)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: t.badgeBackground,
+                  borderRadius: BorderRadius.circular(FormScreenTheme.badgeRadius),
+                  border: Border.all(color: t.badgeBorder),
                 ),
-                if (widget.canDelete)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.delete_outline_rounded,
-                      color: AppColors.rose,
-                      size: 20,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.content_paste_rounded, size: 14, color: t.badgeText),
+                    const SizedBox(width: 6),
+                    Text(
+                      context.l10n.lineRenglonnum(renglonNum),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: t.badgeText),
                     ),
-                    tooltip: context.l10n.deleteLine2,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: widget.onEliminar,
-                  )
-                else
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Campo: Concepto del renglón
-            Text(
-              context.l10n.concept,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-                color: AppColors.lightTextSecondary,
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 5),
-            Autocomplete<String>(
-              initialValue: TextEditingValue(text: widget.renglon.concepto),
-              optionsBuilder: (TextEditingValue textEditingValue) {
-                if (textEditingValue.text.isEmpty) {
-                  return const Iterable<String>.empty();
-                }
-                return widget.sugerenciasConcepto.where((String item) {
-                  return item.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                });
-              },
-              onSelected: (String selection) {
-                _conceptoController.text = selection;
-                widget.onConceptoChanged(selection);
-              },
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                // Sincronizar controller de autocomplete con el local
-                controller.addListener(() {
-                  if (_conceptoController.text != controller.text) {
-                    _conceptoController.text = controller.text;
-                    widget.onConceptoChanged(controller.text);
-                  }
-                });
+              if (widget.canDelete)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                  tooltip: context.l10n.deleteLine2,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(),
+                  style: ButtonStyle(
+                    // Sin el área de toque mínima de 48 px: la cabecera no crece con la papelera.
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    minimumSize: const WidgetStatePropertyAll(Size.zero),
+                    // Gris; rosa al presionar.
+                    foregroundColor: WidgetStateProperty.resolveWith(
+                      (states) => states.contains(WidgetState.pressed) || states.contains(WidgetState.hovered) ? t.accent : t.deleteIcon,
+                    ),
+                  ),
+                  onPressed: widget.onEliminar,
+                )
+              else
+                const SizedBox(width: 20, height: 20),
+            ],
+          ),
+          const SizedBox(height: 12),
 
-                return TextField(
+          // Campo: Concepto del renglón
+          Text(context.l10n.lineConcept.toUpperCase(), style: t.innerLabelStyle),
+          const SizedBox(height: 4),
+          Autocomplete<String>(
+            initialValue: TextEditingValue(text: widget.renglon.concepto),
+            optionsBuilder: (TextEditingValue textEditingValue) {
+              if (textEditingValue.text.isEmpty) {
+                return const Iterable<String>.empty();
+              }
+              return widget.sugerenciasConcepto.where((String item) {
+                return item.toLowerCase().contains(textEditingValue.text.toLowerCase());
+              });
+            },
+            onSelected: (String selection) {
+              _conceptoController.text = selection;
+              widget.onConceptoChanged(selection);
+            },
+            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+              // Sincronizar controller de autocomplete con el local
+              controller.addListener(() {
+                if (_conceptoController.text != controller.text) {
+                  _conceptoController.text = controller.text;
+                  widget.onConceptoChanged(controller.text);
+                }
+              });
+
+              return EgresoFieldBox(
+                focusNode: focusNode,
+                inner: true,
+                child: TextField(
                   controller: controller,
                   focusNode: focusNode,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    hintText: context.l10n.eGVegetablesMeatCleaning,
-                    prefixIcon: const Icon(Icons.edit_note_rounded, size: 20),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: t.text),
+                  decoration: EgresoFieldBox.input(
+                    inner: true,
+                    hint: context.l10n.eGVegetablesMeatCleaning,
+                    hintColor: t.hint,
+                    prefixIcon: Icon(Icons.sort_rounded, size: 16, color: t.icon),
                     suffixIcon: controller.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear, size: 16),
+                            icon: Icon(Icons.clear, size: 16, color: t.icon),
                             onPressed: () {
                               controller.clear();
                               _conceptoController.clear();
@@ -225,89 +209,75 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                           )
                         : null,
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
 
-            // Fila: Monto y Categoría
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Columna Monto
-                Expanded(
-                  flex: 4,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        context.l10n.amount,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                          color: AppColors.lightTextSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      TextField(
+          // Fila: Monto y Categoría (dos columnas)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.l10n.amount.toUpperCase(), style: t.innerLabelStyle),
+                    const SizedBox(height: 4),
+                    EgresoFieldBox(
+                      focusNode: _montoFocusNode,
+                      inner: true,
+                      error: _montoInvalido,
+                      child: TextField(
                         controller: _montoController,
                         focusNode: _montoFocusNode,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         onChanged: _onMontoChanged,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        decoration: InputDecoration(
-                          prefixText: '\$ ',
-                          prefixStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: t.title),
+                        decoration: EgresoFieldBox.input(
+                          inner: true,
+                          hint: '0,00',
+                          hintColor: t.hint,
+                          prefixIcon: Padding(
+                            padding: const EdgeInsets.only(left: 12, right: 6),
+                            child: Text('\$', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: t.icon)),
                           ),
-                          hintText: '0,00',
-                          errorText: _montoInvalido ? context.l10n.invalidAmountMax2Decimals : null,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        ),
+                        ).copyWith(prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0)),
                       ),
+                    ),
+                    if (_montoInvalido) ...[
+                      const SizedBox(height: 4),
+                      Text(context.l10n.invalidAmountMax2Decimals, style: TextStyle(fontSize: 11, color: t.accentStrong)),
                     ],
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-
-                // Columna Categoría
-                Expanded(
-                  flex: 5,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        context.l10n.category,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                          color: AppColors.lightTextSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      InputDecorator(
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.category_outlined, size: 18),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.l10n.category.toUpperCase(), style: t.innerLabelStyle),
+                    const SizedBox(height: 4),
+                    EgresoFieldBox(
+                      inner: true,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 11, 8, 11),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<int>(
                             value: widget.renglon.categoriaId,
                             isExpanded: true,
                             isDense: true,
-                            hint: Text(context.l10n.category, style: const TextStyle(fontSize: 13)),
+                            borderRadius: BorderRadius.circular(FormScreenTheme.innerRadius),
+                            icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: t.icon),
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: t.text),
+                            dropdownColor: t.surface,
+                            hint: Text(context.l10n.category, style: TextStyle(fontSize: 14, color: t.hint)),
                             items: widget.categorias.map((cat) {
                               return DropdownMenuItem<int>(
                                 value: cat.localId,
-                                child: Text(
-                                  cat.name,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 13),
-                                ),
+                                child: Text(cat.name, overflow: TextOverflow.ellipsis),
                               );
                             }).toList(),
                             onChanged: (val) {
@@ -318,13 +288,13 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
+import 'form_screen_theme.dart';
 
 class AppTheme {
   AppTheme._();
@@ -10,6 +11,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      extensions: const [FormScreenTheme.light],
       primaryColor: AppColors.primary,
       scaffoldBackgroundColor: AppColors.lightBg,
       colorScheme: const ColorScheme.light(
@@ -110,6 +112,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      extensions: const [FormScreenTheme.dark],
       primaryColor: AppColors.primaryLight,
       scaffoldBackgroundColor: AppColors.darkBg,
       colorScheme: const ColorScheme.dark(

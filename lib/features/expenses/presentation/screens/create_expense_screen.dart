@@ -7,6 +7,7 @@ import '../../../../core/money/money.dart';
 import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/sync/outbox_repository.dart';
+import '../../../../core/theme/form_screen_theme.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../../../../core/widgets/account_picker.dart';
@@ -16,6 +17,8 @@ import '../../domain/entities/ticket_parse_result.dart';
 import '../../../../core/network/server_reachability.dart';
 import '../providers/expense_form_notifier.dart';
 import '../providers/expense_form_state.dart';
+import '../widgets/egreso_cuenta_carousel.dart';
+import '../widgets/egreso_field_box.dart';
 import '../widgets/renglon_gasto_card.dart';
 import '../../../../l10n/l10n.dart';
 
@@ -30,6 +33,10 @@ class CreateExpenseScreen extends ConsumerStatefulWidget {
 
 class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
   final _conceptoGeneralController = TextEditingController();
+  final _conceptoGeneralFocus = FocusNode();
+
+  /// Se intentó registrar sin concepto general (obligatorio): el campo queda marcado hasta completarlo.
+  bool _conceptoGeneralFalta = false;
 
   @override
   void initState() {
@@ -42,6 +49,9 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
       ref
           .read(expenseFormNotifierProvider.notifier)
           .setConceptoGeneral(_conceptoGeneralController.text);
+      if (_conceptoGeneralFalta && _conceptoGeneralController.text.trim().isNotEmpty) {
+        setState(() => _conceptoGeneralFalta = false);
+      }
     });
     final c = widget.correction;
     if (c != null) {
@@ -54,6 +64,7 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
   @override
   void dispose() {
     _conceptoGeneralController.dispose();
+    _conceptoGeneralFocus.dispose();
     super.dispose();
   }
 
@@ -85,8 +96,21 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
   /// Evita un segundo guardado mientras se espera la respuesta del servidor.
   bool _guardando = false;
 
+  /// Píldoras "Hoy" / "Ayer": cargan esa fecha.
+  void _fechaRapida(int diasAtras) {
+    AppFeedback.selection();
+    ref.read(expenseFormNotifierProvider.notifier).setFecha(DateTime.now().subtract(Duration(days: diasAtras)));
+  }
+
   void _guardarGasto() async {
     if (_guardando) return;
+    // Concepto general obligatorio: se valida en la pantalla antes de registrar.
+    if (_conceptoGeneralController.text.trim().isEmpty) {
+      setState(() => _conceptoGeneralFalta = true);
+      _conceptoGeneralFocus.requestFocus();
+      AppFeedback.showError(context, context.l10n.fillConceptField);
+      return;
+    }
     _guardando = true;
     try {
       await _guardarGastoAhora();
@@ -149,7 +173,7 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(expenseFormNotifierProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final t = FormScreenTheme.of(context);
 
     if (state.isLoadingData) {
       return const Scaffold(
@@ -164,115 +188,302 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
     final sugerenciasConceptos = state.conceptos;
     final formatoFecha = AppDateUtils.formatDate(state.fecha);
     final cuenta = state.cuentaSeleccionada;
-    final totalFormateado = Money.format(state.totalCents, currency: cuenta?.currency ?? Currency.ars);
+    final moneda = cuenta?.currency ?? Currency.ars;
+    final totalFormateado = Money.format(state.totalCents, currency: moneda);
+    // Tarjeta del total: el símbolo va aparte, más chico.
+    final totalSinSimbolo = totalFormateado.replaceFirst('${moneda.symbol} ', '');
 
     final tituloModulo = widget.correction != null
         ? (context.l10n.correctExpense)
         : (context.l10n.newExpense);
     final textoBoton = (context.l10n.registerExpense(totalFormateado));
 
+    const lateral = 20.0;
+    final pie = FormScreenTheme.bottomButtonHeight + 32 + MediaQuery.paddingOf(context).bottom;
+
     return Scaffold(
+      backgroundColor: t.background,
       appBar: AppBar(
-        title: Text(tituloModulo),
+        backgroundColor: t.background.withValues(alpha: 0.9),
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        toolbarHeight: 60,
+        shape: Border(bottom: BorderSide(color: t.border.withValues(alpha: 0.6))),
+        leading: IconButton(
+          icon: Icon(Icons.chevron_left_rounded, size: 30, color: t.text),
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+        title: Text(
+          tituloModulo,
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.3, color: t.title),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.document_scanner_rounded),
-            tooltip: context.l10n.scanReceipt,
-            onPressed: () => _abrirCapturaTicket(context),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: _EscanearPill(onTap: () => _abrirCapturaTicket(context)),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. Selector de Cuenta Origen
-                  Text(
-                    context.l10n.sourceAccount,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  const SizedBox(height: 8),
-                  AccountPicker(
-                    cuentas: state.cuentas,
-                    selectedId: state.selectedCuentaId,
-                    onSelect: (id) => ref.read(expenseFormNotifierProvider.notifier).setCuenta(id),
-                  ),
-                  const SizedBox(height: 18),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: EdgeInsets.only(top: 16, bottom: pie + 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Cuenta de origen (carrusel hasta los bordes)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: lateral),
+                  child: _Etiqueta(context.l10n.sourceAccount, color: t.sectionLabel),
+                ),
+                const SizedBox(height: 10),
+                EgresoCuentaCarousel(
+                  cuentas: state.cuentas,
+                  selectedId: state.selectedCuentaId,
+                  sidePadding: lateral,
+                  onSelect: (id) => ref.read(expenseFormNotifierProvider.notifier).setCuenta(id),
+                ),
+                const SizedBox(height: 24),
 
-                  // 2. Encabezado: Concepto General y Fecha
-                  Row(
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: lateral),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Concepto General (Obligatorio)
-                      Expanded(
-                        flex: 6,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              context.l10n.generalConcept2,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                            ),
-                            const SizedBox(height: 6),
-                            TextField(
-                              controller: _conceptoGeneralController,
-                              textCapitalization: TextCapitalization.sentences,
-                              decoration: InputDecoration(
-                                hintText: context.l10n.eGSupermarketBookstore,
-                                prefixIcon: const Icon(Icons.storefront_rounded, size: 20),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                              ),
-                            ),
-                          ],
+                      // 2. Concepto general (obligatorio)
+                      _Etiqueta(context.l10n.generalConcept, color: t.fieldLabel, obligatorio: true),
+                      const SizedBox(height: 6),
+                      EgresoFieldBox(
+                        focusNode: _conceptoGeneralFocus,
+                        error: _conceptoGeneralFalta,
+                        child: TextField(
+                          controller: _conceptoGeneralController,
+                          focusNode: _conceptoGeneralFocus,
+                          textCapitalization: TextCapitalization.sentences,
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: t.text),
+                          decoration: EgresoFieldBox.input(
+                            hint: context.l10n.eGSupermarketBookstore,
+                            hintColor: t.hint,
+                            prefixIcon: Icon(Icons.home_outlined, size: 20, color: t.icon),
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      if (_conceptoGeneralFalta) ...[
+                        const SizedBox(height: 4),
+                        Text(context.l10n.fillConceptField, style: TextStyle(fontSize: 11, color: t.accentStrong)),
+                      ],
+                      const SizedBox(height: 14),
 
-                      // Selector de Fecha (dd/MM/yyyy)
-                      Expanded(
-                        flex: 4,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              context.l10n.date,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      // 3. Fecha, con píldoras "Hoy" y "Ayer"
+                      Row(
+                        children: [
+                          Expanded(child: _Etiqueta(context.l10n.date, color: t.fieldLabel)),
+                          _Pildora(
+                            texto: context.l10n.today,
+                            fondo: t.accentSoft,
+                            color: t.accentStrong,
+                            peso: FontWeight.w600,
+                            onTap: () => _fechaRapida(0),
+                          ),
+                          const SizedBox(width: 6),
+                          _Pildora(
+                            texto: context.l10n.yesterday,
+                            fondo: t.pillNeutral,
+                            color: t.pillNeutralText,
+                            peso: FontWeight.w500,
+                            onTap: () => _fechaRapida(1),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _seleccionarFecha(context),
+                          borderRadius: BorderRadius.circular(FormScreenTheme.radius),
+                          child: EgresoFieldBox(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.calendar_today_outlined, size: 20, color: t.icon),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      formatoFecha,
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: t.text),
+                                    ),
+                                  ),
+                                  Icon(Icons.calendar_month_rounded, size: 18, color: t.text),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 6),
-                            InkWell(
-                              onTap: () => _seleccionarFecha(context),
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                height: 48,
-                                padding: const EdgeInsets.symmetric(horizontal: 10),
-                                decoration: BoxDecoration(
-                                  color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Banner Feedback de Lectura de Ticket
+                      if (state.ticketParseResult != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: (state.ticketParseResult?.tieneDiferenciaTotal == true)
+                                ? AppColors.amber.withValues(alpha: 0.15)
+                                : AppColors.emerald.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(FormScreenTheme.radius),
+                            border: Border.all(
+                              color: (state.ticketParseResult?.tieneDiferenciaTotal == true)
+                                  ? AppColors.amber.withValues(alpha: 0.5)
+                                  : AppColors.emerald.withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                (state.ticketParseResult?.tieneDiferenciaTotal == true)
+                                    ? Icons.warning_amber_rounded
+                                    : Icons.receipt_long_rounded,
+                                color: (state.ticketParseResult?.tieneDiferenciaTotal == true)
+                                    ? AppColors.amberDark
+                                    : AppColors.emerald,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _ticketFeedback(state.ticketParseResult!, context.l10n),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: (state.ticketParseResult?.tieneDiferenciaTotal == true)
+                                        ? AppColors.amberDark
+                                        : AppColors.emeraldDark,
                                   ),
                                 ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close, size: 18),
+                                onPressed: () {
+                                  ref.read(expenseFormNotifierProvider.notifier).limpiarItemsTicket();
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // 4. Renglones
+                      _Etiqueta(context.l10n.lines2, color: t.sectionLabel),
+                      const SizedBox(height: 14),
+
+                      ...state.renglones.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final renglon = entry.value;
+
+                        return RenglonGastoCard(
+                          key: ValueKey(renglon.id),
+                          index: index,
+                          renglon: renglon,
+                          categorias: categorias,
+                          sugerenciasConcepto: sugerenciasConceptos,
+                          canDelete: state.puedeEliminarRenglon,
+                          onEliminar: () {
+                            AppFeedback.medium();
+                            ref
+                                .read(expenseFormNotifierProvider.notifier)
+                                .eliminarRenglon(renglon.id);
+                          },
+                          onConceptoChanged: (nuevoConcepto) {
+                            ref
+                                .read(expenseFormNotifierProvider.notifier)
+                                .actualizarConcepto(renglon.id, nuevoConcepto);
+                          },
+                          onMontoChanged: (nuevoMonto) {
+                            ref
+                                .read(expenseFormNotifierProvider.notifier)
+                                .actualizarMonto(renglon.id, nuevoMonto);
+                          },
+                          onCategoriaChanged: (nuevaCatId) {
+                            AppFeedback.selection();
+                            ref
+                                .read(expenseFormNotifierProvider.notifier)
+                                .actualizarCategoria(renglon.id, nuevaCatId);
+                          },
+                        );
+                      }),
+
+                      // 5. Agregar renglón (borde punteado)
+                      _AgregarRenglonButton(
+                        onTap: () {
+                          AppFeedback.light();
+                          ref.read(expenseFormNotifierProvider.notifier).agregarRenglon();
+                        },
+                      ),
+                      const SizedBox(height: 24),
+
+                      // 6. Total del gasto
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [t.accentSoft.withValues(alpha: 0.8), t.surface, t.accentSoft.withValues(alpha: 0.5)],
+                          ),
+                          borderRadius: BorderRadius.circular(FormScreenTheme.radius),
+                          border: Border.all(color: t.accentSoftBorder.withValues(alpha: 0.9)),
+                          boxShadow: t.shadow,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: t.accent.withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(FormScreenTheme.innerRadius),
+                              ),
+                              child: const Text('🐷', style: TextStyle(fontSize: 20)),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    context.l10n.expenseTotal.toUpperCase(),
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.5, color: t.text),
+                                  ),
+                                  Text(
+                                    context.l10n.linesCount(state.cantidadRenglones),
+                                    style: TextStyle(fontSize: 12, color: t.fieldLabel),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 2,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
                                   children: [
-                                    Icon(
-                                      Icons.calendar_today_outlined,
-                                      size: 16,
-                                      color: isDark ? Colors.white70 : AppColors.lightTextSecondary,
-                                    ),
-                                    const SizedBox(width: 4),
                                     Text(
-                                      formatoFecha,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
-                                      ),
+                                      moneda.symbol,
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: t.accent),
                                     ),
-                                    const Icon(
-                                      Icons.arrow_drop_down,
-                                      size: 18,
-                                      color: AppColors.lightTextSecondary,
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      totalSinSimbolo,
+                                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5, color: t.accentStrong),
                                     ),
                                   ],
                                 ),
@@ -281,245 +492,222 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 16),
+
+                      // Aviso de fondos antes de guardar (saldo local, ya descuenta lo pendiente).
+                      if (cuenta != null && state.fondosInsuficientes)
+                        FundsWarning(cuenta: cuenta, amountCents: state.totalCents),
                     ],
                   ),
-                  const SizedBox(height: 16),
-
-                  // Banner Feedback de Lectura de Ticket
-                  if (state.ticketParseResult != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: (state.ticketParseResult?.tieneDiferenciaTotal == true)
-                            ? AppColors.amber.withValues(alpha: 0.15)
-                            : AppColors.emerald.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: (state.ticketParseResult?.tieneDiferenciaTotal == true)
-                              ? AppColors.amber.withValues(alpha: 0.5)
-                              : AppColors.emerald.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            (state.ticketParseResult?.tieneDiferenciaTotal == true)
-                                ? Icons.warning_amber_rounded
-                                : Icons.receipt_long_rounded,
-                            color: (state.ticketParseResult?.tieneDiferenciaTotal == true)
-                                ? AppColors.amberDark
-                                : AppColors.emerald,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _ticketFeedback(state.ticketParseResult!, context.l10n),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: (state.ticketParseResult?.tieneDiferenciaTotal == true)
-                                    ? AppColors.amberDark
-                                    : AppColors.emeraldDark,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 18),
-                            onPressed: () {
-                              ref.read(expenseFormNotifierProvider.notifier).limpiarItemsTicket();
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // 4. Título Renglones (sin botón redundante al costado)
-                  Text(
-                    context.l10n.lines2,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  const SizedBox(height: 10),
-
-                  ...state.renglones.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final renglon = entry.value;
-
-                    return RenglonGastoCard(
-                      key: ValueKey(renglon.id),
-                      index: index,
-                      renglon: renglon,
-                      categorias: categorias,
-                      sugerenciasConcepto: sugerenciasConceptos,
-                      canDelete: state.puedeEliminarRenglon,
-                      onEliminar: () {
-                        AppFeedback.medium();
-                        ref
-                            .read(expenseFormNotifierProvider.notifier)
-                            .eliminarRenglon(renglon.id);
-                      },
-                      onConceptoChanged: (nuevoConcepto) {
-                        ref
-                            .read(expenseFormNotifierProvider.notifier)
-                            .actualizarConcepto(renglon.id, nuevoConcepto);
-                      },
-                      onMontoChanged: (nuevoMonto) {
-                        ref
-                            .read(expenseFormNotifierProvider.notifier)
-                            .actualizarMonto(renglon.id, nuevoMonto);
-                      },
-                      onCategoriaChanged: (nuevaCatId) {
-                        AppFeedback.selection();
-                        ref
-                            .read(expenseFormNotifierProvider.notifier)
-                            .actualizarCategoria(renglon.id, nuevaCatId);
-                      },
-                    );
-                  }),
-
-                  const SizedBox(height: 8),
-
-                  // Botón principal único para agregar renglón al pie de la lista
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      AppFeedback.light();
-                      ref.read(expenseFormNotifierProvider.notifier).agregarRenglon();
-                    },
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.add, size: 20),
-                    label: Text(
-                      context.l10n.addLine,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // 3. Banner Resumen ("Total de gastos")
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: isDark
-                            ? [
-                                AppColors.rose.withValues(alpha: 0.25),
-                                AppColors.primary.withValues(alpha: 0.15),
-                              ]
-                            : [
-                                AppColors.rose.withValues(alpha: 0.10),
-                                AppColors.primary.withValues(alpha: 0.08),
-                              ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: AppColors.rose.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.rose.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Icon(
-                                Icons.savings_outlined,
-                                color: AppColors.rose,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  context.l10n.expenseTotal,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.lightTextSecondary,
-                                  ),
-                                ),
-                                Text(
-                                  context.l10n.linesCount(state.cantidadRenglones),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.lightTextSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Text(
-                          totalFormateado,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.rose,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Aviso de fondos antes de guardar (saldo local, ya descuenta lo pendiente).
-                  if (cuenta != null && state.fondosInsuficientes)
-                    FundsWarning(cuenta: cuenta, amountCents: state.totalCents),
-
-                  // 5. Botón Final
-                  ElevatedButton(
-                    key: const ValueKey('guardar-egreso'),
-                    onPressed: state.isSubmitting ? null : _guardarGasto,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: state.isFormComplete ? AppColors.primary : AppColors.rose,
-                      minimumSize: const Size.fromHeight(52),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: state.isSubmitting
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.save_rounded, size: 20),
-                              const SizedBox(width: 8),
-                              Text(
-                                textoBoton,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                  const SizedBox(height: 28),
-                ],
-              ),
+                ),
+              ],
             ),
+          ),
+
+          // 7. Botón inferior fijo; el contenido se desvanece por detrás.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [t.background, t.background.withValues(alpha: 0.95), t.background.withValues(alpha: 0)],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.paddingOf(context).bottom),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(FormScreenTheme.radius),
+                      boxShadow: t.floatShadow,
+                    ),
+                    child: ElevatedButton(
+                      key: const ValueKey('guardar-egreso'),
+                      onPressed: state.isSubmitting ? null : _guardarGasto,
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        disabledForegroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(FormScreenTheme.bottomButtonHeight),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(FormScreenTheme.radius),
+                        ),
+                      ).copyWith(
+                        backgroundColor: WidgetStateProperty.resolveWith(
+                          (states) => states.contains(WidgetState.pressed) ? t.accentPressed : t.accentStrong,
+                        ),
+                      ),
+                      child: state.isSubmitting
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.save_outlined, size: 20),
+                                const SizedBox(width: 10),
+                                Flexible(
+                                  child: Text(
+                                    textoBoton,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Etiqueta en mayúsculas (12, semibold, espaciado amplio); con asterisco rosa si es obligatoria.
+class _Etiqueta extends StatelessWidget {
+  final String texto;
+  final Color color;
+  final bool obligatorio;
+  const _Etiqueta(this.texto, {required this.color, this.obligatorio = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = FormScreenTheme.of(context);
+    return Text.rich(
+      TextSpan(
+        text: texto.toUpperCase(),
+        children: [if (obligatorio) TextSpan(text: ' *', style: TextStyle(color: t.accent))],
+      ),
+      style: t.labelStyle(color),
+    );
+  }
+}
+
+/// Píldora de fecha rápida ("Hoy", "Ayer").
+class _Pildora extends StatelessWidget {
+  final String texto;
+  final Color fondo;
+  final Color color;
+  final FontWeight peso;
+  final VoidCallback onTap;
+  const _Pildora({required this.texto, required this.fondo, required this.color, required this.peso, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: fondo,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          child: Text(texto, style: TextStyle(fontSize: 11, fontWeight: peso, color: color)),
+        ),
+      ),
+    );
+  }
+}
+
+/// Botón "Escanear" de la barra superior (píldora rosa claro).
+class _EscanearPill extends StatelessWidget {
+  final VoidCallback onTap;
+  const _EscanearPill({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = FormScreenTheme.of(context);
+    return Tooltip(
+      message: context.l10n.scanReceipt,
+      child: Material(
+        color: t.accentSoft,
+        shape: StadiumBorder(side: BorderSide(color: t.accentSoftBorder.withValues(alpha: 0.9))),
+        elevation: 0,
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.document_scanner_outlined, size: 16, color: t.accentStrong),
+                const SizedBox(width: 6),
+                Text(
+                  context.l10n.scan2,
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: -0.2, color: t.accentStrong),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Agregar Renglón": ancho completo, borde punteado e ícono "+".
+class _AgregarRenglonButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _AgregarRenglonButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = FormScreenTheme.of(context);
+    final radio = BorderRadius.circular(FormScreenTheme.radius);
+    return CustomPaint(
+      foregroundPainter: DashedBorderPainter(color: t.dashedBorder, radius: FormScreenTheme.radius),
+      child: Material(
+        color: t.surface.withValues(alpha: 0.6),
+        borderRadius: radio,
+        child: InkWell(
+          borderRadius: radio,
+          splashColor: t.accentSoft,
+          highlightColor: t.accentSoft.withValues(alpha: 0.4),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(color: t.pillNeutral, shape: BoxShape.circle),
+                  child: Icon(Icons.add, size: 14, color: t.pillNeutralText),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  context.l10n.addLine,
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.3, color: t.pillNeutralText),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1068,7 +1068,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get generalConcept2 => 'Concepto General *';
 
   @override
-  String get eGSupermarketBookstore => 'Ej: Supermercado, Librería...';
+  String get eGSupermarketBookstore =>
+      'Ej: Supermercado Coto, Shopping, Farmacia';
 
   @override
   String get addLine => 'Agregar Renglón';
@@ -1114,6 +1115,15 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get deleteLine2 => 'Eliminar renglón';
+
+  @override
+  String get lineConcept => 'Concepto del renglón';
+
+  @override
+  String get today => 'Hoy';
+
+  @override
+  String get yesterday => 'Ayer';
 
   @override
   String get eGVegetablesMeatCleaning => 'Ej: Verduras, Carne, Limpieza...';
@@ -1511,8 +1521,8 @@ class AppLocalizationsEs extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count renglones',
-      one: '1 renglón',
+      other: '$count renglones contabilizados',
+      one: '1 renglón contabilizado',
     );
     return '$_temp0';
   }
