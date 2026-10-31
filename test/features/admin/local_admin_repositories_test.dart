@@ -38,8 +38,8 @@ void main() {
     });
 
     test('nombres: largo, duplicado activo o inactivo (sin distinguir mayúsculas)', () async {
-      await rule(() => repo.create(name: 'ab', currency: Currency.ars), 'VALIDATION_ERROR');
-      await rule(() => repo.create(name: 'x' * 26, currency: Currency.ars), 'VALIDATION_ERROR');
+      await rule(() => repo.create(name: 'a', currency: Currency.ars), 'VALIDATION_ERROR'); // mínimo 2
+      await rule(() => repo.create(name: 'x' * 16, currency: Currency.ars), 'VALIDATION_ERROR'); // máximo 15
       await rule(() => repo.create(name: 'BANCO', currency: Currency.ars), 'DUPLICATE_NAME');
       await expectLater(repo.create(name: 'cerrada', currency: Currency.ars),
           throwsA(isA<ValidationFailure>().having((e) => e.message, 'message', contains('activala'))));
