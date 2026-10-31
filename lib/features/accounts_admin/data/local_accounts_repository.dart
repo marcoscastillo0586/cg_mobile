@@ -10,8 +10,8 @@ import '../domain/account_item.dart';
 import '../../../core/auth/current_author.dart';
 
 /// Largo del nombre de cuenta (ACCOUNT_NAME_MIN/MAX de @cg/shared).
-const accountNameMin = 3;
-const accountNameMax = 25;
+const accountNameMin = 2;
+const accountNameMax = 15;
 
 final localAccountsRepositoryProvider = Provider<Future<LocalAccountsRepository>>(
   (ref) async => LocalAccountsRepository(await ref.watch(localDatabaseProvider), author: ref.watch(currentAuthorProvider)),
