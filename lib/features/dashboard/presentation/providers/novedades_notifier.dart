@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -7,6 +8,7 @@ import '../../../../core/sync/local_ops.dart';
 import '../../../limits_admin/data/local_budgets_repository.dart';
 import '../../../limits_admin/domain/budget.dart';
 import '../../domain/entities/novedad_entity.dart';
+import '../../data/budget_alerts_repository.dart';
 
 class NovedadesState {
   final bool isLoading;
@@ -39,7 +41,12 @@ class NovedadesState {
 }
 
 final novedadesNotifierProvider = StateNotifierProvider<NovedadesNotifier, NovedadesState>((ref) {
-  return NovedadesNotifier(ref.watch(localBudgetsRepositoryProvider), ref.watch(secureStorageServiceProvider), ref);
+  return NovedadesNotifier(
+    ref.watch(localBudgetsRepositoryProvider),
+    ref.watch(secureStorageServiceProvider),
+    ref.watch(budgetAlertsRepositoryProvider),
+    ref,
+  );
 });
 
 /// Tipo de novedad de un presupuesto, derivado de percent y dueForRenewal (misma regla que
@@ -57,9 +64,10 @@ NovedadTipo? tipoNovedad(Budget b) {
 class NovedadesNotifier extends StateNotifier<NovedadesState> {
   final Future<LocalBudgetsRepository> _budgets;
   final SecureStorageService _storage;
+  final BudgetAlertsRepository _alerts;
   final Ref _ref;
 
-  NovedadesNotifier(this._budgets, this._storage, this._ref) : super(const NovedadesState()) {
+  NovedadesNotifier(this._budgets, this._storage, this._alerts, this._ref) : super(const NovedadesState()) {
     calcularNovedades();
   }
 
@@ -74,6 +82,13 @@ class NovedadesNotifier extends StateNotifier<NovedadesState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final budgets = await (await _budgets).list();
+      // "Vistas" del servidor (compartidas con la web). Sin conexión: null, y valen solo las del celular.
+      Set<String>? servidor;
+      try {
+        servidor = await _alerts.seen();
+      } catch (e) {
+        debugPrint('[NOVEDADES] Sin vistas del servidor: $e');
+      }
       final hoy = LocalOps.todayAr();
       final candidatas = <NovedadEntity>[];
       final keys = <String>{};
@@ -84,15 +99,25 @@ class NovedadesNotifier extends StateNotifier<NovedadesState> {
         // Clave estable: id del servidor (o el local si el límite todavía no se sincronizó).
         final key = 'alerta_vista_${userId}_${b.serverId ?? 'l${b.id}'}_${tipo.name}_${b.startDate}_${b.endDate}';
         keys.add(key);
+        final vistaLocal = await _storage.readValue(key) == '1';
+        final sid = b.serverId;
+        final vistaServidor =
+            sid != null && (servidor?.contains(BudgetAlertsRepository.key(sid, tipo.name, b.startDate, b.endDate)) ?? false);
+        if (vistaServidor && !vistaLocal) {
+          await _storage.writeValue(key, '1'); // vista en la web: queda guardada para usarla sin conexión
+        } else if (vistaLocal && !vistaServidor && servidor != null && sid != null) {
+          _enviarVista(sid, tipo.name, b.startDate, b.endDate); // marcada sin conexión (o antes de compartirse)
+        }
         candidatas.add(NovedadEntity(
           idKey: key,
           idLimiteGasto: b.id,
+          idServidor: sid,
           titulo: b.title,
           tipo: tipo,
           porcentaje: (b.percentHundredths ?? 0) ~/ 100,
           desde: DateTime.parse(b.startDate),
           hasta: DateTime.parse(b.endDate),
-          vista: await _storage.readValue(key) == '1',
+          vista: vistaLocal || vistaServidor,
         ));
       }
       // Mayor porcentaje primero, empate A-Z, vencidos al final.
@@ -120,7 +145,20 @@ class NovedadesNotifier extends StateNotifier<NovedadesState> {
       debugPrint('[NOVEDADES] No se pudo marcar como vista: $e');
       state = state.copyWith(error: e);
     }
+    final sid = novedad.idServidor;
+    if (sid != null) _enviarVista(sid, novedad.tipo.name, _fecha(novedad.desde), _fecha(novedad.hasta));
   }
+
+  /// Envía la marca al servidor para compartirla con la web. Sin conexión no avisa: queda en el celular y se
+  /// reenvía en el próximo cálculo con conexión.
+  void _enviarVista(int budgetId, String kind, String desde, String hasta) {
+    unawaited(_alerts.markSeen(budgetId, kind, desde, hasta).catchError((Object e) {
+      debugPrint('[NOVEDADES] Vista no enviada (se reintenta): $e');
+    }));
+  }
+
+  static String _fecha(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   Future<void> _limpiarClavesHuerfanas(int userId, Set<String> validas) async {
     final prefix = 'alerta_vista_${userId}_';

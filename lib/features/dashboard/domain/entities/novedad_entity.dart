@@ -16,9 +16,13 @@ class NovedadEntity extends Equatable {
   final DateTime hasta;
   final bool vista;
 
+  /// Id del límite en el servidor (null si todavía no se sincronizó): con él se comparte "vista" con la web.
+  final int? idServidor;
+
   const NovedadEntity({
     required this.idKey,
     required this.idLimiteGasto,
+    this.idServidor,
     required this.titulo,
     required this.tipo,
     required this.porcentaje,
@@ -31,6 +35,7 @@ class NovedadEntity extends Equatable {
     return NovedadEntity(
       idKey: idKey,
       idLimiteGasto: idLimiteGasto,
+      idServidor: idServidor,
       titulo: titulo,
       tipo: tipo,
       porcentaje: porcentaje,
@@ -44,6 +49,7 @@ class NovedadEntity extends Equatable {
   List<Object?> get props => [
         idKey,
         idLimiteGasto,
+        idServidor,
         titulo,
         tipo,
         porcentaje,
