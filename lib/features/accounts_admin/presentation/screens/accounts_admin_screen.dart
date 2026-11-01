@@ -221,7 +221,10 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
                             key: ValueKey('icono-${e.key}'),
                             label: Icon(e.value, size: 20),
                             selected: icono == e.key,
-                            onSelected: (_) => setLocal(() => icono = icono == e.key ? null : e.key),
+                            // Solo los predeterminados se pueden elegir; el resto se ve deshabilitado.
+                            onSelected: AccountIcons.selectable.contains(e.key)
+                                ? (_) => setLocal(() => icono = icono == e.key ? null : e.key)
+                                : null,
                           ),
                       ],
                     ),

@@ -11,16 +11,20 @@ import '../network/dio_client.dart';
 class AccountIcons {
   AccountIcons._();
 
+  /// En este orden se muestran al elegir (igual que ACCOUNT_ICON_KEYS de @cg/shared en la web).
+  /// `tarjeta_credito` se quitó: "Tarjeta" (`tarjeta_debito`) usa el ícono de tarjeta de crédito.
   static const Map<String, IconData> byKey = {
     'casa': Icons.home_rounded,
     'banco': Icons.account_balance_rounded,
     'alcancia': Icons.savings_rounded,
-    'inversiones': Icons.trending_up_rounded,
     'tarjeta_debito': Icons.credit_card_rounded,
-    'tarjeta_credito': Icons.credit_score_rounded,
+    'inversiones': Icons.trending_up_rounded,
     'playa': Icons.beach_access_rounded,
     'plazo_fijo': Icons.lock_clock_rounded,
   };
+
+  /// Íconos que se pueden elegir (ACCOUNT_ICON_SELECTABLE de @cg/shared); el resto se ve pero no se elige.
+  static const Set<String> selectable = {'casa', 'banco', 'alcancia', 'tarjeta_debito'};
 
   static IconData forKey(String? key, Currency currency) =>
       byKey[key] ?? (currency == Currency.usd ? Icons.attach_money_rounded : Icons.wallet_rounded);
