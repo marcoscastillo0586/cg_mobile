@@ -48,7 +48,7 @@ class LocalAccountsRepository {
   Future<String> create({required String name, required Currency currency, String? iconRef}) => _db.transaction((txn) async {
         final n = _name(name);
         await _assertFreeName(txn, n);
-        if (iconRef != null && !AccountIcons.byKey.containsKey(iconRef)) throw LocalOps.invalid((l) => l.unknownIcon);
+        if (iconRef != null && !AccountIcons.isKnown(iconRef)) throw LocalOps.invalid((l) => l.unknownIcon);
         final clientId = LocalDatabase.newId();
         await txn.insert('accounts', {
           'client_id': clientId, 'name': n, 'currency': currency.code, 'active': 1, 'icon_ref': iconRef, 'updated_at': LocalOps.stamp(),
@@ -61,8 +61,8 @@ class LocalAccountsRepository {
         });
       });
 
-  /// Nombre y/o moneda. La moneda no cambia si la cuenta tiene movimientos (CURRENCY_LOCKED).
-  Future<String> update(int localId, {String? name, Currency? currency}) => _db.transaction((txn) async {
+  /// Nombre, moneda y/o ícono. La moneda no cambia si la cuenta tiene movimientos (CURRENCY_LOCKED).
+  Future<String> update(int localId, {String? name, Currency? currency, String? iconRef}) => _db.transaction((txn) async {
         final row = await LocalOps.require(txn, 'accounts', localId, (l) => l.account);
         final data = <String, Object?>{};
         final changes = <String, Object?>{};
@@ -80,6 +80,11 @@ class LocalAccountsRepository {
           }
           changes['currency'] = currency.code;
           data['currency'] = currency.code;
+        }
+        if (iconRef != null && iconRef != row['icon_ref']) {
+          if (!AccountIcons.isKnown(iconRef)) throw LocalOps.invalid((l) => l.unknownIcon);
+          changes['icon_ref'] = iconRef;
+          data['iconRef'] = iconRef;
         }
         if (data.isEmpty) throw LocalOps.invalid((l) => l.noChangesSave);
         return _enqueueUpdate(txn, row, changes, data);

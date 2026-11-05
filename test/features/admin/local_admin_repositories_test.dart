@@ -30,11 +30,20 @@ void main() {
     test('lista con saldo y renglones; alta con ícono de la API por la outbox', () async {
       final banco = (await repo.list()).firstWhere((a) => a.name == 'Banco');
       expect((banco.balanceCents, banco.movementsCount, banco.serverId), (100000, 1, 1));
-      await repo.create(name: ' Billetera ', currency: Currency.usd, iconRef: 'alcancia');
+      await repo.create(name: ' Billetera ', currency: Currency.usd, iconRef: '12');
       final op = await lastOp();
       expect((op['entity'], op['action'], op['client_id'] != null), ('account', 'create', true));
-      expect(await lastData(), {'name': 'Billetera', 'currency': 'USD', 'iconRef': 'alcancia'});
+      expect(await lastData(), {'name': 'Billetera', 'currency': 'USD', 'iconRef': '12'});
       expect((await repo.list()).firstWhere((a) => a.name == 'Billetera').serverId, isNull);
+    });
+
+    test('ícono: se edita por la outbox, sin operación si no cambia y rechaza claves fuera del catálogo', () async {
+      await rule(() => repo.create(name: 'Otra', currency: Currency.ars, iconRef: 'casa'), 'VALIDATION_ERROR');
+      await rule(() => repo.update(s.accounts['Cerrada']!, iconRef: '29'), 'VALIDATION_ERROR');
+      await repo.update(s.accounts['Cerrada']!, iconRef: '12');
+      expect(await lastData(), {'iconRef': '12'});
+      expect((await repo.list()).firstWhere((a) => a.name == 'Cerrada').iconRef, '12');
+      await rule(() => repo.update(s.accounts['Cerrada']!, iconRef: '12'), 'VALIDATION_ERROR'); // sin cambios
     });
 
     test('nombres: largo, duplicado activo o inactivo (sin distinguir mayúsculas)', () async {

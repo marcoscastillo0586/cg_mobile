@@ -73,7 +73,7 @@ class EgresoCuentaCarousel extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      AccountAvatar(imageUrl: cuenta.imageUrl, iconRef: cuenta.iconRef, currency: cuenta.currency, size: 44),
+                      AccountAvatar(iconRef: cuenta.iconRef, size: 44),
                       const SizedBox(width: 12),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

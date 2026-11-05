@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/error_messages.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/widgets/account_avatar.dart';
+import '../../../../core/widgets/account_icon_picker.dart';
 import '../../../../core/widgets/dialog_controllers.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
 import '../../data/local_accounts_repository.dart';
@@ -172,12 +173,11 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
     }
   }
 
-  /// Alta (item null) o edición de nombre/moneda. El ícono se elige al crear (la API de
-  /// sincronización no lo cambia después).
+  /// Alta (item null) o edición de nombre, moneda e ícono.
   Future<void> _editar(BuildContext context, AccountItem? item) async {
     // Alta: se preselecciona la moneda principal.
     var moneda = item?.currency ?? Currency.parse(ref.read(settingsProvider).defaultCurrency);
-    String? icono;
+    var icono = AccountIcons.normalize(item?.iconRef);
     final texto = await showDialog<String>(
       context: context,
       builder: (ctx) => DialogControllers(
@@ -210,25 +210,10 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
                         style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
                       ),
                     ),
-                  if (item == null) ...[
-                    const SizedBox(height: 12),
-                    Text(context.l10n.icon, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    Wrap(
-                      spacing: 6,
-                      children: [
-                        for (final e in AccountIcons.byKey.entries)
-                          ChoiceChip(
-                            key: ValueKey('icono-${e.key}'),
-                            label: Icon(e.value, size: 20),
-                            selected: icono == e.key,
-                            // Solo los predeterminados se pueden elegir; el resto se ve deshabilitado.
-                            onSelected: AccountIcons.selectable.contains(e.key)
-                                ? (_) => setLocal(() => icono = icono == e.key ? null : e.key)
-                                : null,
-                          ),
-                      ],
-                    ),
-                  ],
+                  const SizedBox(height: 12),
+                  Text(context.l10n.icon, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  AccountIconPicker(value: icono, onChanged: (k) => setLocal(() => icono = k)),
                 ],
               ),
             ),
@@ -247,7 +232,7 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
     final notifier = ref.read(accountsAdminNotifierProvider.notifier);
     final error = await notifier.run((r) => item == null
         ? r.create(name: texto, currency: moneda, iconRef: icono)
-        : r.update(item.id, name: texto, currency: item.movementsCount > 0 ? null : moneda));
+        : r.update(item.id, name: texto, currency: item.movementsCount > 0 ? null : moneda, iconRef: icono));
     if (context.mounted) {
       await reportLocalAction(context, ref, error,
           ok: item == null ? (context.l10n.accountCreated) : (context.l10n.accountUpdated));
@@ -273,7 +258,7 @@ class _AccountTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Row(
             children: [
-              AccountAvatar(imageUrl: item.imageUrl, iconRef: item.iconRef, currency: item.currency),
+              AccountAvatar(iconRef: item.iconRef),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

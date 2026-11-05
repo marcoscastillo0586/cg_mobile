@@ -41,7 +41,7 @@ class AccountCard extends StatelessWidget {
                 child: Checkbox(value: isSelected, activeColor: AppColors.primary, onChanged: onToggleSelection),
               ),
               const SizedBox(width: 8),
-              AccountAvatar(imageUrl: account.imageUrl, iconRef: account.iconRef, currency: account.currency),
+              AccountAvatar(iconRef: account.iconRef),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
