@@ -53,6 +53,9 @@ dependencies:
   # Red: sincronizar apenas vuelve la conexión
   connectivity_plus: ^7.3.2
 
+  # Sincronizar sin la app abierta (tareas de Android)
+  workmanager: ^0.10.10
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

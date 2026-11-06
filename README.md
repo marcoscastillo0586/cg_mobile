@@ -37,7 +37,13 @@ Sin `API_BASE_URL`, el login muestra "La app no tiene configurada la dirección 
   y los datos viajan sin cifrar por el wifi de casa, y la app solo funciona conectada a esa red.
 - **Release**: R8 (minify y shrink, `android/app/proguard-rules.pro`) y sin logs (`debugPrint` vacío en release, `main.dart`).
 - **Permisos** del APK final: INTERNET, CAMERA (QR) y ACCESS_NETWORK_STATE (lo agrega `com.google.android.datatransport`, de ML Kit).
-  La galería usa el selector del sistema y no pide permisos de medios.
+  La galería usa el selector del sistema y no pide permisos de medios. WorkManager agrega WAKE_LOCK y RECEIVE_BOOT_COMPLETED (sin diálogo);
+  el manifiesto quita los de notificaciones y servicio en primer plano que trae el plugin.
+- **Sincronización en segundo plano** (`lib/core/sync/background_sync.dart`, Android, sin avisos): una tarea única envía lo pendiente
+  al haber red y una periódica de 15 minutos (el mínimo de Android) envía y descarga. Usan el mismo `SyncController` que el primer plano.
+  Solo sincronizan el dashboard elegido. `sync_coordinator.dart` evita que la app y la tarea corran a la vez: se comparten la conexión
+  a SQLite y el refresh token, que el servidor revoca si se reutiliza. Como el servidor solo se alcanza desde el wifi de casa, con datos
+  móviles la tarea falla sin consecuencias y lo pendiente sube en el próximo intento con wifi.
 - **Idiomas**: español (plantilla) e inglés en `lib/l10n/app_*.arb` (`flutter gen-l10n`; se usa `context.l10n`). Las validaciones
   hechas en el celular usan `ValidationFailure.t((l) => l.clave)`; los errores de la API se traducen por código en `ErrorMessages`.
 - La firma de release lee `android/key.properties` (no versionado; el `.jks` vive fuera del repo). Sin ese archivo

@@ -34,8 +34,13 @@ class Outbox {
       'updated_at': now,
     });
     _recent.add(opId);
+    onEnqueued?.call();
     return opId;
   }
+
+  /// Aviso de que hay algo nuevo en la cola (programa el envío en segundo plano). Si la transacción
+  /// se revierte no pasa nada: la tarea encuentra la cola sin esa operación.
+  static void Function()? onEnqueued;
 
   static final _recent = <String>[];
 

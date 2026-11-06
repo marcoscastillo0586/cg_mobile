@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/auth/session_scope.dart';
+import 'core/sync/background_sync.dart';
 import 'core/theme/app_theme.dart';
 import 'l10n/l10n.dart';
 import 'features/settings/presentation/providers/settings_provider.dart';
@@ -14,6 +15,7 @@ void main() async {
   // En release no se escribe nada en logcat (errores del servidor, filas de tickets, montos):
   // los diagnósticos con debugPrint, propios o de paquetes, son solo para debug.
   if (kReleaseMode) debugPrint = (String? message, {int? wrapWidth}) {};
+  await BackgroundSync.initialize();
   runApp(
     const SessionScope(child: GastosMobileApp()),
   );

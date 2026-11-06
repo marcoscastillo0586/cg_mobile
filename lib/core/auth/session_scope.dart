@@ -5,6 +5,7 @@ import '../../features/auth/presentation/providers/auth_notifier.dart';
 import '../../features/auth/presentation/providers/auth_state.dart';
 import '../dashboards/current_dashboard.dart';
 import '../database/local_database.dart';
+import '../sync/background_sync.dart';
 import 'current_account.dart';
 import '../dashboards/dashboard_switch.dart';
 
@@ -58,6 +59,7 @@ class _SessionScopeState extends State<SessionScope> {
       ...widget.overrides,
       if (initial != null) initialAuthStateProvider.overrideWithValue(initial),
     ]);
+    BackgroundSync.appContainer = c;
     _wasAuthenticated = false;
     _auth = c.listen<AuthState>(authNotifierProvider, (_, next) {
       if (next.isAuthenticated) {

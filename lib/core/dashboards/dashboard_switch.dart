@@ -10,6 +10,9 @@ class DashboardSwitch {
   /// Usuario de la sesión (para guardar la elección a su nombre).
   static int? userId;
 
+  /// Sincronización en segundo plano: no borra datos sin que nadie lo vea; [lost] lo resuelve la app abierta.
+  static bool keepLocalData = false;
+
   /// [dashboardId] null = el principal del usuario.
   static Future<void> select(int? dashboardId) async {
     if (CurrentDashboard.id.value == dashboardId) return;
@@ -29,6 +32,7 @@ class DashboardSwitch {
   /// El servidor respondió que ya no hay acceso a [dashboardId] (quitaron el acceso, salió o se
   /// eliminó): se borran sus datos del celular y, si era el elegido, se vuelve al principal.
   static Future<void> lost(int dashboardId) async {
+    if (keepLocalData) return;
     final wasCurrent = CurrentDashboard.id.value == dashboardId;
     if (wasCurrent) await select(null);
     try {

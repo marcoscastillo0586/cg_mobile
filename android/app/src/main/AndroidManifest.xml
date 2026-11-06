@@ -1,6 +1,11 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Los agrega el plugin workmanager; la sincronización en segundo plano no muestra notificaciones ni usa servicios en primer plano. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SHORT_SERVICE" tools:node="remove"/>
 
     <application
         android:label="control_gastos"
@@ -29,6 +34,7 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <service android:name="androidx.work.impl.foreground.SystemForegroundService" tools:node="remove"/>
     </application>
     <queries>
         <intent>

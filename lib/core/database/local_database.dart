@@ -103,6 +103,9 @@ class LocalDatabase {
       path,
       options: OpenDatabaseOptions(
         version: latestSchemaVersion,
+        // Si Android cortó una tarea en segundo plano a mitad de una transacción, la conexión nativa sigue
+        // abierta en este proceso: se revierte (sin esto, solo en debug) y lo no confirmado se reenvía.
+        rollbackActiveTransactionOnOpen: true,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, version) => _migrate(db, 0, version),
         onUpgrade: _migrate,
