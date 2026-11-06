@@ -63,4 +63,5 @@ const accountIconCatalog = <AccountIconEntry>[
   AccountIconEntry(key: '49', asset: 'assets/account_icons/49.png', order: 49, level: AccountIconLevel.subscription),
   AccountIconEntry(key: '50', asset: 'assets/account_icons/50.png', order: 50, level: AccountIconLevel.subscription),
   AccountIconEntry(key: '51', asset: 'assets/account_icons/51.png', order: 51, level: AccountIconLevel.subscription),
+  AccountIconEntry(key: '52', asset: 'assets/account_icons/52.png', order: 52, level: AccountIconLevel.subscription),
 ];
