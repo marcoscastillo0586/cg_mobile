@@ -522,8 +522,11 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                       borderRadius: BorderRadius.circular(FormScreenTheme.radius),
                     ),
                   ).copyWith(
+                    // Rojo hasta completar los campos obligatorios (isFormComplete); verde al completarlos.
                     backgroundColor: WidgetStateProperty.resolveWith(
-                      (states) => states.contains(WidgetState.pressed) ? t.accentPressed : t.accentStrong,
+                      (states) => state.isFormComplete
+                          ? (states.contains(WidgetState.pressed) ? AppColors.emeraldDark : AppColors.emerald)
+                          : (states.contains(WidgetState.pressed) ? t.accentPressed : t.accentStrong),
                     ),
                   ),
                   child: state.isSubmitting

@@ -99,8 +99,11 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
     final token = CancelToken();
     setState(() => _lecturaServidor = token);
     AppFeedback.medium();
+    final started = DateTime.now();
+    debugPrint('[TICKET] >>> OLLAMA: enviando ${images.length} captura(s) al servidor (/tickets/read-images)');
     try {
       final result = await ref.read(ticketsRepositoryProvider).readImages(images, cancelToken: token);
+      debugPrint('[TICKET] <<< OLLAMA: ${result.items.length} renglón(es) en ${DateTime.now().difference(started).inMilliseconds} ms');
       if (!mounted || token.isCancelled) return;
       setState(() => _lecturaServidor = null);
       if (result.items.isEmpty) {
@@ -204,8 +207,11 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
     setState(() => _isProcessing = true);
     AppFeedback.medium();
 
+    final started = DateTime.now();
+    debugPrint('[TICKET] >>> LOCAL: lectura en el celular (ML Kit) de ${_imagePaths.length} foto(s)');
     try {
       final result = await MlKitTicketReader().processTicketImages(_imagePaths);
+      debugPrint('[TICKET] <<< LOCAL: ${result.items.length} renglón(es) en ${DateTime.now().difference(started).inMilliseconds} ms');
 
       if (!mounted) return;
       setState(() => _isProcessing = false);
