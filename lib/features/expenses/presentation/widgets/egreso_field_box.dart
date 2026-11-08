@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/form_screen_theme.dart';
+import 'egreso_estilo.dart';
 
 /// Caja de un campo del diseño de "Nuevo Egreso": borde fino, con foco borde rosa y halo suave.
 /// [inner] = campo dentro de un renglón (radio 12, fondo gris claro sin foco).
@@ -9,7 +10,21 @@ class EgresoFieldBox extends StatefulWidget {
   final bool inner;
   final Widget child;
 
-  const EgresoFieldBox({super.key, this.focusNode, this.error = false, this.inner = false, required this.child});
+  /// Caja con el diseño de Stitch ([EgresoEstilo.campo]); solo en los campos ya migrados.
+  final bool stitch;
+
+  /// Campo sin texto (con [stitch]: borde de 2 px).
+  final bool vacio;
+
+  const EgresoFieldBox({
+    super.key,
+    this.focusNode,
+    this.error = false,
+    this.inner = false,
+    this.stitch = false,
+    this.vacio = false,
+    required this.child,
+  });
 
   /// Decoración del TextField de adentro: sin bordes ni relleno propios (los pone la caja).
   static InputDecoration input({String? hint, Widget? prefixIcon, Widget? prefix, Widget? suffixIcon, bool inner = false, Color? hintColor}) =>
@@ -61,9 +76,14 @@ class _EgresoFieldBoxState extends State<EgresoFieldBox> {
   @override
   Widget build(BuildContext context) {
     final t = FormScreenTheme.of(context);
+    final focused = widget.focusNode?.hasFocus ?? false;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
-      decoration: t.fieldDecoration(focused: widget.focusNode?.hasFocus ?? false, error: widget.error, inner: widget.inner),
+      decoration: !widget.stitch
+          ? t.fieldDecoration(focused: focused, error: widget.error, inner: widget.inner)
+          : widget.inner
+              ? EgresoEstilo.of(context).campoInterno(focused: focused, error: widget.error)
+              : EgresoEstilo.of(context).campo(focused: focused, error: widget.error, vacio: widget.vacio),
       child: widget.child,
     );
   }

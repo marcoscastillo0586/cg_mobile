@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../../core/database/local_catalog.dart';
 import '../../../../core/money/money.dart';
@@ -5,9 +6,10 @@ import '../../../../core/theme/form_screen_theme.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/account_avatar.dart';
 import '../../../../l10n/l10n.dart';
+import 'egreso_estilo.dart';
 
 /// Carrusel de cuentas de origen de "Nuevo Egreso" (íconos reales de cada cuenta y su saldo local).
-/// Seleccionada: borde rosa de 2 px y punto rosa junto al nombre. Las otras pantallas usan AccountPicker.
+/// Seleccionada: borde índigo de 2 px, sombra índigo y check en la esquina. Las otras pantallas usan AccountPicker.
 class EgresoCuentaCarousel extends StatelessWidget {
   final List<LocalAccount> cuentas;
   final int? selectedId;
@@ -21,6 +23,7 @@ class EgresoCuentaCarousel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = FormScreenTheme.of(context);
+    final e = EgresoEstilo.of(context);
 
     if (cuentas.isEmpty) {
       return Padding(
@@ -38,8 +41,13 @@ class EgresoCuentaCarousel extends StatelessWidget {
       );
     }
 
+    // Alto según el tamaño de texto del sistema: nombre + saldo (o el ícono de 44), relleno y borde.
+    final escala = MediaQuery.textScalerOf(context);
+    final contenido = math.max(44.0, escala.scale(11) * 1.4 + 2 + escala.scale(16) * 1.4);
+    final alto = contenido + EgresoEstilo.cuentaRelleno * 2 + 4;
+
     return SizedBox(
-      height: 76,
+      height: alto,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         clipBehavior: Clip.none,
@@ -49,66 +57,84 @@ class EgresoCuentaCarousel extends StatelessWidget {
         itemBuilder: (context, index) {
           final cuenta = cuentas[index];
           final isSelected = cuenta.localId == selectedId;
+          // Mismo tamaño seleccionada o no: el borde de 2 px se compensa con el relleno.
+          const r = EgresoEstilo.cuentaRelleno;
+          final borde = isSelected ? 2.0 : 1.0;
           return Opacity(
             opacity: isSelected ? 1 : 0.85,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                key: ValueKey('cuenta-${cuenta.name}'),
-                onTap: () {
-                  AppFeedback.selection();
-                  onSelect(cuenta.localId);
-                },
-                borderRadius: BorderRadius.circular(FormScreenTheme.radius),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  // Mismo tamaño seleccionada o no: el borde de 2 px se compensa con el relleno.
-                  padding: EdgeInsets.fromLTRB(isSelected ? 11 : 12, isSelected ? 11 : 12, isSelected ? 15 : 16, isSelected ? 11 : 12),
-                  decoration: BoxDecoration(
-                    color: t.surface,
-                    borderRadius: BorderRadius.circular(FormScreenTheme.radius),
-                    border: Border.all(color: isSelected ? t.accent : t.border, width: isSelected ? 2 : 1),
-                    boxShadow: t.shadow,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AccountAvatar(iconRef: cuenta.iconRef, size: 44),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Row(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: EgresoEstilo.cuentaAnchoMin, maxWidth: EgresoEstilo.cuentaAnchoMax),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  key: ValueKey('cuenta-${cuenta.name}'),
+                  onTap: () {
+                    AppFeedback.selection();
+                    onSelect(cuenta.localId);
+                  },
+                  borderRadius: BorderRadius.circular(FormScreenTheme.radius),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    decoration: BoxDecoration(
+                      color: t.surface,
+                      borderRadius: BorderRadius.circular(FormScreenTheme.radius),
+                      border: Border.all(color: isSelected ? e.cuentaSeleccion : e.cuentaBorde, width: borde),
+                      boxShadow: e.cuentaSombra(isSelected),
+                    ),
+                    child: Stack(
+                      children: [
+                        Padding(
+                          // A la derecha queda lugar para el check (también sin seleccionar: el ancho no salta).
+                          padding: EdgeInsets.fromLTRB(r - borde + 1, r - borde + 1, r + EgresoEstilo.cuentaCheck - borde + 1, r - borde + 1),
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                cuenta.name.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  letterSpacing: 0.3,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                  color: isSelected ? t.title : t.fieldLabel,
+                              AccountAvatar(iconRef: cuenta.iconRef, size: 44),
+                              const SizedBox(width: 12),
+                              Flexible(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      cuenta.name.toUpperCase(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: e.cuentaNombre(isSelected),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        Money.format(cuenta.balanceCents, currency: cuenta.currency),
+                                        maxLines: 1,
+                                        style: e.cuentaSaldo(isSelected, negativo: cuenta.balanceCents < 0),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              if (isSelected) ...[
-                                const SizedBox(width: 6),
-                                Container(width: 6, height: 6, decoration: BoxDecoration(color: t.accent, shape: BoxShape.circle)),
-                              ],
                             ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            Money.format(cuenta.balanceCents, currency: cuenta.currency),
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: cuenta.balanceCents < 0 ? t.accentStrong : t.text,
+                        ),
+                        if (isSelected)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              width: EgresoEstilo.cuentaCheck,
+                              height: EgresoEstilo.cuentaCheck,
+                              decoration: BoxDecoration(
+                                color: e.cuentaSeleccion,
+                                shape: BoxShape.circle,
+                                boxShadow: const [BoxShadow(color: Color(0x1F0F172A), blurRadius: 3, offset: Offset(0, 1))],
+                              ),
+                              child: const Icon(Icons.check_rounded, size: 13, color: Colors.white),
                             ),
                           ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

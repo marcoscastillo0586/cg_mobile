@@ -4,6 +4,7 @@ import '../../../../core/money/money.dart';
 import '../../../../core/theme/form_screen_theme.dart';
 import '../../domain/entities/renglon_gasto.dart';
 import '../../../../l10n/l10n.dart';
+import 'egreso_estilo.dart';
 import 'egreso_field_box.dart';
 
 class RenglonGastoCard extends StatefulWidget {
@@ -99,69 +100,78 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
   @override
   Widget build(BuildContext context) {
     final t = FormScreenTheme.of(context);
+    final e = EgresoEstilo.of(context);
     final renglonNum = widget.index + 1;
+    bool activa(Set<WidgetState> s) => s.contains(WidgetState.pressed) || s.contains(WidgetState.hovered);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 14.0),
+      margin: const EdgeInsets.only(bottom: 12.0),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: t.surface,
-        borderRadius: BorderRadius.circular(FormScreenTheme.radius),
-        border: Border.all(color: t.border),
-        boxShadow: t.shadow,
-      ),
+      decoration: e.tarjeta,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Cabecera del renglón (insignia "Renglón #N" y papelera)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: t.badgeBackground,
-                  borderRadius: BorderRadius.circular(FormScreenTheme.badgeRadius),
-                  border: Border.all(color: t.badgeBorder),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.content_paste_rounded, size: 14, color: t.badgeText),
-                    const SizedBox(width: 6),
-                    Text(
-                      context.l10n.lineRenglonnum(renglonNum),
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: t.badgeText),
+          // Cabecera del renglón (insignia "Renglón #N" y papelera), con línea debajo.
+          Container(
+            padding: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: e.separador))),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: e.insigniaFondo,
+                      borderRadius: BorderRadius.circular(FormScreenTheme.badgeRadius),
+                      border: Border.all(color: e.insigniaBorde),
                     ),
-                  ],
-                ),
-              ),
-              if (widget.canDelete)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                  tooltip: context.l10n.deleteLine2,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(),
-                  style: ButtonStyle(
-                    // Sin el área de toque mínima de 48 px: la cabecera no crece con la papelera.
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    minimumSize: const WidgetStatePropertyAll(Size.zero),
-                    // Gris; rosa al presionar.
-                    foregroundColor: WidgetStateProperty.resolveWith(
-                      (states) => states.contains(WidgetState.pressed) || states.contains(WidgetState.hovered) ? t.accent : t.deleteIcon,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.checklist_rounded, size: 14, color: e.insigniaTexto),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            context.l10n.lineRenglonnum(renglonNum),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: e.insigniaTexto),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  onPressed: widget.onEliminar,
-                )
-              else
-                const SizedBox(width: 20, height: 20),
-            ],
+                ),
+                if (widget.canDelete)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    tooltip: context.l10n.deleteLine2,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    style: ButtonStyle(
+                      // Círculo de 32 px, sin el área de toque mínima de 48 px: la cabecera no crece.
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      minimumSize: const WidgetStatePropertyAll(Size(32, 32)),
+                      fixedSize: const WidgetStatePropertyAll(Size(32, 32)),
+                      shape: const WidgetStatePropertyAll(CircleBorder()),
+                      // Gris; rosa sobre rosa claro al presionar.
+                      foregroundColor: WidgetStateProperty.resolveWith((s) => activa(s) ? e.papeleraActiva : e.papelera),
+                      backgroundColor: WidgetStateProperty.resolveWith((s) => activa(s) ? e.papeleraActivaFondo : Colors.transparent),
+                      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+                    ),
+                    onPressed: widget.onEliminar,
+                  )
+                else
+                  const SizedBox(width: 32, height: 32),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           // Campo: Concepto del renglón
-          Text(context.l10n.lineConcept.toUpperCase(), style: t.innerLabelStyle),
-          const SizedBox(height: 4),
+          Text(context.l10n.lineConcept.toUpperCase(), style: e.etiquetaInterna),
+          const SizedBox(height: 6),
           Autocomplete<String>(
             initialValue: TextEditingValue(text: widget.renglon.concepto),
             optionsBuilder: (TextEditingValue textEditingValue) {
@@ -188,19 +198,20 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
               return EgresoFieldBox(
                 focusNode: focusNode,
                 inner: true,
+                stitch: true,
                 child: TextField(
                   controller: controller,
                   focusNode: focusNode,
                   textCapitalization: TextCapitalization.sentences,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: t.text),
+                  style: e.textoInterno(13, FontWeight.w600),
                   decoration: EgresoFieldBox.input(
                     inner: true,
                     hint: context.l10n.eGVegetablesMeatCleaning,
                     hintColor: t.hint,
-                    prefixIcon: Icon(Icons.sort_rounded, size: 16, color: t.icon),
+                    prefixIcon: Icon(Icons.notes_rounded, size: 16, color: e.iconoInterno),
                     suffixIcon: controller.text.isNotEmpty
                         ? IconButton(
-                            icon: Icon(Icons.clear, size: 16, color: t.icon),
+                            icon: Icon(Icons.clear, size: 16, color: e.iconoInterno),
                             onPressed: () {
                               controller.clear();
                               _conceptoController.clear();
@@ -208,12 +219,15 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                             },
                           )
                         : null,
+                  ).copyWith(
+                    hintStyle: TextStyle(color: t.hint, fontSize: 13, fontWeight: FontWeight.w500),
+                    contentPadding: const EdgeInsets.fromLTRB(0, 10, 12, 10),
                   ),
                 ),
               );
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // Fila: Monto y Categoría (dos columnas)
           Row(
@@ -223,27 +237,31 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(context.l10n.amount.toUpperCase(), style: t.innerLabelStyle),
-                    const SizedBox(height: 4),
+                    Text(context.l10n.amount.toUpperCase(), style: e.etiquetaInterna),
+                    const SizedBox(height: 6),
                     EgresoFieldBox(
                       focusNode: _montoFocusNode,
                       inner: true,
+                      stitch: true,
                       error: _montoInvalido,
                       child: TextField(
                         controller: _montoController,
                         focusNode: _montoFocusNode,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         onChanged: _onMontoChanged,
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: t.title),
+                        style: e.textoInterno(14, FontWeight.w800),
                         decoration: EgresoFieldBox.input(
                           inner: true,
                           hint: '0,00',
                           hintColor: t.hint,
                           prefixIcon: Padding(
                             padding: const EdgeInsets.only(left: 12, right: 6),
-                            child: Text('\$', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: t.icon)),
+                            child: Text('\$', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: e.iconoInterno)),
                           ),
-                        ).copyWith(prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0)),
+                        ).copyWith(
+                          prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                          contentPadding: const EdgeInsets.fromLTRB(0, 10, 12, 10),
+                        ),
                       ),
                     ),
                     if (_montoInvalido) ...[
@@ -258,22 +276,23 @@ class _RenglonGastoCardState extends State<RenglonGastoCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(context.l10n.category.toUpperCase(), style: t.innerLabelStyle),
-                    const SizedBox(height: 4),
+                    Text(context.l10n.category.toUpperCase(), style: e.etiquetaInterna),
+                    const SizedBox(height: 6),
                     EgresoFieldBox(
                       inner: true,
+                      stitch: true,
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 11, 8, 11),
+                        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<int>(
                             value: widget.renglon.categoriaId,
                             isExpanded: true,
                             isDense: true,
                             borderRadius: BorderRadius.circular(FormScreenTheme.innerRadius),
-                            icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: t.icon),
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: t.text),
+                            icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: e.iconoInterno),
+                            style: e.textoInterno(13, FontWeight.w600),
                             dropdownColor: t.surface,
-                            hint: Text(context.l10n.category, style: TextStyle(fontSize: 14, color: t.hint)),
+                            hint: Text(context.l10n.category, style: TextStyle(fontSize: 13, color: t.hint)),
                             items: widget.categorias.map((cat) {
                               return DropdownMenuItem<int>(
                                 value: cat.localId,
