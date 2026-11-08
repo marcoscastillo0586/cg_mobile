@@ -4,7 +4,6 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import '../../domain/entities/ticket_parse_result.dart';
 import '../../domain/services/ticket_reader.dart';
 import 'receipt_spatial_parser.dart';
-import 'ticket_row_merger.dart';
 
 class RecognizedLineData {
   final String text;
@@ -100,48 +99,5 @@ class MlKitTicketReader implements TicketReader {
       imagePaths: imagePaths,
       diagnosticLog: logBuffer.toString(),
     );
-  }
-
-  /// Ticket largo: las filas ya unidas pasan al parser existente como si fueran una sola captura.
-  /// El total es el IMPRESO (null si no se leyó), para que la verificación contra la suma de los
-  /// renglones no se compare consigo misma.
-  TicketParseResult longTicketResult(TicketMergeResult merged, List<String> partPaths) {
-    final spatial = ReceiptSpatialParser.parseFilasUnidas(merged.rows);
-    final log = StringBuffer()
-      ..writeln('[TICKET-LARGO] ${partPaths.length} partes, ${merged.rows.length} filas unidas')
-      ..writeAll([for (final j in merged.joins.skip(1)) '[TICKET-LARGO] Parte ${j.part}: ${j.status.name}, ${j.overlapRows} filas superpuestas\n'])
-      ..writeln('[TICKET-LARGO] Renglones: ${spatial.items.length}; total impreso: ${spatial.totalImpresoCents}');
-    debugPrint(log.toString());
-    return TicketParseResult(
-      readerName: 'mlkit_ticket_largo',
-      items: [for (final it in spatial.items) ParsedTicketItem(nombre: it.descripcion, precioCents: it.montoNeto)],
-      totalDetectadoCents: spatial.totalImpresoCents,
-      rawTexts: [merged.rows.map((r) => r.fullText).join('\n')],
-      imagePaths: partPaths,
-      diagnosticLog: log.toString(),
-    );
-  }
-
-  /// Ticket largo: lee cada parte POR SEPARADO (foto completa, sin unir imágenes) con el mismo
-  /// reconocedor y devuelve sus filas reconstruidas por posición ([ReceiptSpatialParser.filasDeFoto]),
-  /// en el orden de las partes. La unión de las partes es aparte.
-  Future<List<List<SpatialRow>>> readLongTicketParts(List<String> partPaths) async => [
-        for (final (i, path) in partPaths.indexed) await readLongTicketPart(path, i + 1),
-      ];
-
-  /// Una parte del ticket largo (se lee apenas se saca, para verificar enseguida si encadena).
-  Future<List<SpatialRow>> readLongTicketPart(String path, int partNumber) async {
-    final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
-    try {
-      final recognizedText = await textRecognizer.processImage(InputImage.fromFilePath(path));
-      final rows = ReceiptSpatialParser.filasDeFoto(recognizedText, partNumber);
-      debugPrint('[TICKET-LARGO] Parte #$partNumber: ${rows.length} filas');
-      for (final row in rows) {
-        debugPrint('[TICKET-LARGO]   [${row.index.toString().padLeft(2, '0')}] ${row.fullText}');
-      }
-      return rows;
-    } finally {
-      await textRecognizer.close();
-    }
   }
 }

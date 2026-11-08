@@ -1,8 +1,10 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../../core/money/money.dart';
 import '../../../core/network/dio_client.dart';
 import '../domain/entities/qr_ticket.dart';
+import '../domain/entities/ticket_parse_result.dart';
 
 final ticketsRepositoryProvider = Provider<TicketsRepository>((ref) => TicketsRepository(ref.watch(dioClientProvider)));
 
@@ -20,6 +22,50 @@ class TicketsRepository {
     final body = await _client.post('/tickets/confirm', data: c.toJson());
     if (body is! Map<String, dynamic> || body['headerId'] is! int) throw _bad('tickets/confirm');
     return (headerId: body['headerId'] as int, duplicate: body['duplicate'] == true);
+  }
+
+  /// Fotos de un ticket por pedido (el servidor rechaza más).
+  static const maxImages = 5;
+
+  /// Espera de la lectura por foto: mayor que el tiempo máximo que el servidor espera a Ollama
+  /// (`OLLAMA_TIMEOUT_MS`, hoy 180 s) más un margen. Solo esta llamada: los tiempos generales no cambian.
+  static const readImagesTimeout = Duration(seconds: 210);
+  static const readImagesSendTimeout = Duration(seconds: 120);
+
+  /// Ticket leído desde las capturas del escáner (`POST /tickets/read-images`, en orden) con IA en el
+  /// servidor. Devuelve lo mismo que la lectura en el celular, para la misma revisión y el mismo
+  /// guardado; la IA no confirma ni registra nada.
+  Future<TicketParseResult> readImages(List<String> imagePaths, {CancelToken? cancelToken}) async {
+    final form = FormData();
+    for (final (i, path) in imagePaths.indexed) {
+      form.files.add(MapEntry('images', await MultipartFile.fromFile(path, filename: 'parte${i + 1}.jpg', contentType: DioMediaType('image', 'jpeg'))));
+    }
+    final body = await _client.post(
+      '/tickets/read-images',
+      data: form,
+      options: Options(receiveTimeout: readImagesTimeout, sendTimeout: readImagesSendTimeout),
+      cancelToken: cancelToken,
+    );
+    return parseImageTicket(body, imagePaths);
+  }
+
+  /// `ImageTicketDto` → el mismo resultado que produce la lectura con ML Kit (renglones con su importe
+  /// neto y total impreso). Comercio, fecha y número no se usan, igual que en la lectura del celular.
+  static TicketParseResult parseImageTicket(Object? json, List<String> imagePaths) {
+    if (json is! Map<String, dynamic>) throw _bad('ticket');
+    final items = json['items'];
+    if (items is! List) throw _bad('ticket.items');
+    final total = json['totalPrintedCents'];
+    return TicketParseResult(
+      readerName: 'ollama',
+      items: [
+        for (final i in items.cast<Map<String, dynamic>>())
+          ParsedTicketItem(nombre: i['description'] as String? ?? '', precioCents: Money.centsFrom(i['netCents'], 'netCents')),
+      ],
+      totalDetectadoCents: total == null ? null : Money.centsFrom(total, 'totalPrintedCents'),
+      rawTexts: const [],
+      imagePaths: imagePaths,
+    );
   }
 
   /// Comprobante completo (`GET /movements/:id`, mismo formato que el pull, sin version/clientId).

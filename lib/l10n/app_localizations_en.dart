@@ -1815,122 +1815,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'All accounts of a limit must be in the same currency.';
 
   @override
-  String get longTicket => 'Long receipt';
+  String get scanRequiresConnection =>
+      'This feature requires a connection to the server to work.';
 
   @override
-  String get longTicketHint =>
-      'Photograph the receipt from top to bottom, in parts. Each photo must repeat at least 2 products from the end of the previous one: the app tells you right away if it chained.';
+  String get readingReceiptServer => 'Reading the receipt...';
 
   @override
-  String longTicketPartsCount(int count, int max) {
-    return '$count of $max parts';
-  }
+  String get readingReceiptServerHint =>
+      'Analyzing the scans. It may take a few minutes.';
 
   @override
-  String longTicketPart(int number) {
-    return 'Part $number';
-  }
-
-  @override
-  String get longTicketAddPart => 'Add part';
-
-  @override
-  String get longTicketAddFromGallery => 'Add from gallery';
-
-  @override
-  String get longTicketRedoLast => 'Redo last';
-
-  @override
-  String get longTicketFinish => 'Finish';
-
-  @override
-  String longTicketMaxParts(int max) {
-    return 'You reached the maximum of $max parts.';
-  }
-
-  @override
-  String get longTicketAlignHint =>
-      'Line up the top with the end of the previous part';
-
-  @override
-  String get longTicketTakePhoto => 'Take photo';
-
-  @override
-  String longTicketCameraError(Object error) {
-    return 'Could not use the camera: $error';
-  }
-
-  @override
-  String longTicketReadError(Object error) {
-    return 'Could not read the parts: $error';
-  }
-
-  @override
-  String longTicketPartNotChained(int number) {
-    return 'Part $number could not be chained to the previous one (not enough repeated lines). Redo it with more overlap.';
-  }
-
-  @override
-  String longTicketPartAmbiguous(int number) {
-    return 'Part $number matched the previous one in more than one place: it was joined at the best match. Check the lines.';
-  }
-
-  @override
-  String longTicketPartStart(int rows) {
-    return 'Start of the receipt ($rows rows read)';
-  }
-
-  @override
-  String get longTicketPartReading => 'Reading this part…';
-
-  @override
-  String longTicketPartChainedCodes(int rows) {
-    return '✓ Chained by codes ($rows repeated rows discarded)';
-  }
-
-  @override
-  String longTicketPartChainedText(int rows) {
-    return '✓ Chained by text ($rows repeated rows discarded)';
-  }
-
-  @override
-  String get longTicketPartAmbiguousShort =>
-      '⚠ Matches in more than one place: check the lines';
-
-  @override
-  String get longTicketPartNoChainShort =>
-      '✗ No repeated lines found with the previous part: redo it';
-
-  @override
-  String get longTicketPartPending =>
-      'Pending: the previous part has to chain first';
-
-  @override
-  String get longTicketPartReadFailed => '✗ Could not be read: redo it';
-
-  @override
-  String get longTicketSeeDetail => 'See details';
-
-  @override
-  String longTicketDetailTitle(int number) {
-    return 'Part $number: what the app read';
-  }
-
-  @override
-  String get longTicketDetailPrevEnd => 'End of the previous parts';
-
-  @override
-  String get longTicketDetailThisStart => 'Start of this part';
-
-  @override
-  String get longTicketDetailHint =>
-      'To chain, the start of this part must repeat at least 2 products (with their code) or 3 lines from the end of the previous one.';
-
-  @override
-  String get longTicketWaitReading => 'Wait until the parts finish reading.';
-
-  @override
-  String longTicketFixPart(int number) {
-    return 'Redo part $number before finishing.';
+  String receiptReadLines(int items) {
+    return 'Receipt read ($items lines)';
   }
 }

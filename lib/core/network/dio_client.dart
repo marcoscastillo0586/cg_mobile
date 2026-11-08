@@ -64,8 +64,8 @@ class DioClient {
   Future<dynamic> get(String path, {Map<String, dynamic>? queryParameters, Options? options}) =>
       _send(() => _dio.get<dynamic>(path, queryParameters: queryParameters, options: options));
 
-  Future<dynamic> post(String path, {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) =>
-      _send(() => _dio.post<dynamic>(path, data: data, queryParameters: queryParameters, options: options));
+  Future<dynamic> post(String path, {dynamic data, Map<String, dynamic>? queryParameters, Options? options, CancelToken? cancelToken}) =>
+      _send(() => _dio.post<dynamic>(path, data: data, queryParameters: queryParameters, options: options, cancelToken: cancelToken));
 
   Future<dynamic> put(String path, {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) =>
       _send(() => _dio.put<dynamic>(path, data: data, queryParameters: queryParameters, options: options));

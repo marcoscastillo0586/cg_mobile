@@ -1,14 +1,18 @@
 import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/server_reachability.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../domain/entities/ticket_parse_result.dart';
 import '../../data/services/mlkit_ticket_reader.dart';
-import 'long_ticket_capture_screen.dart';
+import '../../data/tickets_repository.dart';
 import 'qr_scanner_screen.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../../core/widgets/bottom_safe_area.dart';
@@ -25,6 +29,15 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
   final List<String> _imagePaths = [];
   bool _isProcessing = false;
 
+  /// Lectura de "Escanear" en curso en el servidor (null = ninguna). Permite cancelarla.
+  CancelToken? _lecturaServidor;
+
+  @override
+  void dispose() {
+    _lecturaServidor?.cancel();
+    super.dispose();
+  }
+
   Future<void> _abrirEscanearQr() async {
     final result = await Navigator.of(context).push<TicketParseResult>(
       MaterialPageRoute(
@@ -37,31 +50,24 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
     }
   }
 
-  /// Ticket largo: varias partes con superposición. Devuelve el ticket leído, igual que una sola foto.
-  Future<void> _abrirTicketLargo() async {
-    final result = await Navigator.of(context).push<TicketParseResult>(
-      MaterialPageRoute(builder: (_) => const LongTicketCaptureScreen()),
-    );
-    if (result != null && mounted) context.pop(result);
-  }
-
+  /// Escanear: escáner de Google (hasta [TicketsRepository.maxImages] capturas) y lectura con IA en el
+  /// servidor, que devuelve lo mismo que la lectura en el celular (misma revisión y mismo guardado).
+  /// Solo con conexión: sin ella, o si la lectura no está disponible, avisa y no hace nada más.
   Future<void> _escanearDocumentoConMlKit() async {
+    if (await _sinRed()) {
+      if (mounted) AppFeedback.showError(context, context.l10n.scanRequiresConnection);
+      return;
+    }
+    final List<String> images;
     try {
       final options = DocumentScannerOptions(
         documentFormat: DocumentFormat.jpeg,
         mode: ScannerMode.base,
-        pageLimit: 8,
+        pageLimit: TicketsRepository.maxImages,
       );
       final documentScanner = DocumentScanner(options: options);
       final result = await documentScanner.scanDocument();
-
-      if (result.images.isNotEmpty && mounted) {
-        AppFeedback.selection();
-        setState(() {
-          _imagePaths.addAll(result.images);
-        });
-        await _procesarTicketFinalizarCarga();
-      }
+      images = result.images;
     } catch (e) {
       debugPrint('Error o fallo en Google ML Kit Document Scanner: $e');
       if (mounted) {
@@ -71,6 +77,64 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
         );
         await _seleccionarDeGaleria();
       }
+      return;
+    }
+    if (images.isEmpty || !mounted) return;
+    AppFeedback.selection();
+    await _leerEnServidor(images);
+  }
+
+  /// Sin ninguna red (wifi, datos, ethernet). Si no se puede saber, se intenta igual.
+  Future<bool> _sinRed() async {
+    try {
+      final results = await Connectivity().checkConnectivity();
+      return results.every((r) => r == ConnectivityResult.none);
+    } catch (e) {
+      debugPrint('[TICKET] No se pudo consultar la red: $e');
+      return false;
+    }
+  }
+
+  Future<void> _leerEnServidor(List<String> images) async {
+    final token = CancelToken();
+    setState(() => _lecturaServidor = token);
+    AppFeedback.medium();
+    try {
+      final result = await ref.read(ticketsRepositoryProvider).readImages(images, cancelToken: token);
+      if (!mounted || token.isCancelled) return;
+      setState(() => _lecturaServidor = null);
+      if (result.items.isEmpty) {
+        _descartarCapturas(images);
+        AppFeedback.showError(context, context.l10n.noProductsWereDetectedReceipt);
+        return;
+      }
+      AppFeedback.showSuccess(context, context.l10n.receiptReadLines(result.items.length));
+      context.pop(result);
+    } catch (e) {
+      _descartarCapturas(images);
+      if (!mounted || token.isCancelled) return;
+      setState(() => _lecturaServidor = null);
+      debugPrint('[TICKET] Lectura en el servidor no disponible: $e');
+      // Sin conexión, servidor inalcanzable, Ollama caído o demorado: requiere conexión.
+      // Cualquier otro rechazo (p. ej. una foto inválida) muestra el motivo.
+      final motivo = e is ServerException && !ServerReachability.isOfflineError(e) ? e.message : null;
+      AppFeedback.showError(
+        context,
+        motivo == null ? context.l10n.scanRequiresConnection : context.l10n.couldNotReadReceipt(motivo),
+      );
+    }
+  }
+
+  void _cancelarLecturaServidor() {
+    AppFeedback.light();
+    _lecturaServidor?.cancel();
+    setState(() => _lecturaServidor = null);
+  }
+
+  /// Las capturas de una lectura que no siguió no se agregan a la lista: se borran.
+  void _descartarCapturas(List<String> images) {
+    for (final path in images) {
+      _limpiarArchivoTemporal(path);
     }
   }
 
@@ -199,6 +263,36 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
                     Text(
                       context.l10n.extractingProductsNetAmountsDiscounts,
                       style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : _lecturaServidor != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(strokeWidth: 3),
+                    const SizedBox(height: 20),
+                    Text(
+                      context.l10n.readingReceiptServer,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      context.l10n.readingReceiptServerHint,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 13),
+                    ),
+                    const SizedBox(height: 24),
+                    OutlinedButton.icon(
+                      key: const ValueKey('cancelar-lectura-servidor'),
+                      onPressed: _cancelarLecturaServidor,
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      label: Text(context.l10n.cancel),
                     ),
                   ],
                 ),
@@ -383,23 +477,6 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
                         icon: const Icon(Icons.photo_library_rounded, size: 18),
                         label: Text(
                           context.l10n.gallery,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      // Botón 4: Ticket largo (por partes, con superposición)
-                      OutlinedButton.icon(
-                        key: const ValueKey('ticket-largo'),
-                        onPressed: _abrirTicketLargo,
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 46),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: const Icon(Icons.view_day_rounded, size: 18),
-                        label: Text(
-                          context.l10n.longTicket,
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                         ),
                       ),

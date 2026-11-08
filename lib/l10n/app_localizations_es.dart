@@ -1827,123 +1827,18 @@ class AppLocalizationsEs extends AppLocalizations {
       'Todas las cuentas de un límite deben ser de la misma moneda.';
 
   @override
-  String get longTicket => 'Ticket largo';
+  String get scanRequiresConnection =>
+      'Esta función requiere conexión con el servidor para funcionar.';
 
   @override
-  String get longTicketHint =>
-      'Fotografiá el ticket de arriba hacia abajo, por partes. Cada foto tiene que repetir al menos 2 productos del final de la anterior: la app te avisa enseguida si encadenó.';
+  String get readingReceiptServer => 'Leyendo el ticket...';
 
   @override
-  String longTicketPartsCount(int count, int max) {
-    return '$count de $max partes';
-  }
+  String get readingReceiptServerHint =>
+      'Analizando las capturas. Puede tardar unos minutos.';
 
   @override
-  String longTicketPart(int number) {
-    return 'Parte $number';
-  }
-
-  @override
-  String get longTicketAddPart => 'Agregar parte';
-
-  @override
-  String get longTicketAddFromGallery => 'Agregar desde galería';
-
-  @override
-  String get longTicketRedoLast => 'Rehacer última';
-
-  @override
-  String get longTicketFinish => 'Terminar';
-
-  @override
-  String longTicketMaxParts(int max) {
-    return 'Llegaste al máximo de $max partes.';
-  }
-
-  @override
-  String get longTicketAlignHint =>
-      'Alineá el comienzo con el final de la parte anterior';
-
-  @override
-  String get longTicketTakePhoto => 'Sacar foto';
-
-  @override
-  String longTicketCameraError(Object error) {
-    return 'No se pudo usar la cámara: $error';
-  }
-
-  @override
-  String longTicketReadError(Object error) {
-    return 'No se pudieron leer las partes: $error';
-  }
-
-  @override
-  String longTicketPartNotChained(int number) {
-    return 'La parte $number no se pudo encadenar con la anterior (no repite líneas suficientes). Rehacela con más superposición.';
-  }
-
-  @override
-  String longTicketPartAmbiguous(int number) {
-    return 'La parte $number coincidía en más de un lugar con la anterior: se unió con la mejor coincidencia. Revisá los renglones.';
-  }
-
-  @override
-  String longTicketPartStart(int rows) {
-    return 'Inicio del ticket ($rows filas leídas)';
-  }
-
-  @override
-  String get longTicketPartReading => 'Leyendo esta parte…';
-
-  @override
-  String longTicketPartChainedCodes(int rows) {
-    return '✓ Encadenada por códigos ($rows filas repetidas descartadas)';
-  }
-
-  @override
-  String longTicketPartChainedText(int rows) {
-    return '✓ Encadenada por texto ($rows filas repetidas descartadas)';
-  }
-
-  @override
-  String get longTicketPartAmbiguousShort =>
-      '⚠ Coincide en más de un lugar: revisá los renglones';
-
-  @override
-  String get longTicketPartNoChainShort =>
-      '✗ No encontré líneas repetidas con la parte anterior: rehacela';
-
-  @override
-  String get longTicketPartPending =>
-      'Pendiente: primero tiene que encadenar la parte anterior';
-
-  @override
-  String get longTicketPartReadFailed => '✗ No se pudo leer: rehacela';
-
-  @override
-  String get longTicketSeeDetail => 'Ver detalle';
-
-  @override
-  String longTicketDetailTitle(int number) {
-    return 'Parte $number: lo que leyó la app';
-  }
-
-  @override
-  String get longTicketDetailPrevEnd => 'Final de lo anterior';
-
-  @override
-  String get longTicketDetailThisStart => 'Comienzo de esta parte';
-
-  @override
-  String get longTicketDetailHint =>
-      'Para encadenar, el comienzo de esta parte tiene que repetir al menos 2 productos (con su código) o 3 líneas del final de lo anterior.';
-
-  @override
-  String get longTicketWaitReading =>
-      'Esperá a que termine la lectura de las partes.';
-
-  @override
-  String longTicketFixPart(int number) {
-    return 'Rehacé la parte $number antes de terminar.';
+  String receiptReadLines(int items) {
+    return 'Ticket leído ($items renglones)';
   }
 }

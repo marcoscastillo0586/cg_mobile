@@ -3223,185 +3223,29 @@ abstract class AppLocalizations {
   /// **'Todas las cuentas de un límite deben ser de la misma moneda.'**
   String get budgetMixedCurrency;
 
-  /// No description provided for @longTicket.
+  /// No description provided for @scanRequiresConnection.
   ///
   /// In es, this message translates to:
-  /// **'Ticket largo'**
-  String get longTicket;
+  /// **'Esta función requiere conexión con el servidor para funcionar.'**
+  String get scanRequiresConnection;
 
-  /// No description provided for @longTicketHint.
+  /// No description provided for @readingReceiptServer.
   ///
   /// In es, this message translates to:
-  /// **'Fotografiá el ticket de arriba hacia abajo, por partes. Cada foto tiene que repetir al menos 2 productos del final de la anterior: la app te avisa enseguida si encadenó.'**
-  String get longTicketHint;
+  /// **'Leyendo el ticket...'**
+  String get readingReceiptServer;
 
-  /// No description provided for @longTicketPartsCount.
+  /// No description provided for @readingReceiptServerHint.
   ///
   /// In es, this message translates to:
-  /// **'{count} de {max} partes'**
-  String longTicketPartsCount(int count, int max);
+  /// **'Analizando las capturas. Puede tardar unos minutos.'**
+  String get readingReceiptServerHint;
 
-  /// No description provided for @longTicketPart.
+  /// No description provided for @receiptReadLines.
   ///
   /// In es, this message translates to:
-  /// **'Parte {number}'**
-  String longTicketPart(int number);
-
-  /// No description provided for @longTicketAddPart.
-  ///
-  /// In es, this message translates to:
-  /// **'Agregar parte'**
-  String get longTicketAddPart;
-
-  /// No description provided for @longTicketAddFromGallery.
-  ///
-  /// In es, this message translates to:
-  /// **'Agregar desde galería'**
-  String get longTicketAddFromGallery;
-
-  /// No description provided for @longTicketRedoLast.
-  ///
-  /// In es, this message translates to:
-  /// **'Rehacer última'**
-  String get longTicketRedoLast;
-
-  /// No description provided for @longTicketFinish.
-  ///
-  /// In es, this message translates to:
-  /// **'Terminar'**
-  String get longTicketFinish;
-
-  /// No description provided for @longTicketMaxParts.
-  ///
-  /// In es, this message translates to:
-  /// **'Llegaste al máximo de {max} partes.'**
-  String longTicketMaxParts(int max);
-
-  /// No description provided for @longTicketAlignHint.
-  ///
-  /// In es, this message translates to:
-  /// **'Alineá el comienzo con el final de la parte anterior'**
-  String get longTicketAlignHint;
-
-  /// No description provided for @longTicketTakePhoto.
-  ///
-  /// In es, this message translates to:
-  /// **'Sacar foto'**
-  String get longTicketTakePhoto;
-
-  /// No description provided for @longTicketCameraError.
-  ///
-  /// In es, this message translates to:
-  /// **'No se pudo usar la cámara: {error}'**
-  String longTicketCameraError(Object error);
-
-  /// No description provided for @longTicketReadError.
-  ///
-  /// In es, this message translates to:
-  /// **'No se pudieron leer las partes: {error}'**
-  String longTicketReadError(Object error);
-
-  /// No description provided for @longTicketPartNotChained.
-  ///
-  /// In es, this message translates to:
-  /// **'La parte {number} no se pudo encadenar con la anterior (no repite líneas suficientes). Rehacela con más superposición.'**
-  String longTicketPartNotChained(int number);
-
-  /// No description provided for @longTicketPartAmbiguous.
-  ///
-  /// In es, this message translates to:
-  /// **'La parte {number} coincidía en más de un lugar con la anterior: se unió con la mejor coincidencia. Revisá los renglones.'**
-  String longTicketPartAmbiguous(int number);
-
-  /// No description provided for @longTicketPartStart.
-  ///
-  /// In es, this message translates to:
-  /// **'Inicio del ticket ({rows} filas leídas)'**
-  String longTicketPartStart(int rows);
-
-  /// No description provided for @longTicketPartReading.
-  ///
-  /// In es, this message translates to:
-  /// **'Leyendo esta parte…'**
-  String get longTicketPartReading;
-
-  /// No description provided for @longTicketPartChainedCodes.
-  ///
-  /// In es, this message translates to:
-  /// **'✓ Encadenada por códigos ({rows} filas repetidas descartadas)'**
-  String longTicketPartChainedCodes(int rows);
-
-  /// No description provided for @longTicketPartChainedText.
-  ///
-  /// In es, this message translates to:
-  /// **'✓ Encadenada por texto ({rows} filas repetidas descartadas)'**
-  String longTicketPartChainedText(int rows);
-
-  /// No description provided for @longTicketPartAmbiguousShort.
-  ///
-  /// In es, this message translates to:
-  /// **'⚠ Coincide en más de un lugar: revisá los renglones'**
-  String get longTicketPartAmbiguousShort;
-
-  /// No description provided for @longTicketPartNoChainShort.
-  ///
-  /// In es, this message translates to:
-  /// **'✗ No encontré líneas repetidas con la parte anterior: rehacela'**
-  String get longTicketPartNoChainShort;
-
-  /// No description provided for @longTicketPartPending.
-  ///
-  /// In es, this message translates to:
-  /// **'Pendiente: primero tiene que encadenar la parte anterior'**
-  String get longTicketPartPending;
-
-  /// No description provided for @longTicketPartReadFailed.
-  ///
-  /// In es, this message translates to:
-  /// **'✗ No se pudo leer: rehacela'**
-  String get longTicketPartReadFailed;
-
-  /// No description provided for @longTicketSeeDetail.
-  ///
-  /// In es, this message translates to:
-  /// **'Ver detalle'**
-  String get longTicketSeeDetail;
-
-  /// No description provided for @longTicketDetailTitle.
-  ///
-  /// In es, this message translates to:
-  /// **'Parte {number}: lo que leyó la app'**
-  String longTicketDetailTitle(int number);
-
-  /// No description provided for @longTicketDetailPrevEnd.
-  ///
-  /// In es, this message translates to:
-  /// **'Final de lo anterior'**
-  String get longTicketDetailPrevEnd;
-
-  /// No description provided for @longTicketDetailThisStart.
-  ///
-  /// In es, this message translates to:
-  /// **'Comienzo de esta parte'**
-  String get longTicketDetailThisStart;
-
-  /// No description provided for @longTicketDetailHint.
-  ///
-  /// In es, this message translates to:
-  /// **'Para encadenar, el comienzo de esta parte tiene que repetir al menos 2 productos (con su código) o 3 líneas del final de lo anterior.'**
-  String get longTicketDetailHint;
-
-  /// No description provided for @longTicketWaitReading.
-  ///
-  /// In es, this message translates to:
-  /// **'Esperá a que termine la lectura de las partes.'**
-  String get longTicketWaitReading;
-
-  /// No description provided for @longTicketFixPart.
-  ///
-  /// In es, this message translates to:
-  /// **'Rehacé la parte {number} antes de terminar.'**
-  String longTicketFixPart(int number);
+  /// **'Ticket leído ({items} renglones)'**
+  String receiptReadLines(int items);
 }
 
 class _AppLocalizationsDelegate
