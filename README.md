@@ -54,9 +54,25 @@ Sin `API_BASE_URL`, el login muestra "La app no tiene configurada la dirección 
 Requiere `android/key.properties`. Para la API real en la PC de casa (HTTP, ver arriba):
 
 ```sh
-flutter build apk --release --split-per-abi --dart-define=API_BASE_URL=http://192.168.0.50:3000/api/v1
-# Celulares actuales: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk (~41 MB; el APK universal pesa ~110 MB)
+flutter build apk --release --target-platform android-arm64 --dart-define=API_BASE_URL=http://192.168.0.50:3000/api/v1
+# Celulares actuales: build/app/outputs/flutter-apk/app-release.apk (~70 MB; el APK universal pesa ~110 MB)
 ```
+
+### Actualizar los celulares sin reinstalar a mano
+
+`scripts\publish_apk.ps1` sube el build de `pubspec.yaml` (+1), arma el release (arm64, firmado con `key.properties`),
+lo copia a `C:\xampp\htdocs\downloads\cg-<build>.apk` y escribe `version.json`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\publish_apk.ps1 -Changelog "Qué cambió"
+```
+
+Al abrir el dashboard (solo release y conectado al wifi de casa), la app lee `http://<host de la API>/downloads/version.json`
+(`lib/core/update/`). Si `version_code` es mayor que el instalado, ofrece descargar e instalar; Android siempre pide
+tocar **Instalar** y la primera vez el permiso "Instalar apps desconocidas". Los datos se conservan si la firma es la misma.
+No usar `--split-per-abi`: cambia el `versionCode` (le suma 1000 × ABI; arm64 → +2000) y rompe la comparación.
+La 1.0.0 se instaló así (versionCode 2002), por eso el build de `pubspec.yaml` arranca en 2003: un número menor
+nunca se ofrece como actualización.
 
 Verificar la firma: `apksigner verify --print-certs <apk>` debe mostrar el certificado propio, no `CN=Android Debug`.
 Un APK firmado con otra clave no se instala encima del de debug: hay que desinstalar antes (se borran los

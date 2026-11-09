@@ -1831,6 +1831,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'Esta función requiere conexión con el servidor para funcionar.';
 
   @override
+  String get featureUnavailableOffline =>
+      'La función no se encuentra disponible sin conexión';
+
+  @override
   String get readingReceiptServer => 'Leyendo el ticket...';
 
   @override
@@ -1841,4 +1845,32 @@ class AppLocalizationsEs extends AppLocalizations {
   String receiptReadLines(int items) {
     return 'Ticket leído ($items renglones)';
   }
+
+  @override
+  String get updateAvailableTitle => 'Hay una actualización';
+
+  @override
+  String updateAvailableVersion(String version) {
+    return 'Versión $version disponible.';
+  }
+
+  @override
+  String get updateNow => 'Actualizar';
+
+  @override
+  String get updateLater => 'Más tarde';
+
+  @override
+  String get updateDownloading => 'Descargando la actualización...';
+
+  @override
+  String get updateDownloadFailed =>
+      'No se pudo descargar la actualización. Probá de nuevo conectado al wifi de casa.';
+
+  @override
+  String get updateNeedsPermission =>
+      'Permití \"Instalar apps desconocidas\" para esta app y volvé a tocar Actualizar.';
+
+  @override
+  String get updateInstallFailed => 'No se pudo abrir el instalador.';
 }

@@ -28,6 +28,7 @@ import '../../../dashboards/presentation/dashboards_notifier.dart';
 import '../../../../core/dashboards/current_dashboard.dart';
 import '../../../../core/dashboards/live_events.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/update/update_dialog.dart';
 import '../../../../core/widgets/bottom_safe_area.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -177,6 +178,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
       }
       if (!mounted) return;
       unawaited(ref.read(novedadesNotifierProvider.notifier).calcularNovedades());
+
+      // Versión nueva publicada en la PC de casa (no en el primer ingreso: está el diálogo inicial).
+      if (!settings.isFirstLaunch) unawaited(UpdatePrompt.checkOnce(context));
 
       // Crea o migra la base local al entrar; si no se puede abrir, se avisa.
       // Crea o migra la base local y descarga los cambios del servidor (pull).

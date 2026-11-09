@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Única carpeta compartida con el instalador del sistema: donde se descarga la actualización. -->
+<paths>
+    <cache-path name="updates" path="updates/" />
+</paths>

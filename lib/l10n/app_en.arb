@@ -521,7 +521,16 @@
   "mixedCurrencies": "Mixed currencies",
   "budgetMixedCurrency": "All accounts of a limit must be in the same currency.",
   "scanRequiresConnection": "This feature requires a connection to the server to work.",
+  "featureUnavailableOffline": "This feature is not available offline",
   "readingReceiptServer": "Reading the receipt...",
   "readingReceiptServerHint": "Analyzing the scans. It may take a few minutes.",
-  "receiptReadLines": "Receipt read ({items} lines)"
+  "receiptReadLines": "Receipt read ({items} lines)",
+  "updateAvailableTitle": "Update available",
+  "updateAvailableVersion": "Version {version} is available.",
+  "updateNow": "Update",
+  "updateLater": "Later",
+  "updateDownloading": "Downloading the update...",
+  "updateDownloadFailed": "Could not download the update. Try again on the home wifi.",
+  "updateNeedsPermission": "Allow \"Install unknown apps\" for this app and tap Update again.",
+  "updateInstallFailed": "Could not open the installer."
 }

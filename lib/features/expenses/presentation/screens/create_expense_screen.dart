@@ -15,6 +15,7 @@ import '../../../../core/widgets/bottom_safe_area.dart';
 import '../../../../core/widgets/account_picker.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
+import '../../data/tickets_repository.dart';
 import '../../domain/entities/ticket_parse_result.dart';
 import '../../../../core/network/server_reachability.dart';
 import '../providers/expense_form_notifier.dart';
@@ -85,8 +86,32 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
     }
   }
 
+  /// Verificando el servidor antes de abrir "Escanear ticket" (evita toques repetidos).
+  bool _verificandoServidor = false;
+
+  /// "Escanear ticket" solo funciona con el servidor (lectura con IA / QR): se verifica al tocar el
+  /// banner. Sin conexión se avisa y no se abre; queda la carga manual, que se guarda en el celular.
   void _abrirCapturaTicket(BuildContext context) async {
-    final result = await context.push<TicketParseResult>(AppRoutes.scanTicket);
+    if (_verificandoServidor) return;
+    setState(() => _verificandoServidor = true);
+    final disponible = await ref.read(ticketsRepositoryProvider).serverAvailable();
+    if (!mounted) return;
+    setState(() => _verificandoServidor = false);
+    if (!disponible) {
+      AppFeedback.selection();
+      await showDialog<void>(
+        context: this.context,
+        builder: (ctx) => AlertDialog(
+          key: const ValueKey('escanear-sin-conexion'),
+          icon: const Icon(Icons.cloud_off_rounded),
+          content: Text(ctx.l10n.featureUnavailableOffline, textAlign: TextAlign.center),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(MaterialLocalizations.of(ctx).okButtonLabel))],
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    final result = await this.context.push<TicketParseResult>(AppRoutes.scanTicket);
     if (result != null && mounted) {
       ref.read(expenseFormNotifierProvider.notifier).aplicarResultadoTicket(result);
       // Ticket QR: el concepto general sale del ticket (comercio + sucursal).
@@ -233,6 +258,7 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: lateral),
                   child: _EscanearBanner(
                     completo: state.isFormComplete,
+                    verificando: _verificandoServidor,
                     onTap: () => _abrirCapturaTicket(context),
                   ),
                 ),
@@ -672,8 +698,11 @@ class _Segmento extends StatelessWidget {
 /// ícono de cámara, "Escanear ticket" y botón blanco "Escanear". Todo el banner abre la captura.
 class _EscanearBanner extends StatelessWidget {
   final bool completo;
+
+  /// Se está verificando el servidor: el botón muestra una rueda en lugar del ícono.
+  final bool verificando;
   final VoidCallback onTap;
-  const _EscanearBanner({required this.completo, required this.onTap});
+  const _EscanearBanner({required this.completo, this.verificando = false, required this.onTap});
 
   /// Círculo blanco difuminado de fondo (decorativo).
   static Widget _mancha(double size, double sigma) => IgnorePointer(
@@ -745,7 +774,14 @@ class _EscanearBanner extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (!completo) ...[
+                            if (verificando) ...[
+                              SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: colorBoton),
+                              ),
+                              const SizedBox(width: 8),
+                            ] else if (!completo) ...[
                               Icon(Icons.qr_code_2_rounded, size: 16, color: colorBoton),
                               const SizedBox(width: 8),
                             ],

@@ -24,6 +24,20 @@ class TicketsRepository {
     return (headerId: body['headerId'] as int, duplicate: body['duplicate'] == true);
   }
 
+  /// El servidor responde ahora (`GET /health`, público). Se usa antes de abrir "Escanear ticket",
+  /// que solo funciona con conexión. Cualquier error cuenta como no disponible.
+  Future<bool> serverAvailable() async {
+    try {
+      await _client.get(
+        '/health',
+        options: Options(receiveTimeout: const Duration(seconds: 5), sendTimeout: const Duration(seconds: 5)),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Fotos de un ticket por pedido (el servidor rechaza más).
   static const maxImages = 5;
 

@@ -3229,6 +3229,12 @@ abstract class AppLocalizations {
   /// **'Esta función requiere conexión con el servidor para funcionar.'**
   String get scanRequiresConnection;
 
+  /// No description provided for @featureUnavailableOffline.
+  ///
+  /// In es, this message translates to:
+  /// **'La función no se encuentra disponible sin conexión'**
+  String get featureUnavailableOffline;
+
   /// No description provided for @readingReceiptServer.
   ///
   /// In es, this message translates to:
@@ -3246,6 +3252,54 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Ticket leído ({items} renglones)'**
   String receiptReadLines(int items);
+
+  /// No description provided for @updateAvailableTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Hay una actualización'**
+  String get updateAvailableTitle;
+
+  /// No description provided for @updateAvailableVersion.
+  ///
+  /// In es, this message translates to:
+  /// **'Versión {version} disponible.'**
+  String updateAvailableVersion(String version);
+
+  /// No description provided for @updateNow.
+  ///
+  /// In es, this message translates to:
+  /// **'Actualizar'**
+  String get updateNow;
+
+  /// No description provided for @updateLater.
+  ///
+  /// In es, this message translates to:
+  /// **'Más tarde'**
+  String get updateLater;
+
+  /// No description provided for @updateDownloading.
+  ///
+  /// In es, this message translates to:
+  /// **'Descargando la actualización...'**
+  String get updateDownloading;
+
+  /// No description provided for @updateDownloadFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo descargar la actualización. Probá de nuevo conectado al wifi de casa.'**
+  String get updateDownloadFailed;
+
+  /// No description provided for @updateNeedsPermission.
+  ///
+  /// In es, this message translates to:
+  /// **'Permití \"Instalar apps desconocidas\" para esta app y volvé a tocar Actualizar.'**
+  String get updateNeedsPermission;
+
+  /// No description provided for @updateInstallFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo abrir el instalador.'**
+  String get updateInstallFailed;
 }
 
 class _AppLocalizationsDelegate

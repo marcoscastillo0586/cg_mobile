@@ -1107,8 +1107,18 @@
   "mixedCurrencies": "Mezcla monedas",
   "budgetMixedCurrency": "Todas las cuentas de un límite deben ser de la misma moneda.",
   "scanRequiresConnection": "Esta función requiere conexión con el servidor para funcionar.",
+  "featureUnavailableOffline": "La función no se encuentra disponible sin conexión",
   "readingReceiptServer": "Leyendo el ticket...",
   "readingReceiptServerHint": "Analizando las capturas. Puede tardar unos minutos.",
   "receiptReadLines": "Ticket leído ({items} renglones)",
-  "@receiptReadLines": {"placeholders": {"items": {"type": "int"}}}
+  "@receiptReadLines": {"placeholders": {"items": {"type": "int"}}},
+  "updateAvailableTitle": "Hay una actualización",
+  "updateAvailableVersion": "Versión {version} disponible.",
+  "@updateAvailableVersion": {"placeholders": {"version": {"type": "String"}}},
+  "updateNow": "Actualizar",
+  "updateLater": "Más tarde",
+  "updateDownloading": "Descargando la actualización...",
+  "updateDownloadFailed": "No se pudo descargar la actualización. Probá de nuevo conectado al wifi de casa.",
+  "updateNeedsPermission": "Permití \"Instalar apps desconocidas\" para esta app y volvé a tocar Actualizar.",
+  "updateInstallFailed": "No se pudo abrir el instalador."
 }

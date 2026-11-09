@@ -1819,6 +1819,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'This feature requires a connection to the server to work.';
 
   @override
+  String get featureUnavailableOffline =>
+      'This feature is not available offline';
+
+  @override
   String get readingReceiptServer => 'Reading the receipt...';
 
   @override
@@ -1829,4 +1833,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String receiptReadLines(int items) {
     return 'Receipt read ($items lines)';
   }
+
+  @override
+  String get updateAvailableTitle => 'Update available';
+
+  @override
+  String updateAvailableVersion(String version) {
+    return 'Version $version is available.';
+  }
+
+  @override
+  String get updateNow => 'Update';
+
+  @override
+  String get updateLater => 'Later';
+
+  @override
+  String get updateDownloading => 'Downloading the update...';
+
+  @override
+  String get updateDownloadFailed =>
+      'Could not download the update. Try again on the home wifi.';
+
+  @override
+  String get updateNeedsPermission =>
+      'Allow \"Install unknown apps\" for this app and tap Update again.';
+
+  @override
+  String get updateInstallFailed => 'Could not open the installer.';
 }
