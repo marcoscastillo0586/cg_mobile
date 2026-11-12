@@ -2378,7 +2378,7 @@ abstract class AppLocalizations {
   /// No description provided for @accountsPaymentMethods.
   ///
   /// In es, this message translates to:
-  /// **'Cuentas y Medios de Pago'**
+  /// **'Cuentas'**
   String get accountsPaymentMethods;
 
   /// No description provided for @manageBanksWalletsCash.
@@ -2396,7 +2396,7 @@ abstract class AppLocalizations {
   /// No description provided for @budgetsSpendingCaps.
   ///
   /// In es, this message translates to:
-  /// **'Presupuestos y Topes de Gasto'**
+  /// **'Presupuestos'**
   String get budgetsSpendingCaps;
 
   /// No description provided for @monthlyLimitsAlertsOneTap.

@@ -47,28 +47,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Future<void> _confirmarCerrarSesion() async {
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.l10n.signOut),
-        content: Text(
-          context.l10n.allDataStoredPhoneWill,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(context.l10n.cancel)),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(context.l10n.signOut2, style: const TextStyle(color: AppColors.rose)),
-          ),
-        ],
-      ),
-    );
-    if (confirmado != true) return;
-    AppFeedback.medium();
-    await ref.read(authNotifierProvider.notifier).logout();
-  }
-
   @override
   Widget build(BuildContext context) {
     final settingsState = ref.watch(settingsProvider);
@@ -82,7 +60,100 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0).withBottomSafeArea(context),
         children: [
-          // 2. Sección: Idioma y Moneda por Defecto
+          // 1. Sección: Módulos de Gestión Administrativa
+          _buildSectionHeader(context.l10n.management),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            ),
+            child: Column(
+              children: [
+                _buildAdminTile(
+                  icon: Icons.dashboard_outlined,
+                  color: AppColors.primary,
+                  title: context.l10n.dashboards,
+                  subtitle: context.l10n.manageDashboards,
+                  onTap: () => context.push(AppRoutes.dashboardsAdmin),
+                ),
+                const Divider(height: 1),
+                _buildAdminTile(
+                  icon: Icons.account_balance_wallet_outlined,
+                  color: AppColors.emerald,
+                  title: context.l10n.accountsPaymentMethods,
+                  subtitle: context.l10n.manageBanksWalletsCash,
+                  onTap: () => context.push(AppRoutes.accountsAdmin),
+                ),
+                const Divider(height: 1),
+                _buildAdminTile(
+                  icon: Icons.category_outlined,
+                  color: AppColors.primary,
+                  title: context.l10n.categories2,
+                  subtitle: context.l10n.createRenameActivateExpenseCategories,
+                  onTap: () => context.push(AppRoutes.categoriesAdmin),
+                ),
+                const Divider(height: 1),
+                _buildAdminTile(
+                  icon: Icons.pie_chart_outline_rounded,
+                  color: AppColors.amber,
+                  title: context.l10n.budgetsSpendingCaps,
+                  subtitle: context.l10n.monthlyLimitsAlertsOneTap,
+                  onTap: () => context.push(AppRoutes.limitsAdmin),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // 2. Sección: Sesión
+          _buildSectionHeader(context.l10n.session),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  key: const ValueKey('editar-nombre'),
+                  leading: const Icon(Icons.person_outline_rounded),
+                  // Nombre para mostrar: lo ven los integrantes de un dashboard compartido.
+                  trailing: const Icon(Icons.edit_outlined, size: 18),
+                  onTap: () => _editDisplayName(authState.user?.nombreUsuario ?? ''),
+                  title: Text(authState.user?.nombreUsuario ?? ''),
+                  subtitle: Text(
+                    authState.offline
+                        ? '${authState.user?.email ?? ''} · ${context.l10n.offline}'
+                        : authState.user?.email ?? '',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Solo en debug: diagnóstico de la sesión (verificación de la etapa 1).
+          if (kDebugMode) ...[
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.bug_report_outlined),
+                title: Text(context.l10n.sessionDiagnosticsDebug),
+                subtitle: Text(_diagnostico ?? context.l10n.n2ParallelGetAuthMe, style: const TextStyle(fontSize: 12)),
+                onTap: _diagnosticarSesion,
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // 3. Sección: Idioma y Moneda por Defecto
           _buildSectionHeader(context.l10n.languageDefaultCurrency),
           Card(
             elevation: 0,
@@ -151,121 +222,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
-          // 1. Sección: Sesión
-          _buildSectionHeader(context.l10n.session),
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-            ),
-            child: Column(
-              children: [
-                ListTile(
-                  key: const ValueKey('editar-nombre'),
-                  leading: const Icon(Icons.person_outline_rounded),
-                  // Nombre para mostrar: lo ven los integrantes de un dashboard compartido.
-                  trailing: const Icon(Icons.edit_outlined, size: 18),
-                  onTap: () => _editDisplayName(authState.user?.nombreUsuario ?? ''),
-                  title: Text(authState.user?.nombreUsuario ?? ''),
-                  subtitle: Text(
-                    authState.offline
-                        ? '${authState.user?.email ?? ''} · ${context.l10n.offline}'
-                        : authState.user?.email ?? '',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.logout_rounded, color: AppColors.rose),
-                  title: Text(
-                    context.l10n.signOut2,
-                    style: const TextStyle(color: AppColors.rose, fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    context.l10n.deletesDataStoredPhoneSettings,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  onTap: () => _confirmarCerrarSesion(),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Solo en debug: diagnóstico de la sesión (verificación de la etapa 1).
-          if (kDebugMode) ...[
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-              ),
-              child: ListTile(
-                leading: const Icon(Icons.bug_report_outlined),
-                title: Text(context.l10n.sessionDiagnosticsDebug),
-                subtitle: Text(_diagnostico ?? context.l10n.n2ParallelGetAuthMe, style: const TextStyle(fontSize: 12)),
-                onTap: _diagnosticarSesion,
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-
-          // 4. Sección: Módulos de Administración
-          _buildSectionHeader(context.l10n.management),
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-            ),
-            child: Column(
-              children: [
-                _buildAdminTile(
-                  icon: Icons.dashboard_outlined,
-                  color: AppColors.primary,
-                  title: context.l10n.dashboards,
-                  subtitle: context.l10n.manageDashboards,
-                  onTap: () => context.push(AppRoutes.dashboardsAdmin),
-                ),
-                const Divider(height: 1),
-                _buildAdminTile(
-                  icon: Icons.account_balance_wallet_outlined,
-                  color: AppColors.emerald,
-                  title: context.l10n.accountsPaymentMethods,
-                  subtitle: context.l10n.manageBanksWalletsCash,
-                  onTap: () => context.push(AppRoutes.accountsAdmin),
-                ),
-                const Divider(height: 1),
-                _buildAdminTile(
-                  icon: Icons.category_outlined,
-                  color: AppColors.primary,
-                  title: context.l10n.categories,
-                  subtitle: context.l10n.createRenameActivateExpenseCategories,
-                  onTap: () => context.push(AppRoutes.categoriesAdmin),
-                ),
-                const Divider(height: 1),
-                _buildAdminTile(
-                  icon: Icons.pie_chart_outline_rounded,
-                  color: AppColors.amber,
-                  title: context.l10n.budgetsSpendingCaps,
-                  subtitle: context.l10n.monthlyLimitsAlertsOneTap,
-                  onTap: () => context.push(AppRoutes.limitsAdmin),
-                ),
-                const Divider(height: 1),
-                _buildAdminTile(
-                  icon: Icons.analytics_outlined,
-                  color: AppColors.rose,
-                  title: context.l10n.reportsPriceMonitor,
-                  subtitle: context.l10n.visualAnalyticsChartsInflationTrends,
-                  onTap: () => context.push(AppRoutes.analytics),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // 5. Sección: Apariencia Visual
+          // 4. Sección: Apariencia Visual
           _buildSectionHeader(context.l10n.appearanceTheme),
           Card(
             elevation: 0,

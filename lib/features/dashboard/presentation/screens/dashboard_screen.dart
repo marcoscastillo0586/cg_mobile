@@ -272,14 +272,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
             },
           ),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: context.l10n.refreshBalances,
-            onPressed: () {
-              AppFeedback.light();
-              _refresh();
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: context.l10n.settings,
             onPressed: () {

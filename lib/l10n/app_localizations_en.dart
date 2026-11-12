@@ -1301,7 +1301,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get management => 'Management';
 
   @override
-  String get accountsPaymentMethods => 'Accounts and Payment Methods';
+  String get accountsPaymentMethods => 'Accounts';
 
   @override
   String get manageBanksWalletsCash => 'Manage banks, wallets and cash';
@@ -1311,7 +1311,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Create, rename and activate expense categories';
 
   @override
-  String get budgetsSpendingCaps => 'Budgets and Spending Caps';
+  String get budgetsSpendingCaps => 'Budgets';
 
   @override
   String get monthlyLimitsAlertsOneTap =>

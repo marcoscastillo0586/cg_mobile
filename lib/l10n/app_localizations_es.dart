@@ -1311,7 +1311,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get management => 'Módulos de Gestión Administrativa';
 
   @override
-  String get accountsPaymentMethods => 'Cuentas y Medios de Pago';
+  String get accountsPaymentMethods => 'Cuentas';
 
   @override
   String get manageBanksWalletsCash =>
@@ -1322,7 +1322,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Crear, renombrar y activar categorías de gasto';
 
   @override
-  String get budgetsSpendingCaps => 'Presupuestos y Topes de Gasto';
+  String get budgetsSpendingCaps => 'Presupuestos';
 
   @override
   String get monthlyLimitsAlertsOneTap =>
