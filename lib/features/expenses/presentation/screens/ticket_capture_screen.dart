@@ -100,10 +100,10 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
     setState(() => _lecturaServidor = token);
     AppFeedback.medium();
     final started = DateTime.now();
-    debugPrint('[TICKET] >>> OLLAMA: enviando ${images.length} captura(s) al servidor (/tickets/read-images)');
+    debugPrint('[TICKET] >>> GEMINI: enviando ${images.length} captura(s) al servidor (/tickets/read-images)');
     try {
       final result = await ref.read(ticketsRepositoryProvider).readImages(images, cancelToken: token);
-      debugPrint('[TICKET] <<< OLLAMA: ${result.items.length} renglón(es) en ${DateTime.now().difference(started).inMilliseconds} ms');
+      debugPrint('[TICKET] <<< GEMINI: ${result.items.length} renglón(es) en ${DateTime.now().difference(started).inMilliseconds} ms');
       if (!mounted || token.isCancelled) return;
       setState(() => _lecturaServidor = null);
       if (result.items.isEmpty) {
@@ -118,7 +118,7 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
       if (!mounted || token.isCancelled) return;
       setState(() => _lecturaServidor = null);
       debugPrint('[TICKET] Lectura en el servidor no disponible: $e');
-      // Sin conexión, servidor inalcanzable, Ollama caído o demorado: requiere conexión.
+      // Sin conexión, servidor inalcanzable, Gemini caído o demorado: requiere conexión.
       // Cualquier otro rechazo (p. ej. una foto inválida) muestra el motivo.
       final motivo = e is ServerException && !ServerReachability.isOfflineError(e) ? e.message : null;
       AppFeedback.showError(

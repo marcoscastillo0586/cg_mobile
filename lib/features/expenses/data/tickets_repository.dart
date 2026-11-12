@@ -41,8 +41,8 @@ class TicketsRepository {
   /// Fotos de un ticket por pedido (el servidor rechaza más).
   static const maxImages = 5;
 
-  /// Espera de la lectura por foto: mayor que el tiempo máximo que el servidor espera a Ollama
-  /// (`OLLAMA_TIMEOUT_MS`, hoy 180 s) más un margen. Solo esta llamada: los tiempos generales no cambian.
+  /// Espera de la lectura por foto: mayor que el tiempo máximo que el servidor espera a Gemini
+  /// (`GEMINI_TICKET_TIMEOUT_MS`, hoy 180 s) más un margen. Solo esta llamada: los tiempos generales no cambian.
   static const readImagesTimeout = Duration(seconds: 210);
   static const readImagesSendTimeout = Duration(seconds: 120);
 
@@ -71,7 +71,7 @@ class TicketsRepository {
     if (items is! List) throw _bad('ticket.items');
     final total = json['totalPrintedCents'];
     return TicketParseResult(
-      readerName: 'ollama',
+      readerName: 'gemini',
       items: [
         for (final i in items.cast<Map<String, dynamic>>())
           ParsedTicketItem(nombre: i['description'] as String? ?? '', precioCents: Money.centsFrom(i['netCents'], 'netCents')),
