@@ -1,7 +1,7 @@
 name: gastos_mobile
 description: "Aplicación móvil nativa para el control y gestión de gastos y finanzas personales."
 publish_to: "none"
-version: 1.0.3+2004
+version: 1.0.3+2005
 environment:
   sdk: ">=3.2.0 <4.0.0"
 

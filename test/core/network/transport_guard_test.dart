@@ -1,9 +1,11 @@
-// HTTP solo hacia hosts permitidos (igual en debug y release); el resto exige HTTPS.
-import 'dart:typed_data';
+// HTTPS siempre; HTTP solo hacia hosts permitidos. La PC de casa (192.168.0.50) solo en debug: el
+// APK release no acepta HTTP hacia ningún host (los tests corren en debug).
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gastos_mobile/core/errors/exceptions.dart';
 import 'package:gastos_mobile/core/network/dio_client.dart';
+import 'package:gastos_mobile/core/network/transport_guard.dart';
 
 class _Ok implements HttpClientAdapter {
   final hosts = <String>[];
@@ -41,5 +43,16 @@ void main() {
     expect(await call('https://otro.host/api/v1', a), isNull);
     expect(await call('http://192.168.0.50:3000/api/v1', a), isNull);
     expect(a.hosts, ['otro.host', '192.168.0.50']);
+  });
+
+  test('producción (VPS) por HTTPS pasa', () async {
+    final a = _Ok();
+    expect(await call('https://controldegastos.codigo15.com.ar/api/v1', a), isNull);
+    expect(a.hosts, ['controldegastos.codigo15.com.ar']);
+  });
+
+  test('la PC de casa con HTTP solo figura en debug', () {
+    expect(kDebugMode, isTrue, reason: 'flutter test corre en debug');
+    expect(TransportGuard.httpAllowedHosts.contains(TransportGuard.devLanHost), kDebugMode);
   });
 }

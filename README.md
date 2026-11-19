@@ -22,19 +22,22 @@ flutter analyze
 flutter test
 ```
 
-La dirección de la API **no está en el código**: se fija al compilar.
+La dirección de la API **no está en el código**: se fija al compilar. **Producción es el VPS**
+(`https://controldegastos.codigo15.com.ar/api/v1`); la PC de casa (`192.168.0.50`) es solo para desarrollo y pruebas,
+con una base independiente.
 
 ```sh
+# Desarrollo contra la API de la PC (debug, HTTP permitido solo hacia 192.168.0.50)
 flutter run --dart-define=API_BASE_URL=http://192.168.0.50:3000/api/v1
 flutter build apk --debug --dart-define=API_BASE_URL=http://192.168.0.50:3000/api/v1
 ```
 
 Sin `API_BASE_URL`, el login muestra "La app no tiene configurada la dirección del servidor".
 
-- **HTTP**: solo hacia `192.168.0.50` (la PC de casa, IP fija), en debug y en release; cualquier otro host exige HTTPS
-  (`INSECURE_TRANSPORT`). Lo controla `TransportGuard` (`lib/core/network/transport_guard.dart`) en todas las peticiones:
-  el cliente HTTP de Dart **no** aplica `network_security_config` (verificado con un APK release). Sin HTTPS, la contraseña
-  y los datos viajan sin cifrar por el wifi de casa, y la app solo funciona conectada a esa red.
+- **HTTP**: solo en builds de **debug** y solo hacia `192.168.0.50` (la PC de casa, IP fija, para desarrollar contra la
+  API local). El APK **release** exige HTTPS hacia cualquier host (`INSECURE_TRANSPORT`); producción es el VPS
+  (`https://controldegastos.codigo15.com.ar/api/v1`). Lo controla `TransportGuard` (`lib/core/network/transport_guard.dart`) en todas las peticiones:
+  el cliente HTTP de Dart **no** aplica `network_security_config` (verificado con un APK release).
 - **Release**: R8 (minify y shrink, `android/app/proguard-rules.pro`) y sin logs (`debugPrint` vacío en release, `main.dart`).
 - **Permisos** del APK final: INTERNET, CAMERA (QR) y ACCESS_NETWORK_STATE (lo agrega `com.google.android.datatransport`, de ML Kit).
   La galería usa el selector del sistema y no pide permisos de medios. WorkManager agrega WAKE_LOCK y RECEIVE_BOOT_COMPLETED (sin diálogo);
@@ -42,8 +45,8 @@ Sin `API_BASE_URL`, el login muestra "La app no tiene configurada la dirección 
 - **Sincronización en segundo plano** (`lib/core/sync/background_sync.dart`, Android, sin avisos): una tarea única envía lo pendiente
   al haber red y una periódica de 15 minutos (el mínimo de Android) envía y descarga. Usan el mismo `SyncController` que el primer plano.
   Solo sincronizan el dashboard elegido. `sync_coordinator.dart` evita que la app y la tarea corran a la vez: se comparten la conexión
-  a SQLite y el refresh token, que el servidor revoca si se reutiliza. Como el servidor solo se alcanza desde el wifi de casa, con datos
-  móviles la tarea falla sin consecuencias y lo pendiente sube en el próximo intento con wifi.
+  a SQLite y el refresh token, que el servidor revoca si se reutiliza. Sin red la tarea falla sin consecuencias y lo pendiente
+  sube en el próximo intento.
 - **Idiomas**: español (plantilla) e inglés en `lib/l10n/app_*.arb` (`flutter gen-l10n`; se usa `context.l10n`). Las validaciones
   hechas en el celular usan `ValidationFailure.t((l) => l.clave)`; los errores de la API se traducen por código en `ErrorMessages`.
 - La firma de release lee `android/key.properties` (no versionado; el `.jks` vive fuera del repo). Sin ese archivo
@@ -51,23 +54,27 @@ Sin `API_BASE_URL`, el login muestra "La app no tiene configurada la dirección 
 
 ### APK para instalar (release)
 
-Requiere `android/key.properties`. Para la API real en la PC de casa (HTTP, ver arriba):
+Requiere `android/key.properties`. Para producción (VPS, HTTPS):
 
 ```sh
-flutter build apk --release --target-platform android-arm64 --dart-define=API_BASE_URL=http://192.168.0.50:3000/api/v1
+flutter build apk --release --target-platform android-arm64 --dart-define=API_BASE_URL=https://controldegastos.codigo15.com.ar/api/v1
 # Celulares actuales: build/app/outputs/flutter-apk/app-release.apk (~70 MB; el APK universal pesa ~110 MB)
 ```
 
 ### Actualizar los celulares sin reinstalar a mano
 
 `scripts\publish_apk.ps1` sube el build de `pubspec.yaml` (+1), arma el release (arm64, firmado con `key.properties`),
-lo copia a `C:\xampp\htdocs\downloads\cg-<build>.apk` y escribe `version.json`:
+lo copia a `-DownloadsDir` como `cg-<build>.apk` y escribe `version.json`. Para producción, después se suben los dos
+archivos a `/var/www/downloads/` del VPS (paso a paso en `docs/publicar-apk-vps.md`):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\publish_apk.ps1 -Changelog "Qué cambió"
+powershell -ExecutionPolicy Bypass -File scripts\publish_apk.ps1 -Changelog "Qué cambió" `
+  -ApiBaseUrl "https://controldegastos.codigo15.com.ar/api/v1" `
+  -DownloadsDir "C:\xampp\htdocs\cg_mobile\build\vps-downloads" `
+  -PublicBase "https://controldegastos.codigo15.com.ar/downloads"
 ```
 
-Al abrir el dashboard (solo release y conectado al wifi de casa), la app lee `http://<host de la API>/downloads/version.json`
+Al abrir el dashboard (solo release), la app lee `https://<host de la API>/downloads/version.json`
 (`lib/core/update/`). Si `version_code` es mayor que el instalado, ofrece descargar e instalar; Android siempre pide
 tocar **Instalar** y la primera vez el permiso "Instalar apps desconocidas". Los datos se conservan si la firma es la misma.
 No usar `--split-per-abi`: cambia el `versionCode` (le suma 1000 × ABI; arm64 → +2000) y rompe la comparación.
