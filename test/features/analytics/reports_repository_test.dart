@@ -6,7 +6,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gastos_mobile/core/errors/exceptions.dart';
 import 'package:gastos_mobile/core/network/dio_client.dart';
+import 'package:gastos_mobile/core/network/server_reachability.dart';
 import 'package:gastos_mobile/features/analytics/data/reports_repository.dart';
+import '../../helpers/local_seed.dart';
 
 class _FakeApi implements HttpClientAdapter {
   final Map<String, Object> responses;
@@ -143,4 +145,79 @@ void main() {
     });
     await expectLater(repo.getDaily(year: 2026, month: 10), throwsA(isA<ServerException>()));
   });
+
+  test('productos e historial de un producto: parámetros y parseo', () async {
+    final (repo, api) = _repo({
+      '/reports/products': [
+        {'concept': 'LECHE', 'plu': '001', 'purchases': 2, 'lastPriceCents': 6000, 'firstPriceCents': 5000, 'minPriceCents': 5000,
+         'maxPriceCents': 6000, 'variationPercent': 20, 'lastDate': '2026-10-20', 'firstDate': '2026-10-05', 'lastAccount': 'Banco'},
+      ],
+      '/reports/product-history': {
+        'concept': 'LECHE', 'purchases': 1, 'currentPriceCents': 6000, 'initialPriceCents': 6000, 'minPriceCents': 6000,
+        'maxPriceCents': 6000, 'increasePercent': 0,
+        'history': [{'headerId': 9, 'occurredAt': '2026-10-20 10:00:00', 'account': 'Banco', 'category': null, 'concept': 'Leche',
+                     'unitPriceCents': 6000, 'totalCents': 12000}],
+      },
+    });
+    final products = await repo.getProducts(search: ' lech ', limit: 5);
+    expect(api.requests.last.queryParameters, {'search': 'lech', 'limit': '5'});
+    expect((products.single.concepto, products.single.ultimoPrecioCents, products.single.variacionPorcentaje), ('LECHE', 6000, 20));
+    await repo.getProducts(search: '  ');
+    expect(api.requests.last.queryParameters, {'limit': '50'});
+    final h = await repo.getProductHistory(concept: 'Leche', plu: '');
+    expect(api.requests.last.queryParameters, {'concept': 'Leche'});
+    expect((h.cantidadCompras, h.historial.single.idMovimientoEnc, h.historial.single.montoTotalCents), (1, 9, 12000));
+    await repo.getProductHistory(plu: '001');
+    expect(api.requests.last.queryParameters, {'plu': '001'});
+  });
+
+  group('sin conexión: se calcula con la base del celular', () {
+    late SeededDb s;
+    setUp(() async => s = await seededDb());
+    tearDown(() async {
+      ServerReachability.markOnline();
+      await s.db.close();
+    });
+    (ReportsRepository, _FakeApi) offlineRepo(int status) {
+      final api = _FakeApi({});
+      final client = DioClient(adapter: _Status(api, status))..dio.options.baseUrl = 'http://api.fake/api/v1';
+      return (ReportsRepository(client, db: Future.value(s.db)), api);
+    }
+
+    test('servidor caído (5xx): usa la base local', () async {
+      final (repo, api) = offlineRepo(503);
+      final r = await repo.getCategoryReport(from: '2026-01-01', to: '2026-01-31');
+      expect(api.requests, hasLength(1));
+      expect(r.categorias, isEmpty); // los ingresos del seed no son egresos
+    });
+
+    test('sin conexión reciente: ni siquiera consulta al servidor', () async {
+      ServerReachability.markOffline();
+      final (repo, api) = offlineRepo(200);
+      await repo.getProducts();
+      expect(api.requests, isEmpty);
+    });
+
+    test('un error que no es de conexión (4xx) se informa aunque haya base local', () async {
+      final (repo, _) = offlineRepo(422);
+      await expectLater(repo.getProducts(), throwsA(isA<ServerException>()));
+    });
+  });
+}
+
+/// Responde siempre con [status] (y registra el pedido en [api]).
+class _Status implements HttpClientAdapter {
+  final _FakeApi api;
+  final int status;
+  _Status(this.api, this.status);
+
+  @override
+  Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? s, Future<void>? c) async {
+    api.requests.add(o.uri);
+    return ResponseBody.fromString(jsonEncode({'statusCode': status, 'code': 'X', 'message': 'x'}), status,
+        headers: {Headers.contentTypeHeader: [Headers.jsonContentType]});
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
