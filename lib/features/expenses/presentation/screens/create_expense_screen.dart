@@ -45,9 +45,11 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
   @override
   void initState() {
     super.initState();
-    // Se muestra enseguida con lo guardado; con conexión se actualiza al llegar lo del servidor.
-    ref.read(syncControllerProvider.notifier).refreshIfOnline().then((_) {
-      if (mounted) ref.read(expenseFormNotifierProvider.notifier).recargarCatalogo();
+    // Se muestra enseguida con lo guardado; con conexión se actualiza al llegar lo del servidor. Después del
+    // primer cuadro: cambiar un provider mientras se arma la pantalla no está permitido.
+    Future.microtask(() async {
+      await ref.read(syncControllerProvider.notifier).refreshIfOnline();
+      if (mounted) await ref.read(expenseFormNotifierProvider.notifier).recargarCatalogo();
     });
     _conceptoGeneralController.addListener(() {
       ref.read(expenseFormNotifierProvider.notifier).setConceptoGeneral(_conceptoGeneralController.text);
@@ -57,7 +59,7 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
     });
     final c = widget.correction;
     if (c != null) {
-      ref.read(expenseFormNotifierProvider.notifier).prefill(c).then((_) {
+      Future.microtask(() => ref.read(expenseFormNotifierProvider.notifier).prefill(c)).then((_) {
         if (mounted) _conceptoGeneralController.text = c.concept;
       });
     }

@@ -33,13 +33,15 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
   @override
   void initState() {
     super.initState();
-    // Se muestra enseguida con lo guardado; con conexión se actualiza al llegar lo del servidor.
-    ref.read(syncControllerProvider.notifier).refreshIfOnline().then((_) {
-      if (mounted) ref.read(transferFormNotifierProvider.notifier).recargarCuentas();
+    // Se muestra enseguida con lo guardado; con conexión se actualiza al llegar lo del servidor. Después del
+    // primer cuadro: cambiar un provider mientras se arma la pantalla no está permitido.
+    Future.microtask(() async {
+      await ref.read(syncControllerProvider.notifier).refreshIfOnline();
+      if (mounted) await ref.read(transferFormNotifierProvider.notifier).recargarCuentas();
     });
     final c = widget.correction;
     if (c != null) {
-      ref.read(transferFormNotifierProvider.notifier).prefill(c).then((_) {
+      Future.microtask(() => ref.read(transferFormNotifierProvider.notifier).prefill(c)).then((_) {
         if (!mounted) return;
         _montoController.text = Money.toApiDecimal(c.amountCents).replaceAll('.', ',');
         _conceptoController.text = c.concept;
