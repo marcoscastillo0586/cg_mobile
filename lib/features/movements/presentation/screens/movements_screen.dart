@@ -18,6 +18,13 @@ import '../../../auth/presentation/providers/auth_notifier.dart';
 import '../../../../core/widgets/bottom_safe_area.dart';
 import '../../../../core/widgets/load_error_view.dart';
 
+/// Terminó una sincronización que trajo movimientos nuevos o borrados: la lista se actualiza.
+@visibleForTesting
+bool trajoMovimientos(SyncState? prev, SyncState next) {
+  final pulled = next.lastResult;
+  return syncFinished(prev, next) && pulled != null && pulled.movementsApplied + pulled.deletedApplied > 0;
+}
+
 class MovementsScreen extends ConsumerStatefulWidget {
   final int? initialLugarId;
   final String? initialLugarNombre;
@@ -79,10 +86,7 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
     final notifier = ref.read(movementListNotifierProvider.notifier);
     // La sincronización automática trajo movimientos nuevos o borrados: se actualiza la lista.
     ref.listen<SyncState>(syncControllerProvider, (prev, next) {
-      final pulled = next.lastResult;
-      if (syncFinished(prev, next) && pulled != null && pulled.movementsApplied + pulled.deletedApplied > 0) {
-        notifier.cargarMovimientos(silencioso: true);
-      }
+      if (trajoMovimientos(prev, next)) notifier.cargarMovimientos(silencioso: true);
     });
 
     return Scaffold(
@@ -106,33 +110,8 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
               ),
             ),
           ),
-          if (state.hasFilters)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(children: [
-                if (state.nombreCuenta != null)
-                  InputChip(label: Text(state.nombreCuenta!), onDeleted: notifier.limpiarFiltroCuenta),
-                if (state.hayRango) ...[
-                  const SizedBox(width: 8),
-                  InputChip(
-                    label: Text('${AppDateUtils.formatDateString(state.desde)} – ${AppDateUtils.formatDateString(state.hasta)}'),
-                    onDeleted: notifier.limpiarFiltroFechas,
-                  ),
-                ],
-              ]),
-            ),
-          if (state.status == MovementListStatus.loaded || state.movimientos.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Text(
-                state.hasFilters
-                    ? '${state.total} ${context.l10n.results} · Total ${Money.format(state.filteredTotalCents)}'
-                    : (context.l10n.lastMovements(state.total)),
-                key: const ValueKey('movimientos-resumen'),
-                style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary, fontWeight: FontWeight.w600),
-              ),
-            ),
+          if (state.hasFilters) _Filtros(state: state, notifier: notifier),
+          if (state.status == MovementListStatus.loaded || state.movimientos.isNotEmpty) _Resumen(state: state),
           Expanded(child: _lista(state)),
         ],
       ),
@@ -189,4 +168,48 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
       ),
     );
   }
+}
+
+/// Filtros activos (cuenta, rango de fechas), cada uno con su cruz para quitarlo.
+class _Filtros extends StatelessWidget {
+  final MovementListState state;
+  final MovementListNotifier notifier;
+  const _Filtros({required this.state, required this.notifier});
+
+  @override
+  Widget build(BuildContext context) {
+    final cuenta = state.nombreCuenta;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(children: [
+        if (cuenta != null) InputChip(label: Text(cuenta), onDeleted: notifier.limpiarFiltroCuenta),
+        if (state.hayRango) ...[
+          const SizedBox(width: 8),
+          InputChip(
+            label: Text('${AppDateUtils.formatDateString(state.desde)} – ${AppDateUtils.formatDateString(state.hasta)}'),
+            onDeleted: notifier.limpiarFiltroFechas,
+          ),
+        ],
+      ]),
+    );
+  }
+}
+
+/// Con filtros, cuántos y su total; sin filtros, cuántos movimientos hay.
+class _Resumen extends StatelessWidget {
+  final MovementListState state;
+  const _Resumen({required this.state});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Text(
+          state.hasFilters
+              ? '${state.total} ${context.l10n.results} · Total ${Money.format(state.filteredTotalCents)}'
+              : context.l10n.lastMovements(state.total),
+          key: const ValueKey('movimientos-resumen'),
+          style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary, fontWeight: FontWeight.w600),
+        ),
+      );
 }
