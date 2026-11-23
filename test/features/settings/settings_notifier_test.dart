@@ -58,5 +58,42 @@ void main() {
       expect((notifier.state.defaultCurrency, notifier.state.isFirstLaunch), ('ARS', true));
     });
 
+    test('tema guardado: claro, oscuro; otro o nada, el del sistema', () {
+      expect(SettingsNotifier.themeFrom('light'), ThemeMode.light);
+      expect(SettingsNotifier.themeFrom('dark'), ThemeMode.dark);
+      expect(SettingsNotifier.themeFrom('system'), ThemeMode.system);
+      expect(SettingsNotifier.themeFrom(null), ThemeMode.system);
+    });
+
+    test('al iniciar lee tema e idioma guardados; idioma vacío deja el de por defecto', () async {
+      final storage = _Guardado(theme: 'dark', lang: 'en');
+      final n = SettingsNotifier(storage);
+      await n.listo;
+      expect((n.state.themeMode, n.state.language), (ThemeMode.dark, 'en'));
+      final vacio = SettingsNotifier(_Guardado(theme: null, lang: ''));
+      await vacio.listo;
+      expect((vacio.state.themeMode, vacio.state.language), (ThemeMode.system, 'es'));
+    });
+
+    test('ajustes ilegibles: quedan los de por defecto', () async {
+      final n = SettingsNotifier(_Guardado(theme: 'dark', lang: 'en', falla: true));
+      await n.listo;
+      expect((n.state.themeMode, n.state.language), (ThemeMode.system, 'es'));
+    });
+
   });
+}
+
+class _Guardado implements SecureStorageService {
+  final String? theme;
+  final String? lang;
+  final bool falla;
+  _Guardado({required this.theme, required this.lang, this.falla = false});
+
+  @override
+  Future<String?> getThemeMode() async => falla ? throw StateError('ilegible') : theme;
+  @override
+  Future<String?> getLanguage() async => lang;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

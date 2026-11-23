@@ -57,6 +57,10 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     'en': 'English',
   };
 
+  /// Tema guardado ('light' | 'dark' | otro o nada = el del sistema). Se guarda con [ThemeMode.name].
+  @visibleForTesting
+  static ThemeMode themeFrom(String? saved) => switch (saved) { 'light' => ThemeMode.light, 'dark' => ThemeMode.dark, _ => ThemeMode.system };
+
   /// Completa al terminar de leer los ajustes guardados.
   late final Future<void> listo;
 
@@ -67,21 +71,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   Future<void> inicializar() async {
     try {
-      final savedTheme = await _storageService.getThemeMode();
-      if (savedTheme != null) {
-        if (savedTheme == 'light') {
-          state = state.copyWith(themeMode: ThemeMode.light);
-        } else if (savedTheme == 'dark') {
-          state = state.copyWith(themeMode: ThemeMode.dark);
-        } else {
-          state = state.copyWith(themeMode: ThemeMode.system);
-        }
-      }
-
-      final savedLang = await _storageService.getLanguage();
-      if (savedLang != null && savedLang.isNotEmpty) {
-        state = state.copyWith(language: savedLang);
-      }
+      final theme = await _storageService.getThemeMode();
+      final lang = await _storageService.getLanguage();
+      state = state.copyWith(themeMode: themeFrom(theme), language: lang == null || lang.isEmpty ? null : lang);
     } catch (e) {
       // Ajustes ilegibles: se usan los valores por defecto y se registra el motivo.
       debugPrint('[AJUSTES] No se pudieron leer los ajustes guardados: $e');
@@ -131,9 +123,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   Future<void> cambiarThemeMode(ThemeMode mode) async {
     state = state.copyWith(themeMode: mode);
-    String modeStr = 'system';
-    if (mode == ThemeMode.light) modeStr = 'light';
-    if (mode == ThemeMode.dark) modeStr = 'dark';
-    await _storageService.saveThemeMode(modeStr);
+    await _storageService.saveThemeMode(mode.name);
   }
 }
