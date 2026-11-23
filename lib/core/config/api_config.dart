@@ -19,7 +19,11 @@ class ApiConfig {
     if (!isConfigured) {
       throw StateError('API_BASE_URL no está configurada (usar --dart-define).');
     }
-    final b = baseUrl.trim();
+    return withoutTrailingSlash(baseUrl);
+  }
+
+  static String withoutTrailingSlash(String url) {
+    final b = url.trim();
     return b.endsWith('/') ? b.substring(0, b.length - 1) : b;
   }
 }
