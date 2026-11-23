@@ -73,6 +73,40 @@ class FakeDashboardsRepository implements DashboardsRepository {
         pendingNotifications = pendingNotifications.where((n) => n.id != id).toList();
       });
 
+  /// Llamadas de gestión recibidas ("crear Casa", "invitar 3 a@b.c", ...).
+  final calls = <String>[];
+  List<DashboardMember> membersOf = const [];
+
+  @override
+  Future<Dashboard> create(String name) => _call(() {
+        calls.add('crear $name');
+        return Dashboard(id: 99, name: name, ownerUserId: 7, ownerName: 'Ana', principal: false, isOwner: true, membersCount: 1);
+      });
+  @override
+  Future<Dashboard> rename(int id, String name) => _call(() {
+        calls.add('renombrar $id $name');
+        return dashboards.firstWhere((d) => d.id == id);
+      });
+  @override
+  Future<void> invite(int id, String email) => _call(() => calls.add('invitar $id $email'));
+  @override
+  Future<List<DashboardMember>> members(int id) => _call(() => membersOf);
+  @override
+  Future<void> removeMember(int id, int userId) => _call(() => calls.add('quitar $id $userId'));
+  @override
+  Future<void> leave(int id) => _call(() => calls.add('salir $id'));
+  @override
+  Future<void> remove(int id) => _call(() => calls.add('eliminar $id'));
+  @override
+  Future<void> clear(int id) => _call(() => calls.add('limpiar $id'));
+  @override
+  Future<Dashboard> accept(int invitationId) => _call(() {
+        calls.add('aceptar $invitationId');
+        return dashboards.first;
+      });
+  @override
+  Future<void> reject(int invitationId) => _call(() => calls.add('rechazar $invitationId'));
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
