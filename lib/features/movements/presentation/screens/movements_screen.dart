@@ -16,6 +16,7 @@ import '../widgets/movement_card.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
 import '../../../../core/widgets/bottom_safe_area.dart';
+import '../../../../core/widgets/load_error_view.dart';
 
 class MovementsScreen extends ConsumerStatefulWidget {
   final int? initialLugarId;
@@ -142,24 +143,7 @@ class _MovementsScreenState extends ConsumerState<MovementsScreen> {
     if (state.isLoading && state.movimientos.isEmpty) return const MovementsSkeleton();
     final error = state.error;
     if (state.status == MovementListStatus.error && state.movimientos.isEmpty && error != null) {
-      final code = ErrorMessages.codeOf(error);
-      return ListView(children: [
-        const SizedBox(height: 60),
-        const Icon(Icons.cloud_off_rounded, size: 54, color: AppColors.rose),
-        const SizedBox(height: 12),
-        Text(
-          ErrorMessages.describe(error, context.l10n) + (code != null ? '\n($code)' : ''),
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-        Center(
-          child: ElevatedButton(
-            onPressed: ref.read(movementListNotifierProvider.notifier).cargarMovimientos,
-            child: Text(context.l10n.retry),
-          ),
-        ),
-      ]);
+      return LoadErrorView(error: error, onRetry: ref.read(movementListNotifierProvider.notifier).cargarMovimientos, top: 60);
     }
     if (state.movimientos.isEmpty) {
       return Center(child: Text(context.l10n.noMovements));

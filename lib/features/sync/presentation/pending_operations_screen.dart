@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/widgets/confirm_dialog.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/errors/error_messages.dart';
@@ -41,20 +42,12 @@ class PendingOperationsScreen extends ConsumerWidget {
     }
 
     Future<void> confirmDiscard(OutboxEntry e) async {
-      final yes = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(context.l10n.discard),
-          content: Text(e.status == 'conflict'
-              ? (context.l10n.serverVersionKeptChangeLost)
-              : (context.l10n.removedPhoneLocalBalanceReverted)),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.l10n.cancel)),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(context.l10n.discard2)),
-          ],
-        ),
-      );
-      if (yes == true && context.mounted) await run((r) => r.discard(e.seq), context.l10n.discarded);
+      final l10n = context.l10n;
+      final yes = await confirmar(context,
+          title: l10n.discard,
+          message: e.status == 'conflict' ? l10n.serverVersionKeptChangeLost : l10n.removedPhoneLocalBalanceReverted,
+          action: l10n.discard2);
+      if (yes && context.mounted) await run((r) => r.discard(e.seq), context.l10n.discarded);
     }
 
     Future<void> correct(OutboxEntry e) async {

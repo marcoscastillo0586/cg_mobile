@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
+import '../../../../core/widgets/load_error_view.dart';
 import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/errors/error_messages.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../../../../core/widgets/dialog_controllers.dart';
@@ -73,25 +74,7 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
     }
     if (state.status == LimitsAdminStatus.error && state.limits.isEmpty) {
       final error = state.error!;
-      final code = ErrorMessages.codeOf(error);
-      return ListView(children: [
-        const SizedBox(height: 80),
-        const Icon(Icons.cloud_off_rounded, size: 54, color: AppColors.rose),
-        const SizedBox(height: 12),
-        Text(
-          ErrorMessages.describe(error, context.l10n) + (code != null ? '\n($code)' : ''),
-          key: const ValueKey('presupuestos-error'),
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-        Center(
-          child: ElevatedButton(
-            onPressed: ref.read(limitsAdminNotifierProvider.notifier).cargarLimites,
-            child: Text(context.l10n.retry),
-          ),
-        ),
-      ]);
+      return LoadErrorView(error: error, onRetry: ref.read(limitsAdminNotifierProvider.notifier).cargarLimites);
     }
     final lista = state.limitsFiltrados;
     return ListView(
@@ -131,18 +114,7 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
         final error = await notifier.run((r) => r.renew(b.id));
         if (context.mounted) await reportLocalAction(context, ref, error, ok: context.l10n.budgetRenewed);
       case 'delete':
-        final ok = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(context.l10n.deleteBudget),
-            content: Text(b.title),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.l10n.cancel)),
-              TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(context.l10n.delete)),
-            ],
-          ),
-        );
-        if (ok != true) return;
+        if (!await confirmar(context, title: context.l10n.deleteBudget, message: b.title, action: context.l10n.delete)) return;
         final error = await notifier.run((r) => r.delete(b.id));
         if (context.mounted) await reportLocalAction(context, ref, error, ok: context.l10n.budgetDeleted);
     }

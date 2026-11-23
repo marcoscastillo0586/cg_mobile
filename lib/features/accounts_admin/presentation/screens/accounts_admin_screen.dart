@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/errors/error_messages.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/widgets/account_avatar.dart';
 import '../../../../core/widgets/account_icon_picker.dart';
@@ -17,6 +17,7 @@ import '../../../auth/presentation/providers/auth_notifier.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../../dashboards/presentation/dashboards_notifier.dart';
 import '../../../../core/widgets/bottom_safe_area.dart';
+import '../../../../core/widgets/load_error_view.dart';
 
 class AccountsAdminScreen extends ConsumerStatefulWidget {
   const AccountsAdminScreen({super.key});
@@ -96,26 +97,7 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
     }
     if (state.status == AccountsAdminStatus.error && state.cuentas.isEmpty) {
       final error = state.error!;
-      final code = ErrorMessages.codeOf(error);
-      return ListView(
-        children: [
-          const SizedBox(height: 80),
-          const Icon(Icons.cloud_off_rounded, size: 54, color: AppColors.rose),
-          const SizedBox(height: 12),
-          Text(
-            ErrorMessages.describe(error, context.l10n) + (code != null ? '\n($code)' : ''),
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 12),
-          Center(
-            child: ElevatedButton(
-              onPressed: ref.read(accountsAdminNotifierProvider.notifier).cargarCuentas,
-              child: Text(context.l10n.retry),
-            ),
-          ),
-        ],
-      );
+      return LoadErrorView(error: error, onRetry: ref.read(accountsAdminNotifierProvider.notifier).cargarCuentas);
     }
     final cuentas = state.cuentasFiltradas;
     if (cuentas.isEmpty) {
@@ -156,18 +138,8 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
                   : (context.l10n.accountActivated));
         }
       case 'delete':
-        final ok = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(context.l10n.deleteAccount),
-            content: Text(context.l10n.withoutMovementsDeletedMovementsDeactivated),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.l10n.cancel)),
-              TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(context.l10n.delete)),
-            ],
-          ),
-        );
-        if (ok != true) return;
+        final l10n = context.l10n;
+        if (!await confirmar(context, title: l10n.deleteAccount, message: l10n.withoutMovementsDeletedMovementsDeactivated, action: l10n.delete)) return;
         final error = await notifier.run((r) => r.delete(item.id));
         if (context.mounted) await reportLocalAction(context, ref, error, ok: context.l10n.accountDeleted);
     }

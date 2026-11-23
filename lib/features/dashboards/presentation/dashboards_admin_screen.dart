@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/dashboards/dashboard_switch.dart';
 import '../../../core/utils/app_feedback.dart';
 import '../../../l10n/l10n.dart';
@@ -55,20 +56,7 @@ class _DashboardsAdminScreenState extends ConsumerState<DashboardsAdminScreen> {
     }
   }
 
-  Future<bool> _confirm(String title, String message, String action) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.l10n.cancel)),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(action)),
-        ],
-      ),
-    );
-    return ok == true;
-  }
+  Future<bool> _confirm(String title, String message, String action) => confirmar(context, title: title, message: message, action: action);
 
   Future<void> _create() async {
     final name = _newName.text.trim();
