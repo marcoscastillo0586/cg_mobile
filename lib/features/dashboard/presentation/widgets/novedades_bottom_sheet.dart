@@ -24,39 +24,6 @@ class NovedadesBottomSheet extends ConsumerWidget {
     );
   }
 
-  String _obtenerTextoNovedad(NovedadEntity n, AppLocalizations l) {
-    switch (n.tipo) {
-      case NovedadTipo.cerca:
-        return l.limitNearTop(n.titulo, n.porcentaje);
-      case NovedadTipo.alcanzado:
-        return l.limitReached(n.titulo, n.porcentaje);
-      case NovedadTipo.vencido:
-        return l.limitHasFinishedExpired(n.titulo);
-    }
-  }
-
-  Color _obtenerColorTipo(NovedadTipo tipo) {
-    switch (tipo) {
-      case NovedadTipo.cerca:
-        return AppColors.amber;
-      case NovedadTipo.alcanzado:
-        return AppColors.rose;
-      case NovedadTipo.vencido:
-        return AppColors.primary;
-    }
-  }
-
-  IconData _obtenerIconoTipo(NovedadTipo tipo) {
-    switch (tipo) {
-      case NovedadTipo.cerca:
-        return Icons.warning_amber_rounded;
-      case NovedadTipo.alcanzado:
-        return Icons.error_outline_rounded;
-      case NovedadTipo.vencido:
-        return Icons.event_busy_rounded;
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(novedadesNotifierProvider);
@@ -142,86 +109,72 @@ class NovedadesBottomSheet extends ConsumerWidget {
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       if (index < avisos.length) return _AvisoTile(aviso: avisos[index]);
-                      final item = novedades[index - avisos.length];
-                      final color = _obtenerColorTipo(item.tipo);
-                      final icon = _obtenerIconoTipo(item.tipo);
-                      final texto = _obtenerTextoNovedad(item, context.l10n);
-
-                      return Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () {
-                            AppFeedback.light();
-                            ref
-                                .read(novedadesNotifierProvider.notifier)
-                                .marcarComoVista(item);
-
-                            // El router y la ruta se leen ANTES de cerrar el panel: el panel no es
-                            // una ruta de go_router (GoRouterState.of fallaba) y al cerrarlo su
-                            // contexto deja de servir para navegar.
-                            final router = GoRouter.of(context);
-                            final currentRoute = router.routerDelegate.currentConfiguration.uri.path;
-                            Navigator.of(context).pop();
-
-                            // Todas las novedades son de límites: se abre Límites y Presupuestos.
-                            if (currentRoute != AppRoutes.limitsAdmin) {
-                              router.push(AppRoutes.limitsAdmin);
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: item.vista
-                                  ? (isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.02))
-                                  : color.withValues(alpha: isDark ? 0.15 : 0.08),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: item.vista
-                                    ? Colors.transparent
-                                    : color.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: color.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(icon, color: color, size: 20),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        texto,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: item.vista ? FontWeight.normal : FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 18,
-                                  color: isDark ? Colors.white38 : Colors.black38,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
+                      return _NovedadTile(item: novedades[index - avisos.length]);
                     },
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Texto, color e ícono de cada tipo de novedad.
+(String, Color, IconData) _estilo(NovedadEntity n, AppLocalizations l) => switch (n.tipo) {
+      NovedadTipo.cerca => (l.limitNearTop(n.titulo, n.porcentaje), AppColors.amber, Icons.warning_amber_rounded),
+      NovedadTipo.alcanzado => (l.limitReached(n.titulo, n.porcentaje), AppColors.rose, Icons.error_outline_rounded),
+      NovedadTipo.vencido => (l.limitHasFinishedExpired(n.titulo), AppColors.primary, Icons.event_busy_rounded),
+    };
+
+/// Novedad de un límite: al tocarla se marca como vista y se abre Límites y Presupuestos.
+class _NovedadTile extends ConsumerWidget {
+  final NovedadEntity item;
+  const _NovedadTile({required this.item});
+
+  void _abrir(BuildContext context, WidgetRef ref) {
+    AppFeedback.light();
+    ref.read(novedadesNotifierProvider.notifier).marcarComoVista(item);
+    // El router y la ruta se leen ANTES de cerrar el panel: el panel no es una ruta de go_router
+    // (GoRouterState.of fallaba) y al cerrarlo su contexto deja de servir para navegar.
+    final router = GoRouter.of(context);
+    final currentRoute = router.routerDelegate.currentConfiguration.uri.path;
+    Navigator.of(context).pop();
+    if (currentRoute != AppRoutes.limitsAdmin) router.push(AppRoutes.limitsAdmin);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final (texto, color, icon) = _estilo(item, context.l10n);
+    final fondoVisto = isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.02);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _abrir(context, ref),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: item.vista ? fondoVisto : color.withValues(alpha: isDark ? 0.15 : 0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: item.vista ? Colors.transparent : color.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(texto, style: TextStyle(fontSize: 13, fontWeight: item.vista ? FontWeight.normal : FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right_rounded, size: 18, color: isDark ? Colors.white38 : Colors.black38),
+            ],
+          ),
+        ),
       ),
     );
   }
