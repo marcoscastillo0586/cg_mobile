@@ -2,30 +2,16 @@
 // quedan en la outbox; permisos de dueño e invitado en un dashboard compartido.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gastos_mobile/core/auth/session_scope.dart';
 import 'package:gastos_mobile/core/dashboards/current_dashboard.dart';
-import 'package:gastos_mobile/features/auth/data/repositories/auth_repository_impl.dart';
-import 'package:gastos_mobile/features/auth/domain/entities/user_entity.dart';
-import 'package:gastos_mobile/features/auth/domain/repositories/auth_repository.dart';
-import 'package:gastos_mobile/features/auth/presentation/providers/auth_state.dart';
 import 'package:gastos_mobile/features/categories_admin/data/local_categories_repository.dart';
 import 'package:gastos_mobile/features/categories_admin/domain/category_item.dart';
 import 'package:gastos_mobile/features/categories_admin/presentation/providers/categories_admin_state.dart';
 import 'package:gastos_mobile/features/categories_admin/presentation/screens/categories_admin_screen.dart';
-import 'package:gastos_mobile/features/dashboards/data/dashboards_repository.dart';
-import 'package:gastos_mobile/features/dashboards/domain/dashboard.dart';
-import 'package:gastos_mobile/features/dashboards/presentation/dashboards_notifier.dart';
 import 'package:gastos_mobile/l10n/app_localizations.dart';
+import '../../helpers/admin_env.dart';
 import '../../helpers/app_env.dart';
 import '../../helpers/local_seed.dart';
 import '../../helpers/screen.dart';
-
-class _Auth implements AuthRepository {
-  @override
-  Stream<Object> get onSessionExpired => const Stream.empty();
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
 
 CategoryItem _cat({bool active = true, bool reserved = false}) =>
     CategoryItem(id: 1, serverId: 1, name: 'X', active: active, role: reserved ? CategoryRole.transfer : null, movementsCount: 0, version: 1);
@@ -59,16 +45,9 @@ void main() {
   Future<void> abrir(WidgetTester tester, {bool owner = true}) async {
     s = (await tester.runAsync(seededDb))!;
     addTearDown(() => tester.runAsync(s.db.close));
-    final dash = Dashboard(id: 1, name: 'Casa', ownerUserId: owner ? 7 : 8, ownerName: 'Ana', principal: true, isOwner: owner, membersCount: 2);
-    final repo = FakeDashboardsRepository(dashboards: [dash]);
-    CurrentDashboard.id.value = 1;
     await pumpScreen(tester, const CategoriesAdminScreen(), settle: false, overrides: [
-      ...localAppOverrides(s, FakeServer()),
+      ...adminOverrides(s, owner: owner),
       localCategoriesRepositoryProvider.overrideWithValue(Future.value(LocalCategoriesRepository(s.db))),
-      authRepositoryProvider.overrideWithValue(_Auth()),
-      initialAuthStateProvider.overrideWithValue(AuthState.authenticated(const UserEntity(idUsuario: 7, nombreUsuario: 'Ana', email: 'a@x.com'))),
-      dashboardsRepositoryProvider.overrideWithValue(repo),
-      dashboardsNotifierProvider.overrideWith((_) => DashboardsNotifier(repo, 7)..state = DashboardsState(dashboards: [dash])),
     ]);
     await settleIo(tester, 10);
   }

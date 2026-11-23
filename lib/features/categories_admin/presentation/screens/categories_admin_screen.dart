@@ -10,8 +10,7 @@ import '../../domain/category_item.dart';
 import '../providers/categories_admin_notifier.dart';
 import '../providers/categories_admin_state.dart';
 import '../../../../l10n/l10n.dart';
-import '../../../auth/presentation/providers/auth_notifier.dart';
-import '../../../dashboards/presentation/dashboards_notifier.dart';
+import '../../../dashboards/presentation/dashboard_permissions.dart';
 import '../../../../core/widgets/bottom_safe_area.dart';
 import '../../../../core/widgets/load_error_view.dart';
 
@@ -111,18 +110,14 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (_, i) => _CategoryTile(
         item: lista[i],
-        canEdit: _canEdit(lista[i].createdByUserId),
-        isOwner: _isOwner(),
+        canEdit: canEditCreatedBy(ref, lista[i].createdByUserId),
+        isOwner: isDashboardOwner(ref),
         onAction: (a) => _accion(context, lista[i], a),
       ),
     );
   }
 
 
-  /// Dashboard compartido (docs/dashboards.md de CG): el dueño maneja todas; un invitado edita las que
-  /// creó y no elimina. Sin dato del servidor todavía = creada en este celular.
-  bool _isOwner() => ref.read(dashboardsNotifierProvider.notifier).current?.isOwner ?? true;
-  bool _canEdit(int? createdBy) => _isOwner() || createdBy == null || createdBy == ref.read(authNotifierProvider).user?.idUsuario;
   Future<void> _accion(BuildContext context, CategoryItem item, String accion) => switch (accion) {
         'edit' => _nombre(context, item),
         'toggle' => _alternar(context, item),

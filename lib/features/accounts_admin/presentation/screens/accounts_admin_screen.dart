@@ -6,16 +6,14 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/widgets/account_avatar.dart';
 import '../../../../core/widgets/account_icon_picker.dart';
-import '../../../../core/widgets/dialog_controllers.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
 import '../../data/local_accounts_repository.dart';
 import '../../domain/account_item.dart';
 import '../providers/accounts_admin_notifier.dart';
 import '../providers/accounts_admin_state.dart';
 import '../../../../l10n/l10n.dart';
-import '../../../auth/presentation/providers/auth_notifier.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
-import '../../../dashboards/presentation/dashboards_notifier.dart';
+import '../../../dashboards/presentation/dashboard_permissions.dart';
 import '../../../../core/widgets/bottom_safe_area.dart';
 import '../../../../core/widgets/load_error_view.dart';
 
@@ -112,105 +110,129 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) => _AccountTile(
         item: cuentas[i],
-        canEdit: _canEdit(cuentas[i].createdByUserId),
-        canDelete: _isOwner(),
+        canEdit: canEditCreatedBy(ref, cuentas[i].createdByUserId),
+        canDelete: isDashboardOwner(ref),
         onAction: (a) => _accion(context, cuentas[i], a),
       ),
     );
   }
 
-  /// Dashboard compartido (docs/dashboards.md de CG): el dueño maneja todas; un invitado edita las que
-  /// creó y no elimina. Sin dato del servidor todavía = creada en este celular.
-  bool _isOwner() => ref.read(dashboardsNotifierProvider.notifier).current?.isOwner ?? true;
-  bool _canEdit(int? createdBy) => _isOwner() || createdBy == null || createdBy == ref.read(authNotifierProvider).user?.idUsuario;
 
-  Future<void> _accion(BuildContext context, AccountItem item, String accion) async {
-    final notifier = ref.read(accountsAdminNotifierProvider.notifier);
-    switch (accion) {
-      case 'edit':
-        await _editar(context, item);
-      case 'toggle':
-        final error = await notifier.run((r) => r.setActive(item.id, !item.active));
-        if (context.mounted) {
-          await reportLocalAction(context, ref, error,
-              ok: item.active
-                  ? (context.l10n.accountDeactivated)
-                  : (context.l10n.accountActivated));
-        }
-      case 'delete':
-        final l10n = context.l10n;
-        if (!await confirmar(context, title: l10n.deleteAccount, message: l10n.withoutMovementsDeletedMovementsDeactivated, action: l10n.delete)) return;
-        final error = await notifier.run((r) => r.delete(item.id));
-        if (context.mounted) await reportLocalAction(context, ref, error, ok: context.l10n.accountDeleted);
-    }
+  Future<void> _accion(BuildContext context, AccountItem item, String accion) => switch (accion) {
+        'edit' => _editar(context, item),
+        'toggle' => _alternar(context, item),
+        _ => _eliminar(context, item),
+      };
+
+  Future<void> _ejecutar(BuildContext context, Future<Object?> Function(LocalAccountsRepository r) accion, String ok) async {
+    final error = await ref.read(accountsAdminNotifierProvider.notifier).run(accion);
+    if (context.mounted) await reportLocalAction(context, ref, error, ok: ok);
+  }
+
+  Future<void> _alternar(BuildContext context, AccountItem item) => _ejecutar(
+      context, (r) => r.setActive(item.id, !item.active), item.active ? context.l10n.accountDeactivated : context.l10n.accountActivated);
+
+  Future<void> _eliminar(BuildContext context, AccountItem item) async {
+    final l10n = context.l10n;
+    if (!await confirmar(context, title: l10n.deleteAccount, message: l10n.withoutMovementsDeletedMovementsDeactivated, action: l10n.delete)) return;
+    if (context.mounted) await _ejecutar(context, (r) => r.delete(item.id), l10n.accountDeleted);
   }
 
   /// Alta (item null) o edición de nombre, moneda e ícono.
   Future<void> _editar(BuildContext context, AccountItem? item) async {
     // Alta: se preselecciona la moneda principal.
-    var moneda = item?.currency ?? Currency.parse(ref.read(settingsProvider).defaultCurrency);
-    var icono = AccountIcons.normalize(item?.iconRef);
-    final texto = await showDialog<String>(
-      context: context,
-      builder: (ctx) => DialogControllers(
-        initial: [item?.name ?? ''],
-        builder: (ctx, c) => StatefulBuilder(
-          builder: (ctx, setLocal) => AlertDialog(
-            title: Text(item == null ? (context.l10n.newAccount) : (context.l10n.editAccount)),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    key: const ValueKey('cuenta-nombre'),
-                    controller: c[0],
-                    maxLength: accountNameMax,
-                    decoration: InputDecoration(labelText: context.l10n.name),
-                  ),
-                  DropdownButtonFormField<Currency>(
-                    initialValue: moneda,
-                    decoration: InputDecoration(labelText: context.l10n.currency),
-                    items: [for (final c in Currency.values) DropdownMenuItem(value: c, child: Text(c.code))],
-                    onChanged: item != null && item.movementsCount > 0 ? null : (v) => setLocal(() => moneda = v ?? moneda),
-                  ),
-                  if (item != null && item.movementsCount > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        context.l10n.currencyLockedAccountHasMovements,
-                        style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  Text(context.l10n.icon, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  AccountIconPicker(value: icono, onChanged: (k) => setLocal(() => icono = k)),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.l10n.cancel)),
-              TextButton(
-                  key: const ValueKey('cuenta-guardar'),
-                  onPressed: () => Navigator.pop(ctx, c[0].text),
-                  child: Text(context.l10n.save)),
-            ],
-          ),
-        ),
-      ),
+    final principal = Currency.parse(ref.read(settingsProvider).defaultCurrency);
+    final datos = await showDialog<_DatosCuenta>(context: context, builder: (_) => _CuentaDialog(item: item, monedaInicial: item?.currency ?? principal));
+    if (datos == null || !context.mounted) return;
+    final (:nombre, :moneda, :icono) = datos;
+    await _ejecutar(
+      context,
+      (r) => item == null
+          ? r.create(name: nombre, currency: moneda, iconRef: icono)
+          : r.update(item.id, name: nombre, currency: item.movementsCount > 0 ? null : moneda, iconRef: icono),
+      item == null ? context.l10n.accountCreated : context.l10n.accountUpdated,
     );
-    if (texto == null || !context.mounted) return;
-    final notifier = ref.read(accountsAdminNotifierProvider.notifier);
-    final error = await notifier.run((r) => item == null
-        ? r.create(name: texto, currency: moneda, iconRef: icono)
-        : r.update(item.id, name: texto, currency: item.movementsCount > 0 ? null : moneda, iconRef: icono));
-    if (context.mounted) {
-      await reportLocalAction(context, ref, error,
-          ok: item == null ? (context.l10n.accountCreated) : (context.l10n.accountUpdated));
-    }
   }
 }
+
+typedef _DatosCuenta = ({String nombre, Currency moneda, String icono});
+
+/// Nombre, moneda (fija si la cuenta ya tiene movimientos) e ícono de una cuenta.
+class _CuentaDialog extends StatefulWidget {
+  final AccountItem? item;
+  final Currency monedaInicial;
+  const _CuentaDialog({required this.item, required this.monedaInicial});
+
+  @override
+  State<_CuentaDialog> createState() => _CuentaDialogState();
+}
+
+class _CuentaDialogState extends State<_CuentaDialog> {
+  late final _nombre = TextEditingController(text: widget.item?.name ?? '');
+  late var _moneda = widget.monedaInicial;
+  late var _icono = AccountIcons.normalize(widget.item?.iconRef);
+
+  bool get _monedaFija => (widget.item?.movementsCount ?? 0) > 0;
+
+  @override
+  void dispose() {
+    _nombre.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(widget.item == null ? l10n.newAccount : l10n.editAccount),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              key: const ValueKey('cuenta-nombre'),
+              controller: _nombre,
+              maxLength: accountNameMax,
+              decoration: InputDecoration(labelText: l10n.name),
+            ),
+            DropdownButtonFormField<Currency>(
+              key: const ValueKey('cuenta-moneda'),
+              initialValue: _moneda,
+              decoration: InputDecoration(labelText: l10n.currency),
+              items: [for (final c in Currency.values) DropdownMenuItem(value: c, child: Text(c.code))],
+              onChanged: _monedaFija ? null : (v) => setState(() => _moneda = v ?? _moneda),
+            ),
+            if (_monedaFija)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(l10n.currencyLockedAccountHasMovements, style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary)),
+              ),
+            const SizedBox(height: 12),
+            Text(l10n.icon, style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            AccountIconPicker(value: _icono, onChanged: (k) => setState(() => _icono = k)),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+        TextButton(
+          key: const ValueKey('cuenta-guardar'),
+          onPressed: () => Navigator.pop(context, (nombre: _nombre.text, moneda: _moneda, icono: _icono)),
+          child: Text(l10n.save),
+        ),
+      ],
+    );
+  }
+}
+
+/// Acciones del menú de una cuenta: editar y activar/desactivar quien puede editarla; eliminar, el dueño.
+@visibleForTesting
+List<String> accionesCuenta({required bool canEdit, required bool canDelete}) => [
+      if (canEdit) ...['edit', 'toggle'],
+      if (canDelete) 'delete',
+    ];
 
 class _AccountTile extends StatelessWidget {
   final AccountItem item;
@@ -220,8 +242,15 @@ class _AccountTile extends StatelessWidget {
 
   const _AccountTile({required this.item, required this.onAction, this.canEdit = true, this.canDelete = true});
 
+  String _etiqueta(BuildContext context, String accion) => switch (accion) {
+        'edit' => context.l10n.edit,
+        'toggle' => item.active ? context.l10n.deactivate : context.l10n.activate,
+        _ => context.l10n.delete,
+      };
+
   @override
   Widget build(BuildContext context) {
+    final acciones = accionesCuenta(canEdit: canEdit, canDelete: canDelete);
     final color = item.currency == Currency.usd ? AppColors.emerald : AppColors.primary;
     return Opacity(
       opacity: item.active ? 1 : 0.6,
@@ -269,19 +298,11 @@ class _AccountTile extends StatelessWidget {
                   ),
                 ),
               ),
-              if (canEdit || canDelete)
+              if (acciones.isNotEmpty)
                 PopupMenuButton<String>(
                   key: ValueKey('menu-cuenta-${item.name}'),
                   onSelected: onAction,
-                  itemBuilder: (_) => [
-                    if (canEdit) PopupMenuItem(value: 'edit', child: Text(context.l10n.edit)),
-                    if (canEdit)
-                      PopupMenuItem(
-                        value: 'toggle',
-                        child: Text(item.active ? (context.l10n.deactivate) : (context.l10n.activate)),
-                      ),
-                    if (canDelete) PopupMenuItem(value: 'delete', child: Text(context.l10n.delete)),
-                  ],
+                  itemBuilder: (_) => [for (final a in acciones) PopupMenuItem(value: a, child: Text(_etiqueta(context, a)))],
                 ),
             ],
           ),
