@@ -139,38 +139,41 @@ class SyncController extends StateNotifier<SyncState> {
   Future<void> _run() async {
     state = state.copyWith(status: SyncStatus.syncing, clearError: true);
     try {
-      final db = await _ref.read(localDatabaseProvider);
-      final client = _ref.read(dioClientProvider);
-      var pushed = await PushService(db, client).push();
-      PullResult? pulled;
-      if (pushed.count('pending') == 0) {
-        pulled = await PullService(db, client).pull();
-        if (await _resolveConflicts(db) > 0) {
-          pushed = await PushService(db, client).push();
-          if (pushed.count('pending') == 0) {
-            // La descarga del servidor no incluye los últimos 2 s: se espera para traer lo reenviado.
-            await Future<void>.delayed(const Duration(milliseconds: 2100));
-            pulled = await PullService(db, client).pull();
-          }
-        }
-      }
+      final (pushed, pulled) = await _pushThenPull(await _ref.read(localDatabaseProvider), _ref.read(dioClientProvider));
       final c = await _counts();
       if (!mounted) return;
       if (!pushed.complete) debugPrint('[SYNC] Envío incompleto: ${pushed.issues.join(' | ')}');
       state = _withCounts(state.copyWith(status: statusAfter(pushed, pulled), lastPush: pushed, lastResult: pulled), c);
     } catch (e) {
       debugPrint('[SYNC] Falló la sincronización: $e');
-      try {
-        final c = await _counts();
-        if (mounted) state = _withCounts(state, c);
-      } catch (inner) {
-        debugPrint('[SYNC] Tampoco se pudo leer la base local: $inner');
-      }
-      if (!mounted) return;
-      state = ServerReachability.isOfflineError(e)
-          ? state.copyWith(status: SyncStatus.offline)
-          : state.copyWith(status: SyncStatus.error, error: e);
+      await _failed(e);
     }
+  }
+
+  /// Envía y, si no quedó nada pendiente, descarga. Si al descargar hubo conflictos que ganó el celular,
+  /// los reenvía y vuelve a descargar.
+  static Future<(PushResult, PullResult?)> _pushThenPull(Database db, DioClient client) async {
+    final pushed = await PushService(db, client).push();
+    if (pushed.count('pending') > 0) return (pushed, null);
+    final pulled = await PullService(db, client).pull();
+    if (await _resolveConflicts(db) == 0) return (pushed, pulled);
+    final resent = await PushService(db, client).push();
+    if (resent.count('pending') > 0) return (resent, pulled);
+    // La descarga del servidor no incluye los últimos 2 s: se espera para traer lo reenviado.
+    await Future<void>.delayed(const Duration(milliseconds: 2100));
+    return (resent, await PullService(db, client).pull());
+  }
+
+  /// Sin conexión (o error temporal) queda como "sin conexión", sin aviso; otro error se muestra.
+  Future<void> _failed(Object e) async {
+    try {
+      final c = await _counts();
+      if (mounted) state = _withCounts(state, c);
+    } catch (inner) {
+      debugPrint('[SYNC] Tampoco se pudo leer la base local: $inner');
+    }
+    if (!mounted) return;
+    state = ServerReachability.isOfflineError(e) ? state.copyWith(status: SyncStatus.offline) : state.copyWith(status: SyncStatus.error, error: e);
   }
 
   /// Estado al terminar: lo pendiente por error temporal es "sin conexión" (sin aviso); un rechazo pide
