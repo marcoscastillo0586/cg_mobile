@@ -316,7 +316,6 @@ class _ErrorCarga extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final code = ErrorMessages.codeOf(error);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -326,7 +325,7 @@ class _ErrorCarga extends ConsumerWidget {
             const Icon(Icons.cloud_off_rounded, size: 54, color: AppColors.rose),
             const SizedBox(height: 16),
             Text(
-              ErrorMessages.describe(error, context.l10n) + (code != null ? '\n($code)' : ''),
+              ErrorMessages.withCode(error, context.l10n, sep: '\n'),
               key: const ValueKey('dashboard-error'),
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),

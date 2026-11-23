@@ -465,7 +465,6 @@ class _ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final code = ErrorMessages.codeOf(error);
     return Container(
       key: const ValueKey('reporte-error'),
       margin: const EdgeInsets.only(bottom: 12),
@@ -475,7 +474,7 @@ class _ErrorBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.rose.withValues(alpha: 0.4)),
       ),
-      child: Text(ErrorMessages.describe(error, context.l10n) + (code != null ? ' ($code)' : ''), style: const TextStyle(fontWeight: FontWeight.w600)),
+      child: Text(ErrorMessages.withCode(error, context.l10n), style: const TextStyle(fontWeight: FontWeight.w600)),
     );
   }
 }

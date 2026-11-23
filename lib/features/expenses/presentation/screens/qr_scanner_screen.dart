@@ -25,9 +25,7 @@ String? primerCodigo(List<Barcode> barcodes) =>
 /// El servidor descarga y analiza el ticket: sin conexión no se puede leer; si no, el motivo con su código.
 @visibleForTesting
 String motivoFalloQr(Object e, AppLocalizations l) {
-  if (ServerReachability.isOfflineError(e)) return l.qrNeedsConnection;
-  final code = ErrorMessages.codeOf(e);
-  return ErrorMessages.describe(e, l) + (code != null ? ' ($code)' : '');
+  return ServerReachability.isOfflineError(e) ? l.qrNeedsConnection : ErrorMessages.withCode(e, l);
 }
 
 @visibleForTesting

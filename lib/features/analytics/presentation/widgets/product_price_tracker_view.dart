@@ -14,6 +14,29 @@ import '../../../../l10n/l10n.dart';
 import '../report_currency.dart';
 import '../../../../core/widgets/bottom_safe_area.dart';
 
+/// Variación con signo: "+12.5%", "-3.0%", "0.0%".
+@visibleForTesting
+String variacion(num porcentaje) => '${porcentaje > 0 ? '+' : ''}${porcentaje.toStringAsFixed(1)}%';
+
+/// Rojo si subió, verde si bajó; gris si no cambió (solo en la lista).
+Color _colorVariacion(num porcentaje, {Color igual = AppColors.emerald}) =>
+    porcentaje > 0 ? AppColors.rose : (porcentaje == 0 ? igual : AppColors.emerald);
+
+/// "2026-11-10 10:00:00" → "10/11" (eje del gráfico).
+@visibleForTesting
+String diaMes(String fechaHora) {
+  final f = fechaHora.split(' ').first;
+  final parts = f.split('-');
+  return parts.length == 3 ? '${parts[2]}/${parts[1]}' : f;
+}
+
+/// Mes anterior y mes actual: los períodos que compara el monitor de inflación.
+@visibleForTesting
+((DateTime, DateTime), (DateTime, DateTime)) periodosInflacion(DateTime now) => (
+      (DateTime(now.year, now.month - 1, 1), DateTime(now.year, now.month, 0)),
+      (DateTime(now.year, now.month, 1), DateTime(now.year, now.month + 1, 0)),
+    );
+
 class ProductPriceTrackerView extends ConsumerStatefulWidget {
   const ProductPriceTrackerView({super.key});
 
@@ -27,9 +50,7 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
-      unawaited(ref.read(analyticsNotifierProvider.notifier).cargarPreciosProductos());
-    });
+    Future.microtask(() => unawaited(ref.read(analyticsNotifierProvider.notifier).cargarPreciosProductos()));
   }
 
   @override
@@ -38,9 +59,9 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
     super.dispose();
   }
 
-  void _abrirHistorialProducto(ProductPriceItemEntity item) async {
+  void _abrirHistorial(ProductPriceItemEntity item) {
     AppFeedback.selection();
-    await showModalBottomSheet<void>(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -48,48 +69,43 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
     );
   }
 
-
-  void _abrirComparadorInflacion() {
+  void _abrirComparador() {
     AppFeedback.selection();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => const _InflationComparisonDialog(),
-    );
+    showDialog<void>(context: context, builder: (ctx) => const _InflationComparisonDialog());
   }
+
+  void _buscar(String texto) => ref.read(analyticsNotifierProvider.notifier).buscarPrecios(texto);
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(analyticsNotifierProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
+    final productos = state.productosPrecios;
     return Column(
       children: [
-        // Barra de Búsqueda y Botón de Comparador
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Row(
             children: [
               Expanded(
                 child: TextField(
+                  key: const ValueKey('buscar-precios'),
                   controller: _searchController,
                   decoration: InputDecoration(
                     hintText: context.l10n.searchItemPluCode,
                     prefixIcon: const Icon(Icons.search_rounded),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
+                    suffixIcon: _searchController.text.isEmpty
+                        ? null
+                        : IconButton(
                             icon: const Icon(Icons.clear, size: 18),
                             onPressed: () {
                               _searchController.clear();
-                              ref.read(analyticsNotifierProvider.notifier).buscarPrecios('');
+                              _buscar('');
                             },
-                          )
-                        : null,
+                          ),
                     contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onChanged: (val) {
-                    ref.read(analyticsNotifierProvider.notifier).buscarPrecios(val);
-                  },
+                  onChanged: _buscar,
                 ),
               ),
               const SizedBox(width: 8),
@@ -101,183 +117,163 @@ class _ProductPriceTrackerViewState extends ConsumerState<ProductPriceTrackerVie
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                onPressed: _abrirComparadorInflacion,
+                onPressed: _abrirComparador,
               ),
             ],
           ),
         ),
-
-        // Lista de Productos
         Expanded(
-          child: Builder(
-            builder: (context) {
-              if (state.isLoadingPrecios && state.productosPrecios.isEmpty) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (state.productosPrecios.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.inventory_2_outlined, size: 54, color: AppColors.lightTextSecondary),
-                      const SizedBox(height: 12),
-                      Text(
-                        context.l10n.noRecordedItemsFound,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        context.l10n.itemsRecordedWhenYouEnter,
-                        style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 13),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-
-              return ListView.separated(
+          child: switch ((state.isLoadingPrecios, productos.isEmpty)) {
+            (true, true) => const Center(child: CircularProgressIndicator()),
+            (false, true) => const _SinProductos(),
+            _ => ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0).withBottomSafeArea(context),
-                itemCount: state.productosPrecios.length,
+                itemCount: productos.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final item = state.productosPrecios[index];
-                  final haAumentado = item.variacionPorcentaje > 0;
-                  final esIgual = item.variacionPorcentaje == 0;
-                  final colorVar = esIgual
-                      ? AppColors.lightTextSecondary
-                      : (haAumentado ? AppColors.rose : AppColors.emerald);
-
-                  return Card(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: BorderSide(
-                        color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                      ),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => _abrirHistorialProducto(item),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14.0),
-                        child: Row(
-                          children: [
-                            // Icono representativo
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: (haAumentado ? AppColors.rose : AppColors.primary)
-                                    .withValues(alpha: isDark ? 0.2 : 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                Icons.shopping_basket_rounded,
-                                color: haAumentado ? AppColors.rose : AppColors.primary,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-
-                            // Nombre del Producto y compras
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.concepto,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        context.l10n.purchasesCount(item.totalCompras),
-                                        style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
-                                      ),
-                                      if (item.ultimoLugar.isNotEmpty) ...[
-                                        const Text(' • ', style: TextStyle(color: AppColors.lightTextSecondary)),
-                                        Expanded(
-                                          child: Text(
-                                            item.ultimoLugar,
-                                            style: const TextStyle(
-                                                fontSize: 12, color: AppColors.lightTextSecondary),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-
-                            // Precio Actual y Variación
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  Money.format(item.ultimoPrecioCents, currency: reportCurrency(context)),
-                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: colorVar.withValues(alpha: isDark ? 0.2 : 0.12),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        haAumentado
-                                            ? Icons.trending_up_rounded
-                                            : (esIgual
-                                                ? Icons.trending_flat_rounded
-                                                : Icons.trending_down_rounded),
-                                        size: 14,
-                                        color: colorVar,
-                                      ),
-                                      const SizedBox(width: 2),
-                                      Text(
-                                        '${haAumentado ? "+" : ""}${item.variacionPorcentaje.toStringAsFixed(1)}%',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: colorVar,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.chevron_right, size: 20, color: AppColors.lightTextSecondary),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
+                itemBuilder: (context, index) => _ProductoCard(item: productos[index], onTap: () => _abrirHistorial(productos[index])),
+              ),
+          },
         ),
       ],
     );
   }
 }
 
-/// Modal que muestra el gráfico de evolución cronológica de precios del producto
+class _SinProductos extends StatelessWidget {
+  const _SinProductos();
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.inventory_2_outlined, size: 54, color: AppColors.lightTextSecondary),
+            const SizedBox(height: 12),
+            Text(context.l10n.noRecordedItemsFound, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 6),
+            Text(
+              context.l10n.itemsRecordedWhenYouEnter,
+              style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+}
+
+/// Producto con compras, último lugar, último precio y variación.
+class _ProductoCard extends StatelessWidget {
+  final ProductPriceItemEntity item;
+  final VoidCallback onTap;
+  const _ProductoCard({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subio = item.haAumentado;
+    final acento = subio ? AppColors.rose : AppColors.primary;
+    const gris = TextStyle(fontSize: 12, color: AppColors.lightTextSecondary);
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14.0),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: acento.withValues(alpha: isDark ? 0.2 : 0.1), borderRadius: BorderRadius.circular(12)),
+                child: Icon(Icons.shopping_basket_rounded, color: acento, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.concepto, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 4),
+                    Text(
+                      [context.l10n.purchasesCount(item.totalCompras), if (item.ultimoLugar.isNotEmpty) item.ultimoLugar].join(' • '),
+                      style: gris,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(Money.format(item.ultimoPrecioCents, currency: reportCurrency(context)), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  _Variacion(porcentaje: item.variacionPorcentaje),
+                ],
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right, size: 20, color: AppColors.lightTextSecondary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Etiqueta de variación con flecha (sube / igual / baja).
+class _Variacion extends StatelessWidget {
+  final num porcentaje;
+  const _Variacion({required this.porcentaje});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = _colorVariacion(porcentaje, igual: AppColors.lightTextSecondary);
+    final icon = porcentaje > 0 ? Icons.trending_up_rounded : (porcentaje == 0 ? Icons.trending_flat_rounded : Icons.trending_down_rounded);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(color: color.withValues(alpha: isDark ? 0.2 : 0.12), borderRadius: BorderRadius.circular(6)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 2),
+          Text(variacion(porcentaje), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Consulta al repositorio con espera, error (motivo y código) o resultado.
+class _Consulta<T> extends StatelessWidget {
+  final AsyncSnapshot<T> snapshot;
+  final bool Function(T value) vacio;
+  final String textoVacio;
+  final Widget Function(T value) builder;
+  const _Consulta({required this.snapshot, required this.vacio, required this.textoVacio, required this.builder});
+
+  @override
+  Widget build(BuildContext context) {
+    final error = snapshot.error;
+    final data = snapshot.data;
+    Widget centrado(String texto) =>
+        Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(texto, textAlign: TextAlign.center)));
+    if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+    if (error != null) return centrado(ErrorMessages.withCode(error, context.l10n));
+    if (data == null || vacio(data)) return centrado(textoVacio);
+    return builder(data);
+  }
+}
+
+/// Historial de precios de un producto: indicadores, gráfico y compras.
 class _ProductPriceHistorySheet extends ConsumerStatefulWidget {
   final String concepto;
   final String? plu;
@@ -289,66 +285,38 @@ class _ProductPriceHistorySheet extends ConsumerStatefulWidget {
 }
 
 class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistorySheet> {
-  bool _isLoading = true;
-  ProductPriceHistoryEntity? _history;
-  Object? _error;
+  late final Future<ProductPriceHistoryEntity> _history;
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(() async {
-      final repository = ref.read(reportsRepositoryProvider);
-      try {
-        // Con PLU se agrupa el producto exacto; sin PLU, por concepto.
-        final res = await repository.getProductHistory(
-          concept: widget.plu == null ? widget.concepto : null,
-          plu: widget.plu,
-        );
-        if (mounted) {
-          setState(() {
-            _history = res;
-            _isLoading = false;
-          });
-        }
-      } catch (e) {
+    // Con PLU se agrupa el producto exacto; sin PLU, por concepto.
+    _history = ref.read(reportsRepositoryProvider).getProductHistory(concept: widget.plu == null ? widget.concepto : null, plu: widget.plu)
+      ..catchError((Object e) {
         debugPrint('[REPORTES] Historial de producto: $e');
-        if (mounted) {
-          setState(() {
-            _error = e;
-            _isLoading = false;
-          });
-        }
-      }
-    });
+        throw e;
+      }).ignore();
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-
       child: Column(
         children: [
-          // Barra de agarre
           Center(
             child: Container(
               margin: const EdgeInsets.only(top: 12, bottom: 8),
               width: 40,
               height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(2),
-              ),
+              decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2)),
             ),
           ),
-
-          // Título
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Row(
@@ -357,209 +325,144 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.concepto,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      Text(widget.concepto, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 2),
-                      Text(
-                        context.l10n.priceHistoryTrend,
-                        style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
-                      ),
+                      Text(context.l10n.priceHistoryTrend, style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
               ],
             ),
           ),
           const Divider(height: 1),
-
-          // Contenido
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            ErrorMessages.describe(_error!, context.l10n) +
-                                (ErrorMessages.codeOf(_error!) != null ? ' (${ErrorMessages.codeOf(_error!)})' : ''),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      )
-                    : _history == null || _history!.historial.isEmpty
-                    ? Center(child: Text(context.l10n.noHistoricalDataItem))
-                    : ListView(
-                        padding: const EdgeInsets.all(20).withBottomSafeArea(context),
-                        children: [
-                          // 4 Tarjetas de Métricas de Precio
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildKpiCard(
-                                  context.l10n.currentPrice,
-                                  Money.format(_history!.precioActualCents, currency: reportCurrency(context)),
-                                  AppColors.primary,
-                                  isDark,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _buildKpiCard(
-                                  context.l10n.totalChange,
-                                  '${_history!.aumentoPorcentaje > 0 ? "+" : ""}${_history!.aumentoPorcentaje.toStringAsFixed(1)}%',
-                                  _history!.aumentoPorcentaje > 0 ? AppColors.rose : AppColors.emerald,
-                                  isDark,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildKpiCard(
-                                  context.l10n.historicalLow,
-                                  Money.format(_history!.precioMinimoCents, currency: reportCurrency(context)),
-                                  AppColors.emerald,
-                                  isDark,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _buildKpiCard(
-                                  context.l10n.historicalHigh,
-                                  Money.format(_history!.precioMaximoCents, currency: reportCurrency(context)),
-                                  AppColors.rose,
-                                  isDark,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Gráfico de Tendencia de Precios
-                          if (_history!.historial.length >= 2) ...[
-                            Text(
-                              context.l10n.unitPriceTrend,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                            ),
-                            const SizedBox(height: 14),
-                            SizedBox(
-                              height: 180,
-                              child: LineChart(
-                                LineChartData(
-                                  gridData: FlGridData(
-                                    show: true,
-                                    drawVerticalLine: false,
-                                    getDrawingHorizontalLine: (value) => FlLine(
-                                      color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                                      strokeWidth: 1,
-                                    ),
-                                  ),
-                                  titlesData: FlTitlesData(
-                                    leftTitles: AxisTitles(
-                                      sideTitles: SideTitles(
-                                        showTitles: true,
-                                        reservedSize: 46,
-                                        getTitlesWidget: (val, meta) => Text(
-                                          '\$${val.toInt()}',
-                                          style: const TextStyle(fontSize: 10, color: AppColors.lightTextSecondary),
-                                        ),
-                                      ),
-                                    ),
-                                    bottomTitles: AxisTitles(
-                                      sideTitles: SideTitles(
-                                        showTitles: true,
-                                        reservedSize: 22,
-                                        getTitlesWidget: (val, meta) {
-                                          final idx = val.toInt();
-                                          if (idx < 0 || idx >= _history!.historial.length) {
-                                            return const SizedBox();
-                                          }
-                                          final f = _history!.historial[idx].fechaHora.split(' ').first;
-                                          final parts = f.split('-');
-                                          final label = parts.length == 3 ? '${parts[2]}/${parts[1]}' : f;
-                                          return Text(label, style: const TextStyle(fontSize: 9));
-                                        },
-                                      ),
-                                    ),
-                                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                  ),
-                                  borderData: FlBorderData(show: false),
-                                  lineBarsData: [
-                                    LineChartBarData(
-                                      spots: List.generate(_history!.historial.length, (i) {
-                                        // Solo geometría del gráfico (el texto se formatea desde centavos).
-                                        return FlSpot(i.toDouble(), _history!.historial[i].precioUnitarioCents / 100);
-                                      }),
-                                      isCurved: true,
-                                      color: AppColors.primary,
-                                      barWidth: 3,
-                                      dotData: const FlDotData(show: true),
-                                      belowBarData: BarAreaData(
-                                        show: true,
-                                        color: AppColors.primary.withValues(alpha: 0.15),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                          ],
-
-                          // Registro Cronológico de Compras
-                          Text(
-                            context.l10n.purchaseHistory,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                          ),
-                          const SizedBox(height: 10),
-                          ..._history!.historial.reversed.map((compra) {
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(
-                                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                                ),
-                              ),
-                              child: ListTile(
-                                dense: true,
-                                title: Text(
-                                  Money.format(compra.precioUnitarioCents, currency: reportCurrency(context)),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                ),
-                                subtitle: Text(
-                                  '${compra.fechaHora.split(' ').first} • ${compra.lugarNombre}',
-                                  style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
-                                ),
-                                trailing: Text(
-                                  'Total ${Money.format(compra.montoTotalCents, currency: reportCurrency(context))}',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                            );
-                          }),
-                        ],
-                      ),
+            child: FutureBuilder(
+              future: _history,
+              builder: (context, snapshot) => _Consulta(
+                snapshot: snapshot,
+                vacio: (h) => h.historial.isEmpty,
+                textoVacio: context.l10n.noHistoricalDataItem,
+                builder: (h) => _Historial(history: h),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildKpiCard(String title, String value, Color color, bool isDark) {
+class _Historial extends StatelessWidget {
+  final ProductPriceHistoryEntity history;
+  const _Historial({required this.history});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final currency = reportCurrency(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const titulo = TextStyle(fontWeight: FontWeight.bold, fontSize: 15);
+    Widget par(_Kpi a, _Kpi b) => Row(children: [Expanded(child: a), const SizedBox(width: 10), Expanded(child: b)]);
+    return ListView(
+      padding: const EdgeInsets.all(20).withBottomSafeArea(context),
+      children: [
+        par(
+          _Kpi(l10n.currentPrice, Money.format(history.precioActualCents, currency: currency), AppColors.primary),
+          _Kpi(l10n.totalChange, variacion(history.aumentoPorcentaje), _colorVariacion(history.aumentoPorcentaje)),
+        ),
+        const SizedBox(height: 10),
+        par(
+          _Kpi(l10n.historicalLow, Money.format(history.precioMinimoCents, currency: currency), AppColors.emerald),
+          _Kpi(l10n.historicalHigh, Money.format(history.precioMaximoCents, currency: currency), AppColors.rose),
+        ),
+        const SizedBox(height: 24),
+        if (history.historial.length >= 2) ...[
+          Text(l10n.unitPriceTrend, style: titulo),
+          const SizedBox(height: 14),
+          SizedBox(height: 180, child: _GraficoPrecios(compras: history.historial)),
+          const SizedBox(height: 24),
+        ],
+        Text(l10n.purchaseHistory, style: titulo),
+        const SizedBox(height: 10),
+        for (final compra in history.historial.reversed)
+          Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            ),
+            child: ListTile(
+              dense: true,
+              title: Text(Money.format(compra.precioUnitarioCents, currency: currency), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: Text('${compra.fechaHora.split(' ').first} • ${compra.lugarNombre}', style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
+              trailing: Text('Total ${Money.format(compra.montoTotalCents, currency: currency)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Precio unitario de cada compra, en orden.
+class _GraficoPrecios extends StatelessWidget {
+  final List<ProductPurchaseHistoryItemEntity> compras;
+  const _GraficoPrecios({required this.compras});
+
+  Widget _fecha(double val, TitleMeta meta) {
+    final idx = val.toInt();
+    return idx < 0 || idx >= compras.length ? const SizedBox() : Text(diaMes(compras[idx].fechaHora), style: const TextStyle(fontSize: 9));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) => FlLine(color: isDark ? AppColors.darkBorder : AppColors.lightBorder, strokeWidth: 1),
+        ),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 46,
+              getTitlesWidget: (val, meta) => Text('\$${val.toInt()}', style: const TextStyle(fontSize: 10, color: AppColors.lightTextSecondary)),
+            ),
+          ),
+          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 22, getTitlesWidget: _fecha)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          LineChartBarData(
+            // Solo geometría del gráfico (el texto se formatea desde centavos).
+            spots: [for (final (i, c) in compras.indexed) FlSpot(i.toDouble(), c.precioUnitarioCents / 100)],
+            isCurved: true,
+            color: AppColors.primary,
+            barWidth: 3,
+            dotData: const FlDotData(show: true),
+            belowBarData: BarAreaData(show: true, color: AppColors.primary.withValues(alpha: 0.15)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Kpi extends StatelessWidget {
+  final String title;
+  final String value;
+  final Color color;
+  const _Kpi(this.title, this.value, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -579,7 +482,7 @@ class _ProductPriceHistorySheetState extends ConsumerState<_ProductPriceHistoryS
   }
 }
 
-/// Diálogo interactivo para comparar inflación entre 2 períodos
+/// Monitor de inflación: los mismos productos comprados el mes anterior y este mes.
 class _InflationComparisonDialog extends ConsumerStatefulWidget {
   const _InflationComparisonDialog();
 
@@ -588,66 +491,24 @@ class _InflationComparisonDialog extends ConsumerStatefulWidget {
 }
 
 class _InflationComparisonDialogState extends ConsumerState<_InflationComparisonDialog> {
-  late DateTime _desde1;
-  late DateTime _hasta1;
-  late DateTime _desde2;
-  late DateTime _hasta2;
-
-  bool _isComparing = false;
-  Object? _compareError;
-  PriceComparisonResultEntity? _result;
+  late final Future<PriceComparisonResultEntity> _result;
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    // Periodo 1: Mes anterior
-    final prevMonth = DateTime(now.year, now.month - 1, 1);
-    _desde1 = DateTime(prevMonth.year, prevMonth.month, 1);
-    _hasta1 = DateTime(prevMonth.year, prevMonth.month + 1, 0);
-
-    // Periodo 2: Mes actual
-    _desde2 = DateTime(now.year, now.month, 1);
-    _hasta2 = DateTime(now.year, now.month + 1, 0);
-
-    Future.microtask(_ejecutarComparativa);
-  }
-
-  Future<void> _ejecutarComparativa() async {
-    setState(() {
-      _isComparing = true;
-      _compareError = null;
-    });
     final fmt = DateFormat('yyyy-MM-dd');
-    try {
-      final repository = ref.read(reportsRepositoryProvider);
-      final res = await repository.compareProducts(
-        from1: fmt.format(_desde1),
-        to1: fmt.format(_hasta1),
-        from2: fmt.format(_desde2),
-        to2: fmt.format(_hasta2),
-      );
-      if (mounted) {
-        setState(() {
-          _result = res;
-          _isComparing = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('[REPORTES] Comparativa de precios: $e');
-      if (mounted) {
-        setState(() {
-          _compareError = e;
-          _isComparing = false;
-        });
-      }
-    }
+    final ((desde1, hasta1), (desde2, hasta2)) = periodosInflacion(DateTime.now());
+    _result = ref
+        .read(reportsRepositoryProvider)
+        .compareProducts(from1: fmt.format(desde1), to1: fmt.format(hasta1), from2: fmt.format(desde2), to2: fmt.format(hasta2))
+      ..catchError((Object e) {
+        debugPrint('[REPORTES] Comparativa de precios: $e');
+        throw e;
+      }).ignore();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -655,23 +516,18 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
         constraints: const BoxConstraints(maxWidth: 500, maxHeight: 650),
         child: Column(
           children: [
-            // Cabecera
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
-                  const CircleAvatar(
-                    backgroundColor: AppColors.primary,
-                    child: Icon(Icons.compare_arrows_rounded, color: Colors.white),
-                  ),
+                  const CircleAvatar(backgroundColor: AppColors.primary, child: Icon(Icons.compare_arrows_rounded, color: Colors.white)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(context.l10n.inflationMonitor, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        Text(context.l10n.comparisonIdenticalItemsPurchased,
-                            style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
+                        Text(context.l10n.comparisonIdenticalItemsPurchased, style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
                       ],
                     ),
                   ),
@@ -680,149 +536,103 @@ class _InflationComparisonDialogState extends ConsumerState<_InflationComparison
               ),
             ),
             const Divider(height: 1),
-
-            // Resultado
             Expanded(
-              child: _isComparing
-                  ? const Center(child: CircularProgressIndicator())
-                  : _compareError != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(
-                              ErrorMessages.describe(_compareError!, context.l10n) +
-                                  (ErrorMessages.codeOf(_compareError!) != null ? ' (${ErrorMessages.codeOf(_compareError!)})' : ''),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        )
-                  : _result == null || _result!.comparativa.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Text(
-                              context.l10n.noIdenticalItemsWerePurchased,
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.all(16),
-                          children: [
-                            // Banner de Inflación Promedio
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: (_result!.inflacionPromedio > 0 ? AppColors.rose : AppColors.emerald)
-                                    .withValues(alpha: isDark ? 0.2 : 0.1),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: (_result!.inflacionPromedio > 0 ? AppColors.rose : AppColors.emerald)
-                                      .withValues(alpha: 0.3),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    _result!.inflacionPromedio > 0
-                                        ? Icons.trending_up_rounded
-                                        : Icons.trending_down_rounded,
-                                    size: 36,
-                                    color: _result!.inflacionPromedio > 0 ? AppColors.rose : AppColors.emerald,
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(context.l10n.personalAverageInflation,
-                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          '${_result!.inflacionPromedio > 0 ? "+" : ""}${_result!.inflacionPromedio.toStringAsFixed(1)}%',
-                                          style: TextStyle(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w900,
-                                            color: _result!.inflacionPromedio > 0
-                                                ? AppColors.rose
-                                                : AppColors.emerald,
-                                          ),
-                                        ),
-                                        Text(
-                                          context.l10n.productoscomunesItemsComparedProductosaumentaronWent(_result!.productosComunes, _result!.productosAumentaron),
-                                          style: const TextStyle(
-                                              fontSize: 11, color: AppColors.lightTextSecondary),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Lista de productos comparados
-                            Text(context.l10n.detailItem,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                            const SizedBox(height: 8),
-                            ..._result!.comparativa.map((item) {
-                              final subio = item.porcentaje > 0;
-                              final color = subio ? AppColors.rose : AppColors.emerald;
-
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  side: BorderSide(
-                                    color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(item.producto,
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.bold, fontSize: 13),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              context.l10n.beforePrecio1centsNowPrecio2cents(Money.format(item.precio1Cents, currency: reportCurrency(context)), Money.format(item.precio2Cents, currency: reportCurrency(context))),
-                                              style: const TextStyle(
-                                                  fontSize: 12, color: AppColors.lightTextSecondary),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: color.withValues(alpha: isDark ? 0.2 : 0.1),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          '${subio ? "+" : ""}${item.porcentaje.toStringAsFixed(1)}%',
-                                          style: TextStyle(
-                                              color: color, fontWeight: FontWeight.bold, fontSize: 12),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }),
-                          ],
-                        ),
+              child: FutureBuilder(
+                future: _result,
+                builder: (context, snapshot) => _Consulta(
+                  snapshot: snapshot,
+                  vacio: (r) => r.comparativa.isEmpty,
+                  textoVacio: context.l10n.noIdenticalItemsWerePurchased,
+                  builder: (r) => _Comparacion(result: r),
+                ),
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _Comparacion extends StatelessWidget {
+  final PriceComparisonResultEntity result;
+  const _Comparacion({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currency = reportCurrency(context);
+    final color = _colorVariacion(result.inflacionPromedio);
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: isDark ? 0.2 : 0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(result.inflacionPromedio > 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded, size: 36, color: color),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.l10n.personalAverageInflation, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 2),
+                    Text(variacion(result.inflacionPromedio), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: color)),
+                    Text(
+                      context.l10n.productoscomunesItemsComparedProductosaumentaronWent(result.productosComunes, result.productosAumentaron),
+                      style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(context.l10n.detailItem, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        const SizedBox(height: 8),
+        for (final item in result.comparativa)
+          Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item.producto, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 4),
+                        Text(
+                          context.l10n.beforePrecio1centsNowPrecio2cents(
+                              Money.format(item.precio1Cents, currency: currency), Money.format(item.precio2Cents, currency: currency)),
+                          style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: _colorVariacion(item.porcentaje).withValues(alpha: isDark ? 0.2 : 0.1), borderRadius: BorderRadius.circular(8)),
+                    child: Text(variacion(item.porcentaje), style: TextStyle(color: _colorVariacion(item.porcentaje), fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

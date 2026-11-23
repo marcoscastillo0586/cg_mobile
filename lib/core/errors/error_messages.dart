@@ -67,6 +67,12 @@ class ErrorMessages {
         _ => error.toString(),
       };
 
+  /// El motivo traducido seguido del código de la API entre paréntesis (si lo tiene), separado por [sep].
+  static String withCode(Object error, AppLocalizations l, {String sep = ' '}) {
+    final code = codeOf(error);
+    return describe(error, l) + (code != null ? '$sep($code)' : '');
+  }
+
   /// Código de la API del error, si lo tiene.
   static String? codeOf(Object error) {
     if (error is ServerException) return error.code;
