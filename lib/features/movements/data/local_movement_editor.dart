@@ -141,37 +141,10 @@ class LocalMovementEditor {
   /// Concepto general, fecha (se conserva la hora) y/o cuenta de todos los renglones (no en transferencias).
   Future<String> updateHeader(int headerLocalId, {String? generalConcept, DateTime? date, int? accountLocalId}) => _db.transaction((txn) async {
         final m = await _require(txn, headerLocalId);
-        final changes = <String, Object?>{};
-        final data = <String, Object?>{};
+        final (changes, data) = _headerChanges(m, generalConcept, date);
         final undo = <Map<String, Object?>>[];
-        if (generalConcept != null) {
-          final c = _concept(generalConcept, (l) => l.generalConcept3);
-          if (c != m.generalConcept) {
-            changes['general_concept'] = c;
-            data['generalConcept'] = c;
-          }
-        }
-        if (date != null) {
-          final next = '${_isoDate(date)} ${m.occurredAt.substring(11)}';
-          if (next != m.occurredAt) {
-            changes['occurred_at'] = next;
-            data['date'] = _isoDate(date);
-          }
-        }
         if (accountLocalId != null && m.details.any((d) => d.accountLocalId != accountLocalId)) {
-          if (m.isTransfer) {
-            throw ValidationFailure.t((l) => l.changeAccountsTransferEditSource, 'TRANSFER_EDIT');
-          }
-          final target = await _usableAccount(txn, accountLocalId);
-          if (m.details.isNotEmpty && m.details.every((d) => d.currency != target.currency)) {
-            throw ValidationFailure.t((l) => l.movementCannotMovedAccountAnother, 'CURRENCY_MISMATCH');
-          }
-          for (final d in m.details) {
-            undo.add({'table': 'movement_details', 'local_id': d.localId, 'values': {'account_local_id': d.accountLocalId}});
-          }
-          await txn.update('movement_details', {'account_local_id': accountLocalId, 'updated_at': _stamp()},
-              where: 'header_local_id = ? AND deleted = 0', whereArgs: [headerLocalId]);
-          data['accountRef'] = target.ref;
+          data['accountRef'] = await _moveToAccount(txn, m, headerLocalId, accountLocalId, undo);
         }
         if (data.isEmpty) throw _invalid((l) => l.noChangesSave);
         if (changes.isNotEmpty) {
@@ -180,6 +153,38 @@ class LocalMovementEditor {
         }
         return Outbox.enqueue(txn, entity: 'movement', action: 'update', ref: _headerRef(m), baseVersion: _baseVersion(m), data: data, undo: undo);
       });
+
+  /// Concepto general y fecha (conservando la hora) que cambian: columnas locales y campos para la API.
+  static (Map<String, Object?>, Map<String, Object?>) _headerChanges(EditableMovement m, String? generalConcept, DateTime? date) {
+    final changes = <String, Object?>{};
+    final data = <String, Object?>{};
+    final c = generalConcept == null ? null : _concept(generalConcept, (l) => l.generalConcept3);
+    if (c != null && c != m.generalConcept) {
+      changes['general_concept'] = c;
+      data['generalConcept'] = c;
+    }
+    final next = date == null ? null : '${_isoDate(date)} ${m.occurredAt.substring(11)}';
+    if (next != null && next != m.occurredAt) {
+      changes['occurred_at'] = next;
+      data['date'] = _isoDate(date!);
+    }
+    return (changes, data);
+  }
+
+  /// Pasa todos los renglones a otra cuenta de la misma moneda (no en transferencias). Devuelve su ref.
+  Future<Map<String, Object?>> _moveToAccount(Transaction txn, EditableMovement m, int headerLocalId, int accountLocalId, List<Map<String, Object?>> undo) async {
+    if (m.isTransfer) throw ValidationFailure.t((l) => l.changeAccountsTransferEditSource, 'TRANSFER_EDIT');
+    final target = await _usableAccount(txn, accountLocalId);
+    if (m.details.isNotEmpty && m.details.every((d) => d.currency != target.currency)) {
+      throw ValidationFailure.t((l) => l.movementCannotMovedAccountAnother, 'CURRENCY_MISMATCH');
+    }
+    for (final d in m.details) {
+      undo.add({'table': 'movement_details', 'local_id': d.localId, 'values': {'account_local_id': d.accountLocalId}});
+    }
+    await txn.update('movement_details', {'account_local_id': accountLocalId, 'updated_at': _stamp()},
+        where: 'header_local_id = ? AND deleted = 0', whereArgs: [headerLocalId]);
+    return target.ref;
+  }
 
   // ---------------- renglón ----------------
 
@@ -190,36 +195,7 @@ class LocalMovementEditor {
           throw ValidationFailure.t((l) => l.transferLinesEditedAsPair, 'TRANSFER_EDIT');
         }
         _requireSynced(d);
-        final changes = <String, Object?>{};
-        final data = <String, Object?>{};
-        if (concept != null) {
-          final c = _concept(concept, (l) => l.concept2);
-          if (c != d.concept) {
-            changes['concept'] = c;
-            data['concept'] = c;
-          }
-        }
-        if (categoryLocalId != null && categoryLocalId != d.categoryLocalId) {
-          if (m.type == 1) {
-            throw ValidationFailure.t((l) => l.incomesAlwaysUseReservedIncome, 'RESERVED_CATEGORY');
-          }
-          final cat = await LocalCatalog(txn).category(categoryLocalId);
-          if (cat == null) throw _invalid((l) => l.selectCategory);
-          if (cat.reservedForExpenses) {
-            throw ValidationFailure.t((l) => l.categoryNameReservedCannotUsed(cat.name), 'RESERVED_CATEGORY');
-          }
-          if (!cat.active) throw ValidationFailure.t((l) => l.categoryNameInactive(cat.name), 'CATEGORY_INACTIVE');
-          changes['category_local_id'] = categoryLocalId;
-          data['categoryRef'] = cat.ref;
-        }
-        if (amountCents != null) {
-          if (amountCents <= 0) throw _invalid((l) => l.amountMustGreaterThanZero);
-          final signed = m.type == 2 ? -amountCents : amountCents;
-          if (signed != d.amountCents) {
-            changes['amount_cents'] = signed;
-            data['amount'] = Money.toApiDecimal(amountCents);
-          }
-        }
+        final (changes, data) = await _detailChanges(txn, m, d, concept, categoryLocalId, amountCents);
         if (data.isEmpty) throw _invalid((l) => l.noChangesSave);
         await txn.update('movement_details', {...changes, 'updated_at': _stamp()}, where: 'local_id = ?', whereArgs: [detailLocalId]);
         // Los renglones se referencian por serverId y van sin baseVersion (el pull no trae su versión).
@@ -234,6 +210,44 @@ class LocalMovementEditor {
               'values': {'concept': d.concept, 'category_local_id': d.categoryLocalId, 'amount_cents': d.amountCents},
             });
       });
+
+  /// Lo que cambia en un renglón: columnas locales y campos para la API.
+  static Future<(Map<String, Object?>, Map<String, Object?>)> _detailChanges(
+      Transaction txn, EditableMovement m, EditableDetail d, String? concept, int? categoryLocalId, int? amountCents) async {
+    final changes = <String, Object?>{};
+    final data = <String, Object?>{};
+    final c = concept == null ? null : _concept(concept, (l) => l.concept2);
+    if (c != null && c != d.concept) {
+      changes['concept'] = c;
+      data['concept'] = c;
+    }
+    if (categoryLocalId != null && categoryLocalId != d.categoryLocalId) {
+      changes['category_local_id'] = categoryLocalId;
+      data['categoryRef'] = await _expenseCategoryRef(txn, m, categoryLocalId);
+    }
+    final signed = amountCents == null ? null : _signedAmount(m, amountCents);
+    if (signed != null && signed != d.amountCents) {
+      changes['amount_cents'] = signed;
+      data['amount'] = Money.toApiDecimal(amountCents!);
+    }
+    return (changes, data);
+  }
+
+  /// Categoría nueva de un renglón de egreso: existente, activa y no reservada (los ingresos usan siempre la suya).
+  static Future<Map<String, Object?>> _expenseCategoryRef(Transaction txn, EditableMovement m, int categoryLocalId) async {
+    if (m.type == 1) throw ValidationFailure.t((l) => l.incomesAlwaysUseReservedIncome, 'RESERVED_CATEGORY');
+    final cat = await LocalCatalog(txn).category(categoryLocalId);
+    if (cat == null) throw _invalid((l) => l.selectCategory);
+    if (cat.reservedForExpenses) throw ValidationFailure.t((l) => l.categoryNameReservedCannotUsed(cat.name), 'RESERVED_CATEGORY');
+    if (!cat.active) throw ValidationFailure.t((l) => l.categoryNameInactive(cat.name), 'CATEGORY_INACTIVE');
+    return cat.ref;
+  }
+
+  /// Monto positivo con el signo del tipo de comprobante (egreso negativo).
+  static int _signedAmount(EditableMovement m, int amountCents) {
+    if (amountCents <= 0) throw _invalid((l) => l.amountMustGreaterThanZero);
+    return m.type == 2 ? -amountCents : amountCents;
+  }
 
   /// Borra un renglón: solo si el comprobante tiene más de uno y no es transferencia.
   Future<String> deleteDetail(int detailLocalId) => _db.transaction((txn) async {
@@ -261,17 +275,8 @@ class LocalMovementEditor {
   Future<String> updateTransfer(int headerLocalId, {required int fromLocalId, required int toLocalId, required int amountCents}) =>
       _db.transaction((txn) async {
         final m = await _require(txn, headerLocalId);
-        if (!m.isTransfer) throw ValidationFailure.t((l) => l.movementNotTransfer, 'NOT_TRANSFER');
-        final from = m.transferFrom, to = m.transferTo;
-        if (from == null || to == null) throw _invalid((l) => l.transferDoesNotHaveIts);
-        if (fromLocalId == toLocalId) {
-          throw ValidationFailure.t((l) => l.sourceDestinationAccountsCannotSame, 'SAME_ACCOUNT');
-        }
-        final newFrom = await _usableAccount(txn, fromLocalId);
-        final newTo = await _usableAccount(txn, toLocalId);
-        if (newFrom.currency != newTo.currency) {
-          throw ValidationFailure.t((l) => l.cannotTransferBetweenAccountsDifferent, 'CURRENCY_MISMATCH');
-        }
+        final (from, to) = _transferPair(m);
+        final (newFrom, newTo) = await _transferAccounts(txn, fromLocalId, toLocalId);
         if (amountCents <= 0) throw _invalid((l) => l.amountMustGreaterThanZero);
         if (fromLocalId == from.accountLocalId && toLocalId == to.accountLocalId && amountCents == to.amountCents) {
           throw _invalid((l) => l.noChangesSave);
@@ -293,6 +298,25 @@ class LocalMovementEditor {
               {'table': 'movement_details', 'local_id': from.localId, 'values': {'account_local_id': from.accountLocalId, 'amount_cents': from.amountCents}},
             ]);
       });
+
+  /// Renglones de origen y destino de una transferencia.
+  static (EditableDetail, EditableDetail) _transferPair(EditableMovement m) {
+    if (!m.isTransfer) throw ValidationFailure.t((l) => l.movementNotTransfer, 'NOT_TRANSFER');
+    final from = m.transferFrom, to = m.transferTo;
+    if (from == null || to == null) throw _invalid((l) => l.transferDoesNotHaveIts);
+    return (from, to);
+  }
+
+  /// Cuentas nuevas de la transferencia: distintas, utilizables y de la misma moneda.
+  static Future<(LocalAccount, LocalAccount)> _transferAccounts(Transaction txn, int fromLocalId, int toLocalId) async {
+    if (fromLocalId == toLocalId) throw ValidationFailure.t((l) => l.sourceDestinationAccountsCannotSame, 'SAME_ACCOUNT');
+    final newFrom = await _usableAccount(txn, fromLocalId);
+    final newTo = await _usableAccount(txn, toLocalId);
+    if (newFrom.currency != newTo.currency) {
+      throw ValidationFailure.t((l) => l.cannotTransferBetweenAccountsDifferent, 'CURRENCY_MISMATCH');
+    }
+    return (newFrom, newTo);
+  }
 
   // ---------------- comprobante ----------------
 

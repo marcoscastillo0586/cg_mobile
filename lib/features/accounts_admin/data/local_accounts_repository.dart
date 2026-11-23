@@ -64,31 +64,38 @@ class LocalAccountsRepository {
   /// Nombre, moneda y/o ícono. La moneda no cambia si la cuenta tiene movimientos (CURRENCY_LOCKED).
   Future<String> update(int localId, {String? name, Currency? currency, String? iconRef}) => _db.transaction((txn) async {
         final row = await LocalOps.require(txn, 'accounts', localId, (l) => l.account);
-        final data = <String, Object?>{};
-        final changes = <String, Object?>{};
-        if (name != null) {
-          final n = _name(name);
-          if (n != row['name']) {
-            await _assertFreeName(txn, n, exceptLocalId: localId);
-            changes['name'] = n;
-            data['name'] = n;
-          }
-        }
-        if (currency != null && currency.code != row['currency']) {
-          if (await _movements(txn, localId) > 0) {
-            throw ValidationFailure.t((l) => l.currencyAccountMovementsCannotChange, 'CURRENCY_LOCKED');
-          }
-          changes['currency'] = currency.code;
-          data['currency'] = currency.code;
-        }
-        if (iconRef != null && iconRef != row['icon_ref']) {
-          if (!AccountIcons.isKnown(iconRef)) throw LocalOps.invalid((l) => l.unknownIcon);
-          changes['icon_ref'] = iconRef;
-          data['iconRef'] = iconRef;
-        }
+        final (changes, data) = await _accountChanges(txn, row, name, currency, iconRef);
         if (data.isEmpty) throw LocalOps.invalid((l) => l.noChangesSave);
         return _enqueueUpdate(txn, row, changes, data);
       });
+
+  /// Lo que cambia en una cuenta (columnas locales y campos para la API), con sus reglas: nombre libre,
+  /// moneda sin movimientos e ícono del catálogo.
+  Future<(Map<String, Object?>, Map<String, Object?>)> _accountChanges(
+      Transaction txn, Map<String, Object?> row, String? name, Currency? currency, String? iconRef) async {
+    final localId = row['local_id']! as int;
+    final changes = <String, Object?>{};
+    final data = <String, Object?>{};
+    final n = name == null ? null : _name(name);
+    if (n != null && n != row['name']) {
+      await _assertFreeName(txn, n, exceptLocalId: localId);
+      changes['name'] = data['name'] = n;
+    }
+    if (currency != null && currency.code != row['currency']) {
+      await _assertCurrencyUnlocked(txn, localId);
+      changes['currency'] = data['currency'] = currency.code;
+    }
+    if (iconRef != null && iconRef != row['icon_ref']) {
+      if (!AccountIcons.isKnown(iconRef)) throw LocalOps.invalid((l) => l.unknownIcon);
+      changes['icon_ref'] = data['iconRef'] = iconRef;
+    }
+    return (changes, data);
+  }
+
+  /// Cambiar la moneda reinterpretaría importes históricos: sólo sin movimientos.
+  Future<void> _assertCurrencyUnlocked(Transaction txn, int localId) async {
+    if (await _movements(txn, localId) > 0) throw ValidationFailure.t((l) => l.currencyAccountMovementsCannotChange, 'CURRENCY_LOCKED');
+  }
 
   /// Activar o desactivar. Solo se envía `active` (no el nombre): así el servidor no lo toca.
   /// Desactivar exige saldo ≤ 0 (ACCOUNT_HAS_FUNDS).
