@@ -131,4 +131,57 @@ void main() {
     expect(await s.count('outbox'), 0);
     expect((await s.db.query('movement_headers', where: 'local_id = ?', whereArgs: [hid])).single['general_concept'], 'de la web');
   });
+
+  group('descripción de cada operación de la cola', () {
+    var n = 0;
+    Future<String> describeOp(String entity, String action, Map<String, Object?> data, {Map<String, Object?>? ref}) async {
+      await s.db.insert('outbox', {
+        'op_id': 'op-desc-${n++}',
+        'entity': entity,
+        'action': action,
+        'client_id': action == 'create' ? 'cli-${n++}' : null,
+        'ref': action == 'create' ? null : jsonEncode(ref ?? {'clientId': 'x-local'}),
+        'data': jsonEncode(data),
+        'created_at': 'x',
+        'updated_at': 'x',
+      });
+      return (await repo.unresolved()).last.description;
+    }
+
+    test('altas de ingreso y transferencia con montos, cuentas (por id del servidor o local) y fecha', () async {
+      await s.db.update('accounts', {'client_id': 'acc-local'}, where: 'local_id = ?', whereArgs: [s.accounts['Efectivo']]);
+      expect(
+        await describeOp('movement', 'create', {'type': 1, 'concept': 'Sueldo', 'amount': '1000.00', 'accountRef': {'serverId': 1}, 'date': '2026-10-01'}),
+        r'Ingreso "Sueldo" $ 1.000,00 en BANCO · 2026-10-01',
+      );
+      expect(
+        await describeOp('movement', 'create', {'type': 3, 'amount': '5', 'fromRef': {'serverId': 1}, 'toRef': {'clientId': 'acc-local'}, 'date': '2026-10-02'}),
+        r'Transferencia $ 5,00 de BANCO a EFECTIVO · 2026-10-02',
+      );
+      expect(
+        await describeOp('movement', 'create', {'type': 2, 'generalConcept': 'Super', 'items': [{'amount': '1.50'}, {'amount': '2'}], 'accountRef': {'serverId': 999}, 'date': '2026-10-03'}),
+        r'Egreso "Super" $ 3,50 de (cuenta desconocida) · 2026-10-03',
+      );
+    });
+
+    test('ediciones y eliminaciones de comprobantes y renglones; el número sólo si ya está en el servidor', () async {
+      expect(
+        await describeOp('movement', 'update', {
+          'generalConcept': 'Almacén',
+          'date': '2026-10-04',
+          'accountRef': {'serverId': 2},
+          'transfer': {'amount': '7.25', 'fromRef': {'serverId': 1}, 'toRef': {'serverId': 2}},
+        }, ref: {'serverId': 900}),
+        r'Edición de comprobante #900: concepto "Almacén", fecha 2026-10-04, cuenta EFECTIVO, transferencia $ 7,25 de BANCO a EFECTIVO',
+      );
+      expect(await describeOp('movement', 'update', {'date': '2026-10-05'}), 'Edición de comprobante: fecha 2026-10-05');
+      expect(await describeOp('movement', 'delete', {}, ref: {'serverId': 901}), 'Eliminación de comprobante #901');
+      expect(
+        await describeOp('movement_detail', 'update', {'concept': 'Pan', 'amount': '2.5', 'categoryRef': {'serverId': 5}}, ref: {'serverId': 9001}),
+        r'Edición de renglón #9001: concepto "Pan", monto $ 2,50, categoría',
+      );
+      expect(await describeOp('movement_detail', 'delete', {}, ref: {'serverId': 9002}), 'Eliminación de renglón #9002');
+      expect(await describeOp('account', 'create', {'name': 'Nueva'}), 'account / create');
+    });
+  });
 }
