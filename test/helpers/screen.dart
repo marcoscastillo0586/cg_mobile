@@ -63,7 +63,6 @@ class FakeDashboardsRepository implements DashboardsRepository {
   Future<List<DashboardInvitation>> invitations() => _call(() => pendingInvitations);
   @override
   Future<List<AppNotification>> notifications() => _call(() => pendingNotifications);
-  @override
   final pendingNames = <String, String>{};
   @override
   Future<String?> readPendingName(String key) async => pendingNames[key];

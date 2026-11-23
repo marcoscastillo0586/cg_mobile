@@ -19,9 +19,16 @@ class UpdatePrompt {
 }
 
 /// "Hay una actualización": novedades, descarga con progreso y apertura del instalador del sistema.
+typedef ApkDownload = Future<String> Function(UpdateInfo info, {void Function(double? progress)? onProgress, CancelToken? cancelToken});
+
 class UpdateDialog extends StatefulWidget {
   final UpdateInfo info;
-  const UpdateDialog({super.key, required this.info});
+
+  /// Descarga e instalación (en los tests, simuladas).
+  final ApkDownload download;
+  final Future<bool> Function(String apkPath) install;
+
+  const UpdateDialog({super.key, required this.info, this.download = AppUpdater.download, this.install = AppUpdater.install});
 
   @override
   State<UpdateDialog> createState() => _UpdateDialogState();
@@ -42,33 +49,41 @@ class _UpdateDialogState extends State<UpdateDialog> {
   }
 
   Future<void> _actualizar() async {
-    final l10n = context.l10n;
     setState(() => _aviso = null);
-    var apk = _apk;
-    if (apk == null) {
-      final token = CancelToken();
-      setState(() {
-        _descarga = token;
-        _progreso = null;
-      });
-      try {
-        apk = await AppUpdater.download(widget.info, cancelToken: token, onProgress: (p) {
-          if (mounted) setState(() => _progreso = p);
-        });
-        _apk = apk;
-      } catch (e) {
-        debugPrint('[UPDATE] Falló la descarga: $e');
-        if (mounted && !token.isCancelled) setState(() => _aviso = l10n.updateDownloadFailed);
-        return;
-      } finally {
-        if (mounted) setState(() => _descarga = null);
-      }
-    }
-    if (!mounted) return;
+    final apk = _apk ??= await _descargar();
+    if (apk != null && mounted) await _instalar(apk);
+  }
+
+  /// El APK descargado, o null si falló o se canceló (el motivo queda en [_aviso]).
+  Future<String?> _descargar() async {
+    final l10n = context.l10n;
+    final token = CancelToken();
+    setState(() {
+      _descarga = token;
+      _progreso = null;
+    });
     try {
-      if (await AppUpdater.install(apk)) {
-        if (mounted) Navigator.of(context).pop();
-      } else if (mounted) {
+      return await widget.download(widget.info, cancelToken: token, onProgress: (p) {
+        if (mounted) setState(() => _progreso = p);
+      });
+    } catch (e) {
+      debugPrint('[UPDATE] Falló la descarga: $e');
+      if (mounted && !token.isCancelled) setState(() => _aviso = l10n.updateDownloadFailed);
+      return null;
+    } finally {
+      if (mounted) setState(() => _descarga = null);
+    }
+  }
+
+  /// Abre el instalador; sin el permiso "Instalar apps desconocidas" Android abre ese ajuste y se avisa.
+  Future<void> _instalar(String apk) async {
+    final l10n = context.l10n;
+    try {
+      final instalando = await widget.install(apk);
+      if (!mounted) return;
+      if (instalando) {
+        Navigator.of(context).pop();
+      } else {
         setState(() => _aviso = l10n.updateNeedsPermission);
       }
     } catch (e) {
