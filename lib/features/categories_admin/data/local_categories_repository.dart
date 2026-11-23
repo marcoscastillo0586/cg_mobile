@@ -67,14 +67,7 @@ class LocalCategoriesRepository {
         final row = await _editable(txn, localId);
         if ((row['active'] == 1) == active) throw LocalOps.invalid((l) => active ? l.categoryAlreadyActive : l.categoryAlreadyInactive);
         if (active) return _enqueueUpdate(txn, row, {'active': 1}, {'active': true});
-        await txn.update('categories', {'active': 0, 'updated_at': LocalOps.stamp()}, where: 'local_id = ?', whereArgs: [localId]);
-        return Outbox.enqueue(txn,
-            entity: 'category',
-            action: 'delete',
-            ref: LocalOps.ref(row),
-            baseVersion: LocalOps.baseVersion(row),
-            data: const {},
-            undo: {'table': 'categories', 'local_id': localId, 'values': {'active': row['active']}});
+        return _deactivate(txn, row);
       });
 
   Future<String?> delete(int localId) => _db.transaction((txn) async {
@@ -84,17 +77,23 @@ class LocalCategoriesRepository {
             WHERE d.category_local_id = ? AND d.deleted = 0 AND h.deleted = 0''', [localId])).first['n']! as int;
         if (used > 0) {
           // Con movimientos el servidor la desactiva (baja lógica).
-          await txn.update('categories', {'active': 0, 'updated_at': LocalOps.stamp()}, where: 'local_id = ?', whereArgs: [localId]);
-          return Outbox.enqueue(txn,
-              entity: 'category',
-              action: 'delete',
-              ref: LocalOps.ref(row),
-              baseVersion: LocalOps.baseVersion(row),
-              data: const {},
-              undo: {'table': 'categories', 'local_id': localId, 'values': {'active': row['active']}});
+          return _deactivate(txn, row);
         }
         return LocalOps.deleteRow(txn, entity: 'category', table: 'categories', row: row);
       });
+
+  /// Baja lógica: se desactiva en el celular y se envía `category:delete` (el servidor decide si la borra).
+  static Future<String> _deactivate(Transaction txn, Map<String, Object?> row) async {
+    final localId = row['local_id']! as int;
+    await txn.update('categories', {'active': 0, 'updated_at': LocalOps.stamp()}, where: 'local_id = ?', whereArgs: [localId]);
+    return Outbox.enqueue(txn,
+        entity: 'category',
+        action: 'delete',
+        ref: LocalOps.ref(row),
+        baseVersion: LocalOps.baseVersion(row),
+        data: const {},
+        undo: {'table': 'categories', 'local_id': localId, 'values': {'active': row['active']}});
+  }
 
   // ---------------- reglas ----------------
 

@@ -75,13 +75,13 @@ class LocalMovementWriter {
   /// [replacingSeq]: corrige un alta rechazada (la reemplaza en la misma transacción).
   Future<SavedMovement> createExpense(ExpenseDraft d, {int? replacingSeq}) => _db.transaction((txn) async {
         final catalog = LocalCatalog(txn);
-        final general = _concept(d.generalConcept, (l) => l.generalConcept3);
+        final general = validConcept(d.generalConcept, (l) => l.generalConcept3);
         if (d.lines.isEmpty) throw _invalid((l) => l.enterLeastOneExpense);
         if (d.lines.length > 300) throw _invalid((l) => l.most300LinesPerExpense);
         final account = await _usableAccount(catalog, d.accountLocalId, (l) => l.selectAccountDebit);
         final items = <(ExpenseLine, LocalCategory, String)>[];
         for (final (i, line) in d.lines.indexed) {
-          final concept = _concept(line.concept, (l) => l.conceptLineI(i + 1));
+          final concept = validConcept(line.concept, (l) => l.conceptLineI(i + 1));
           _positive(line.amountCents, (l) => l.lineN(i + 1));
           final cat = await catalog.category(line.categoryLocalId);
           if (cat == null) throw _invalid((l) => l.selectCategoryLineI2(i + 1));
@@ -117,7 +117,7 @@ class LocalMovementWriter {
   Future<SavedMovement> createIncome(IncomeDraft d, {int? replacingSeq}) => _db.transaction((txn) async {
         final catalog = LocalCatalog(txn);
         final account = await _usableAccount(catalog, d.accountLocalId, (l) => l.selectDestinationAccount2);
-        final concept = _concept(d.concept, (l) => l.concept2);
+        final concept = validConcept(d.concept, (l) => l.concept2);
         _positive(d.amountCents, (l) => l.incomeWord);
         final category = await _roleCategory(catalog, CategoryRoles.income);
 
@@ -194,7 +194,8 @@ class LocalMovementWriter {
     return category;
   }
 
-  static String _concept(String value, String Function(AppLocalizations l) label) {
+  /// Concepto obligatorio y de hasta [conceptMax] caracteres (también lo usa la edición).
+  static String validConcept(String value, String Function(AppLocalizations l) label) {
     final v = value.trim();
     if (v.isEmpty) throw _invalid((l) => l.fieldRequired(label(l)));
     if (v.length > conceptMax) throw _invalid((l) => l.fieldTooLong(label(l), conceptMax));

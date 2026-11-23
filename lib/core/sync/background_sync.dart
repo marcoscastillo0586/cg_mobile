@@ -113,6 +113,11 @@ class BackgroundSync {
   static Future<BackgroundSyncOutcome> syncForTask(bool onlyIfPending) async {
     final container = appContainer;
     if (container == null || CurrentAccount.id == null) return BackgroundSyncOutcome.nothingToDo;
+    return _sync(container, onlyIfPending);
+  }
+
+  /// Con [onlyIfPending] y la cola vacía no usa la red; si no, sincroniza y traduce el estado final.
+  static Future<BackgroundSyncOutcome> _sync(ProviderContainer container, bool onlyIfPending) async {
     if (onlyIfPending && await Outbox.pendingCount(await container.read(localDatabaseProvider)) == 0) {
       return BackgroundSyncOutcome.nothingToDo;
     }
@@ -134,11 +139,7 @@ class BackgroundSync {
       // Va primero para frenar también la renovación de la sesión que hace AuthInterceptor.
       if (isStopped != null) container.read(dioClientProvider).dio.interceptors.insert(0, _StopInterceptor(isStopped));
       if (!await _prepareAccount(container.read(secureStorageServiceProvider))) return BackgroundSyncOutcome.nothingToDo;
-      if (onlyIfPending && await Outbox.pendingCount(await container.read(localDatabaseProvider)) == 0) {
-        return BackgroundSyncOutcome.nothingToDo;
-      }
-      await container.read(syncControllerProvider.notifier).sync();
-      return outcomeOf(container.read(syncControllerProvider));
+      return await _sync(container, onlyIfPending);
     } catch (e) {
       debugPrint('[SYNC] Falló la sincronización en segundo plano: $e');
       return BackgroundSyncOutcome.retryLater;

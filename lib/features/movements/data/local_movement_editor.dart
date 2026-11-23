@@ -5,7 +5,7 @@ import '../../../core/database/local_database.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/money/money.dart';
 import '../../../core/sync/outbox.dart';
-import 'local_movement_writer.dart' show conceptMax;
+import 'local_movement_writer.dart' show LocalMovementWriter;
 import '../../../l10n/l10n.dart';
 
 /// Renglón de un comprobante, tal como está en la base local.
@@ -158,7 +158,7 @@ class LocalMovementEditor {
   static (Map<String, Object?>, Map<String, Object?>) _headerChanges(EditableMovement m, String? generalConcept, DateTime? date) {
     final changes = <String, Object?>{};
     final data = <String, Object?>{};
-    final c = generalConcept == null ? null : _concept(generalConcept, (l) => l.generalConcept3);
+    final c = generalConcept == null ? null : LocalMovementWriter.validConcept(generalConcept, (l) => l.generalConcept3);
     if (c != null && c != m.generalConcept) {
       changes['general_concept'] = c;
       data['generalConcept'] = c;
@@ -216,7 +216,7 @@ class LocalMovementEditor {
       Transaction txn, EditableMovement m, EditableDetail d, String? concept, int? categoryLocalId, int? amountCents) async {
     final changes = <String, Object?>{};
     final data = <String, Object?>{};
-    final c = concept == null ? null : _concept(concept, (l) => l.concept2);
+    final c = concept == null ? null : LocalMovementWriter.validConcept(concept, (l) => l.concept2);
     if (c != null && c != d.concept) {
       changes['concept'] = c;
       data['concept'] = c;
@@ -377,13 +377,6 @@ class LocalMovementEditor {
 
   /// Sin server_id todavía (alta pendiente): no hay versión que comparar.
   static int? _baseVersion(EditableMovement m) => m.serverId == null ? null : m.version;
-
-  static String _concept(String value, String Function(AppLocalizations l) label) {
-    final v = value.trim();
-    if (v.isEmpty) throw _invalid((l) => l.fieldRequired(label(l)));
-    if (v.length > conceptMax) throw _invalid((l) => l.fieldTooLong(label(l), conceptMax));
-    return v;
-  }
 
   static ValidationFailure _invalid(String Function(AppLocalizations l) text) => ValidationFailure.t(text);
 
