@@ -181,29 +181,16 @@ class PullService {
   /// en Android cada consulta cruza el canal de plataforma, y una por renglón tardaba ~10 s por página.
   Future<void> upsertMovements(Transaction txn, List<Map<String, dynamic>> input) async {
     if (input.isEmpty) return;
-    // El mismo comprobante puede llegar dos veces: vale el último.
-    final movements = {for (final m in input) m['id'] as int: m}.values.toList();
-    for (final m in movements) {
-      if (m['partialDetails'] == true) throw _bad('movimiento ${m['id']} con renglones parciales');
-    }
+    final movements = _complete(input);
     final ids = (accounts: await _serverToLocal(txn, 'accounts'), categories: await _serverToLocal(txn, 'categories'));
     final headerIds = await _upsertHeaders(txn, movements);
     final details = [for (final m in movements) _list(m['details']).cast<Map<String, dynamic>>()];
-    final existingDetails = await _localIdsIn(txn, 'movement_details', 'server_id', [
-      for (final ds in details)
-        for (final d in ds) d['id'],
-    ]);
+    final existingDetails = await _localIdsIn(txn, 'movement_details', 'server_id', [for (final d in details.expand((ds) => ds)) d['id']]);
     final batch = txn.batch();
     for (final (i, m) in movements.indexed) {
       final updatedAt = m['updatedAt'] as String? ?? DateTime.now().toUtc().toIso8601String();
       for (final d in details[i]) {
-        final values = _detailValues(d, headerIds[i], updatedAt, ids);
-        final localId = existingDetails[values['server_id']];
-        if (localId == null) {
-          batch.insert('movement_details', values);
-        } else {
-          batch.update('movement_details', values, where: 'local_id = ?', whereArgs: [localId]);
-        }
+        _upsertDetail(batch, _detailValues(d, headerIds[i], updatedAt, ids), existingDetails);
       }
     }
     // Los borrados van después de todas las altas y cambios: un renglón que pasó a otro
@@ -214,14 +201,26 @@ class PullService {
     await batch.commit(noResult: true);
   }
 
+  /// El mismo comprobante puede llegar dos veces: vale el último. Todos tienen que venir con sus renglones completos.
+  static List<Map<String, dynamic>> _complete(List<Map<String, dynamic>> input) {
+    final movements = {for (final m in input) m['id'] as int: m}.values.toList();
+    final partial = movements.where((m) => m['partialDetails'] == true).firstOrNull;
+    if (partial != null) throw _bad('movimiento ${partial['id']} con renglones parciales');
+    return movements;
+  }
+
+  static void _upsertDetail(Batch batch, Map<String, Object?> values, Map<Object?, int> existing) {
+    final localId = existing[values['server_id']];
+    if (localId == null) {
+      batch.insert('movement_details', values);
+    } else {
+      batch.update('movement_details', values, where: 'local_id = ?', whereArgs: [localId]);
+    }
+  }
+
   /// Encabezados: por server_id y, si no está, por client_id (alta hecha en el celular). Devuelve sus local_id.
   static Future<List<int>> _upsertHeaders(Transaction txn, List<Map<String, dynamic>> movements) async {
-    final byServer = await _localIdsIn(txn, 'movement_headers', 'server_id', [for (final m in movements) m['id']]);
-    final byClient = await _localIdsIn(txn, 'movement_headers', 'client_id', [
-      for (final m in movements)
-        if (m['clientId'] is String) m['clientId'],
-    ]);
-    final existing = [for (final m in movements) byServer[m['id']] ?? byClient[m['clientId']]];
+    final existing = await _existingHeaders(txn, movements);
     final headers = txn.batch();
     for (final (i, m) in movements.indexed) {
       final row = _row(m, {
@@ -240,6 +239,13 @@ class PullService {
     }
     final inserted = await headers.commit();
     return [for (final (i, localId) in existing.indexed) localId ?? inserted[i] as int];
+  }
+
+  /// local_id de cada comprobante ya guardado (por server_id o, si es un alta del celular, por client_id).
+  static Future<List<int?>> _existingHeaders(Transaction txn, List<Map<String, dynamic>> movements) async {
+    final byServer = await _localIdsIn(txn, 'movement_headers', 'server_id', [for (final m in movements) m['id']]);
+    final byClient = await _localIdsIn(txn, 'movement_headers', 'client_id', movements.map((m) => m['clientId']).whereType<String>().toList());
+    return [for (final m in movements) byServer[m['id']] ?? byClient[m['clientId']]];
   }
 
   /// Fila local de un renglón del servidor; la cuenta y la categoría tienen que haber llegado antes.

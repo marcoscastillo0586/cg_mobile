@@ -95,22 +95,26 @@ class PushService {
         if (deviceId != null) 'deviceId': deviceId,
         'operations': [for (final o in ops) _wire(o)],
       });
-      final results = body is Map<String, dynamic> && body['results'] is List
-          ? (body['results'] as List).cast<Map<String, dynamic>>()
-          : throw const ServerException('Sincronización: respuesta del push inesperada', null, 'UNEXPECTED_RESPONSE');
-      final byOp = {for (final r in results) r['opId'] as String: r};
+      final byOp = {for (final r in _results(body)) r['opId'] as String: r};
       return [for (final o in ops) (o, byOp[o['op_id']])];
     } on ServerException catch (e) {
       if (e.statusCode != 400) rethrow;
-      if (ops.length > 1) {
-        return [for (final o in ops) ...await _send([o], deviceId)];
-      }
-      // Una sola operación que el servidor no acepta ni como lote: se rechaza localmente.
-      return [
-        (ops.single, {'opId': ops.single['op_id'], 'status': 'rejected', 'error': {'code': e.code ?? 'VALIDATION_ERROR', 'message': e.message}}),
-      ];
+      return _isolateInvalid(ops, e, deviceId);
     }
   }
+
+  /// Lote rechazado por validación: de a una para encontrar la inválida; esa sola se rechaza localmente.
+  Future<List<(Map<String, Object?>, Map<String, dynamic>?)>> _isolateInvalid(List<Map<String, Object?>> ops, ServerException e, String? deviceId) async {
+    if (ops.length > 1) return [for (final o in ops) ...await _send([o], deviceId)];
+    final op = ops.single;
+    return [
+      (op, {'opId': op['op_id'], 'status': 'rejected', 'error': {'code': e.code ?? 'VALIDATION_ERROR', 'message': e.message}}),
+    ];
+  }
+
+  static List<Map<String, dynamic>> _results(Object? body) => body is Map<String, dynamic> && body['results'] is List
+      ? (body['results'] as List).cast<Map<String, dynamic>>()
+      : throw const ServerException('Sincronización: respuesta del push inesperada', null, 'UNEXPECTED_RESPONSE');
 
   static Map<String, Object?> _wire(Map<String, Object?> o) => {
         'opId': o['op_id'],
@@ -139,16 +143,7 @@ class PushService {
 
       switch (status) {
         case 'applied' || 'duplicate':
-          final serverId = r['serverId'] as int?;
-          final version = r['version'] as int?;
-          if (op['action'] == 'create' && serverId != null && table != null) {
-            await txn.update(table, {'server_id': serverId, 'version': version},
-                where: 'client_id = ? AND (server_id IS NULL OR server_id = ?)', whereArgs: [op['client_id'], serverId]);
-            await _rewriteRefs(txn, op['client_id']! as String, serverId);
-          } else if (op['action'] == 'update' && serverId != null && table != null && version != null && table != 'movement_details') {
-            // movement_details no guarda versión (el pull no la trae): sus ediciones van sin baseVersion.
-            await txn.update(table, {'version': version}, where: 'server_id = ?', whereArgs: [serverId]);
-          }
+          if (table != null) await _saveServerIds(txn, op, table, r['serverId'] as int?, r['version'] as int?);
           await mark(status!);
           return status;
         case 'rejected' when code == 'TEMPORARY_ERROR':
@@ -171,6 +166,19 @@ class PushService {
           throw ServerException('Sincronización: estado de operación desconocido "$status"', null, 'UNEXPECTED_RESPONSE');
       }
     });
+  }
+
+  /// Aplicada: un alta recibe su serverId (y las operaciones siguientes lo usan); una edición, su versión nueva.
+  static Future<void> _saveServerIds(Transaction txn, Map<String, Object?> op, String table, int? serverId, int? version) async {
+    if (serverId == null) return;
+    if (op['action'] == 'create') {
+      await txn.update(table, {'server_id': serverId, 'version': version},
+          where: 'client_id = ? AND (server_id IS NULL OR server_id = ?)', whereArgs: [op['client_id'], serverId]);
+      await _rewriteRefs(txn, op['client_id']! as String, serverId);
+    } else if (op['action'] == 'update' && version != null && table != 'movement_details') {
+      // movement_details no guarda versión (el pull no la trae): sus ediciones van sin baseVersion.
+      await txn.update(table, {'version': version}, where: 'server_id = ?', whereArgs: [serverId]);
+    }
   }
 
   /// Deshace el cambio local de una operación (rechazada o descartada): un alta deja de
