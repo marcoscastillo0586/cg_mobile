@@ -87,6 +87,23 @@ void main() {
     expect(await s.balance('Efectivo'), 4000);
   });
 
+  test('corregir ingresos y transferencias; lo que no es un alta rechazada no se puede corregir', () async {
+    final w = await s.writer;
+    final income = await w.createIncome(IncomeDraft(accountLocalId: s.accounts['Banco']!, date: DateTime(2026, 10, 21), concept: 'Sueldo', amountCents: 5000));
+    await reject(income.opId, 'ACCOUNT_INACTIVE');
+    final ci = await repo.correction(await seqOf(income.opId));
+    expect((ci.type, ci.concept, ci.accountLocalId, ci.amountCents, ci.date), (1, 'Sueldo', s.accounts['Banco'], 5000, DateTime(2026, 10, 21)));
+
+    final tr = await w.createTransfer(TransferDraft(fromLocalId: s.accounts['Banco']!, toLocalId: s.accounts['Efectivo']!, amountCents: 700, date: DateTime(2026, 10, 22)));
+    await reject(tr.opId, 'INSUFFICIENT_FUNDS');
+    final ct = await repo.correction(await seqOf(tr.opId));
+    expect((ct.type, ct.fromLocalId, ct.toLocalId, ct.amountCents), (3, s.accounts['Banco'], s.accounts['Efectivo'], 700));
+
+    final pending = await gasto(100);
+    await expectLater(repo.correction(await seqOf(pending.opId)), throwsA(isA<ValidationFailure>()));
+    await expectLater(repo.correction(99999), throwsA(isA<ValidationFailure>()));
+  });
+
   test('si la corrección no pasa las reglas, el rechazado original queda intacto', () async {
     final m = await gasto(1500);
     await reject(m.opId, 'ACCOUNT_INACTIVE');
