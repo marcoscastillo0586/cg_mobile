@@ -1,0 +1,7 @@
+{
+  "minTokens": 60,
+  "format": ["dart"],
+  "reporters": ["console"],
+  "ignore": ["**/l10n/app_localizations*"],
+  "path": ["lib"]
+}
