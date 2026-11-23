@@ -169,4 +169,27 @@ void main() {
     await ctrl.refreshCounts();
     expect(container.read(syncControllerProvider).error, isNotNull);
   });
+
+  test('estado: atención = rechazadas + conflictos; "terminó una sincronización" sólo al salir de syncing con respuesta', () {
+    expect(const SyncState(rejectedOps: 2, conflictOps: 3).needsAttention, 5);
+    const syncing = SyncState(status: SyncStatus.syncing);
+    for (final st in [SyncStatus.complete, SyncStatus.attention, SyncStatus.mismatch]) {
+      expect(syncFinished(syncing, SyncState(status: st)), isTrue, reason: '$st');
+    }
+    for (final st in [SyncStatus.syncing, SyncStatus.offline, SyncStatus.error]) {
+      expect(syncFinished(syncing, SyncState(status: st)), isFalse, reason: '$st');
+    }
+    expect(syncFinished(null, const SyncState(status: SyncStatus.complete)), isFalse);
+    expect(syncFinished(const SyncState(status: SyncStatus.complete), const SyncState(status: SyncStatus.complete)), isFalse);
+  });
+
+  test('refreshIfOnline: sin conexión reciente no intenta; forzada sí', () async {
+    ServerReachability.markOffline();
+    final ctrl = container.read(syncControllerProvider.notifier);
+    await ctrl.refreshIfOnline();
+    expect(server.paths, isEmpty);
+    server.gate.complete();
+    await ctrl.sync();
+    expect(server.paths, ['/sync/push']);
+  });
 }

@@ -69,6 +69,7 @@ void main() {
     expect(expense, containsPair('detailsCount', 2));
     expect(expense, containsPair('partialDetails', false));
     expect(expense, containsPair('createdByName', 'Ana'));
+    expect((expense['details'] as List).every((d) => (d as Map)['accountActive'] == true), isTrue);
     expect((expense['details'] as List).first, containsPair('categoryName', 'Super')); // categoría descendente
     final transfer = item(page, 901);
     expect(transfer, containsPair('amountCents', 10000));
@@ -125,7 +126,9 @@ void main() {
     final pesos = await query.list(const MovementsQuery(q: '1500'));
     expect(ids(pesos), [900]);
     expect((item(pesos, 900)['details'] as List).single, containsPair('concept', 'Pan'));
-    expect(ids(await query.list(const MovementsQuery(q: '\$ 25,50'))), [900]);
+    final exact = await query.list(const MovementsQuery(q: '\$ 25,50'));
+    expect(ids(exact), [900]);
+    expect((item(exact, 900)['details'] as List).single, containsPair('concept', 'Leche 50%')); // sólo el renglón de ese importe
     expect(ids(await query.list(const MovementsQuery(q: '12.34'))), [-unsentId]);
     expect(ids(await query.list(const MovementsQuery(q: '12.35'))), isEmpty);
   });

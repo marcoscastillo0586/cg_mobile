@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mutations version="1.2">
+  <!-- Desde la raíz de cg_mobile: dart run tools/mutation/... (ver README de tools/mutation) -->
+  <files>
+    <file>lib/features/movements/data/local_movements_query.dart</file>
+    <file>lib/core/sync/sync_controller.dart</file>
+  </files>
+  <commands>
+    <command group="test" expected-return="0" working-directory="." timeout="180">flutter test test/features/movements/local_movements_query_test.dart test/core/sync/sync_controller_test.dart</command>
+  </commands>
+</mutations>
