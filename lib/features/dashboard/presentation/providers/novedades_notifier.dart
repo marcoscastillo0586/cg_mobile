@@ -82,57 +82,69 @@ class NovedadesNotifier extends StateNotifier<NovedadesState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final budgets = await (await _budgets).list();
-      // "Vistas" del servidor (compartidas con la web). Sin conexión: null, y valen solo las del celular.
-      Set<String>? servidor;
-      try {
-        servidor = await _alerts.seen();
-      } catch (e) {
-        debugPrint('[NOVEDADES] Sin vistas del servidor: $e');
-      }
+      final servidor = await _vistasServidor();
       final hoy = LocalOps.todayAr();
       final candidatas = <NovedadEntity>[];
-      final keys = <String>{};
       for (final b in budgets) {
-        if (b.startDate.compareTo(hoy) > 0) continue; // presupuestos futuros
-        final tipo = tipoNovedad(b);
-        if (tipo == null) continue;
-        // Clave estable: id del servidor (o el local si el límite todavía no se sincronizó).
-        final key = 'alerta_vista_${userId}_${b.serverId ?? 'l${b.id}'}_${tipo.name}_${b.startDate}_${b.endDate}';
-        keys.add(key);
-        final vistaLocal = await _storage.readValue(key) == '1';
-        final sid = b.serverId;
-        final vistaServidor =
-            sid != null && (servidor?.contains(BudgetAlertsRepository.key(sid, tipo.name, b.startDate, b.endDate)) ?? false);
-        if (vistaServidor && !vistaLocal) {
-          await _storage.writeValue(key, '1'); // vista en la web: queda guardada para usarla sin conexión
-        } else if (vistaLocal && !vistaServidor && servidor != null && sid != null) {
-          _enviarVista(sid, tipo.name, b.startDate, b.endDate); // marcada sin conexión (o antes de compartirse)
-        }
-        candidatas.add(NovedadEntity(
-          idKey: key,
-          idLimiteGasto: b.id,
-          idServidor: sid,
-          titulo: b.title,
-          tipo: tipo,
-          porcentaje: (b.percentHundredths ?? 0) ~/ 100,
-          desde: DateTime.parse(b.startDate),
-          hasta: DateTime.parse(b.endDate),
-          vista: vistaLocal || vistaServidor,
-        ));
+        final tipo = b.startDate.compareTo(hoy) > 0 ? null : tipoNovedad(b); // los futuros no avisan
+        if (tipo != null) candidatas.add(await _novedad(userId, b, tipo, servidor));
       }
-      // Mayor porcentaje primero, empate A-Z, vencidos al final.
-      candidatas.sort((a, b) {
-        final av = a.tipo == NovedadTipo.vencido, bv = b.tipo == NovedadTipo.vencido;
-        if (av != bv) return av ? 1 : -1;
-        if (a.porcentaje != b.porcentaje) return b.porcentaje.compareTo(a.porcentaje);
-        return a.titulo.toLowerCase().compareTo(b.titulo.toLowerCase());
-      });
-      await _limpiarClavesHuerfanas(userId, keys);
+      candidatas.sort(_orden);
+      await _limpiarClavesHuerfanas(userId, {for (final c in candidatas) c.idKey});
       if (mounted) state = state.copyWith(isLoading: false, novedades: candidatas);
     } catch (e) {
       debugPrint('[NOVEDADES] No se pudieron calcular: $e');
       if (mounted) state = state.copyWith(isLoading: false, novedades: [], error: e);
     }
+  }
+
+  /// Novedad de un límite, con "vista" compartida: la del servidor queda guardada en el celular para usarla sin
+  /// conexión, y la marcada sólo en el celular se envía cuando hay conexión. [servidor] null = sin conexión.
+  Future<NovedadEntity> _novedad(int userId, Budget b, NovedadTipo tipo, Set<String>? servidor) async {
+    // Clave estable: id del servidor (o el local si el límite todavía no se sincronizó).
+    final key = 'alerta_vista_${userId}_${b.serverId ?? 'l${b.id}'}_${tipo.name}_${b.startDate}_${b.endDate}';
+    final sid = b.serverId;
+    final vista = await _vista(key, servidor, sid == null ? null : (sid, tipo.name, b.startDate, b.endDate));
+    return NovedadEntity(
+      idKey: key,
+      idLimiteGasto: b.id,
+      idServidor: sid,
+      titulo: b.title,
+      tipo: tipo,
+      porcentaje: (b.percentHundredths ?? 0) ~/ 100,
+      desde: DateTime.parse(b.startDate),
+      hasta: DateTime.parse(b.endDate),
+      vista: vista,
+    );
+  }
+
+  /// Vista en el celular o en el servidor ([enServidor]: límite, tipo y período; null si el límite no se sincronizó).
+  Future<bool> _vista(String key, Set<String>? servidor, (int, String, String, String)? enServidor) async {
+    final local = await _storage.readValue(key) == '1';
+    if (servidor == null || enServidor == null) return local;
+    final (sid, kind, desde, hasta) = enServidor;
+    final remota = servidor.contains(BudgetAlertsRepository.key(sid, kind, desde, hasta));
+    if (remota && !local) await _storage.writeValue(key, '1'); // vista en la web: queda para usarla sin conexión
+    if (local && !remota) _enviarVista(sid, kind, desde, hasta); // marcada sin conexión (o antes de compartirse)
+    return local || remota;
+  }
+
+  /// Vistas guardadas en el servidor (compartidas con la web); null sin conexión.
+  Future<Set<String>?> _vistasServidor() async {
+    try {
+      return await _alerts.seen();
+    } catch (e) {
+      debugPrint('[NOVEDADES] Sin vistas del servidor: $e');
+      return null;
+    }
+  }
+
+  /// Mayor porcentaje primero, empate A-Z, vencidos al final.
+  static int _orden(NovedadEntity a, NovedadEntity b) {
+    final av = a.tipo == NovedadTipo.vencido, bv = b.tipo == NovedadTipo.vencido;
+    if (av != bv) return av ? 1 : -1;
+    if (a.porcentaje != b.porcentaje) return b.porcentaje.compareTo(a.porcentaje);
+    return a.titulo.toLowerCase().compareTo(b.titulo.toLowerCase());
   }
 
   Future<void> marcarComoVista(NovedadEntity novedad) async {
