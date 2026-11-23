@@ -50,8 +50,11 @@ class DashboardsNotifier extends StateNotifier<DashboardsState> {
     unawaited(refresh());
   }
 
+  /// Dashboard del usuario conectado (los demás se los compartieron).
+  bool isMine(Dashboard d) => d.ownerUserId == _userId;
+
   /// El principal propio (base `cg_local.db`).
-  bool isMyPrincipal(Dashboard d) => d.principal && d.ownerUserId == _userId;
+  bool isMyPrincipal(Dashboard d) => d.principal && isMine(d);
 
   /// El dashboard que se está viendo (null hasta tener la lista).
   Dashboard? get current {

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/dashboards/dashboard_switch.dart';
 import '../../../core/utils/app_feedback.dart';
 import '../../../l10n/l10n.dart';
-import '../../auth/presentation/providers/auth_notifier.dart';
 import '../../movements/presentation/local_write_feedback.dart';
 import '../data/dashboards_repository.dart';
 import '../domain/dashboard.dart';
@@ -88,9 +87,8 @@ class _DashboardsAdminScreenState extends ConsumerState<DashboardsAdminScreen> {
     final l = context.l10n;
     final state = ref.watch(dashboardsNotifierProvider);
     final notifier = ref.read(dashboardsNotifierProvider.notifier);
-    final userId = ref.watch(authNotifierProvider.select((s) => s.user?.idUsuario));
-    final own = state.dashboards.where((d) => d.ownerUserId == userId).toList();
-    final shared = state.dashboards.where((d) => d.ownerUserId != userId).toList();
+    final own = state.dashboards.where(notifier.isMine).toList();
+    final shared = state.dashboards.where((d) => !notifier.isMine(d)).toList();
 
     return Scaffold(
       appBar: AppBar(title: Text(l.dashboards)),
@@ -200,28 +198,9 @@ class _OwnDashboardCardState extends ConsumerState<_OwnDashboardCard> {
   }
 
   Future<void> _rename() async {
-    final l = context.l10n;
-    final controller = TextEditingController(text: d.name);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.rename),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: 100,
-          decoration: InputDecoration(labelText: l.dashboardName),
-          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
-          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text(l.save)),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (name == null || name.isEmpty || name == d.name) return;
-    await widget.run((r) => r.rename(d.id, name), l.dashboardRenamed);
+    final name = await showDialog<String>(context: context, builder: (_) => _RenameDialog(initial: d.name));
+    if (!mounted || name == null || name.isEmpty || name == d.name) return;
+    await widget.run((r) => r.rename(d.id, name), context.l10n.dashboardRenamed);
   }
 
   @override
@@ -325,6 +304,45 @@ class _OwnDashboardCardState extends ConsumerState<_OwnDashboardCard> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Nombre nuevo de un dashboard. El controlador vive con el diálogo: se libera cuando el diálogo termina de
+/// cerrarse (liberarlo apenas devuelve el valor rompía la animación de cierre).
+class _RenameDialog extends StatefulWidget {
+  final String initial;
+  const _RenameDialog({required this.initial});
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final _controller = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    return AlertDialog(
+      title: Text(l.rename),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLength: 100,
+        decoration: InputDecoration(labelText: l.dashboardName),
+        onSubmitted: (v) => Navigator.pop(context, v.trim()),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l.cancel)),
+        TextButton(onPressed: () => Navigator.pop(context, _controller.text.trim()), child: Text(l.save)),
+      ],
     );
   }
 }
