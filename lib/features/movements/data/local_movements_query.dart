@@ -15,41 +15,14 @@ class LocalMovementsQuery {
   static const _rangePageSize = 100;
 
   Future<Map<String, dynamic>> list(MovementsQuery q) async {
-    final hasRange = (q.from?.isNotEmpty ?? false) || (q.to?.isNotEmpty ?? false);
-    final limit = q.limit > 0 ? q.limit : (hasRange ? _rangePageSize : _defaultLimit);
+    final limit = _pageSize(q);
     final text = q.q?.trim() ?? '';
     final search = text.isEmpty ? null : _Search.parse(text);
-
-    final where = <String>['h.deleted = 0', 'd.deleted = 0', 'a.active = 1'];
-    final args = <Object?>[];
-    if (q.from?.isNotEmpty ?? false) {
-      where.add('h.occurred_at >= ?');
-      args.add('${q.from} 00:00:00');
-    }
-    if (q.to?.isNotEmpty ?? false) {
-      where.add('h.occurred_at <= ?');
-      args.add('${q.to} 23:59:59');
-    }
-    if (q.categoryIds.isNotEmpty) {
-      where.add('d.category_local_id IN (SELECT local_id FROM categories WHERE server_id IN (${_marks(q.categoryIds)}))');
-      args.addAll(q.categoryIds);
-    }
-    if (q.accountIds.isNotEmpty) {
-      where.add('a.server_id IN (${_marks(q.accountIds)})');
-      args.addAll(q.accountIds);
-    }
-    var conceptMatch = '0';
-    final conceptArgs = <Object?>[];
-    if (search != null) {
-      conceptMatch = "(h.general_concept LIKE ? ESCAPE '\\')";
-      conceptArgs.add(search.like);
-      final (detailSql, detailArgs) = search.sql('d2');
-      where.add('($conceptMatch OR EXISTS (SELECT 1 FROM movement_details d2 '
-          'WHERE d2.header_local_id = h.local_id AND d2.deleted = 0 AND $detailSql))');
-      args
-        ..add(search.like)
-        ..addAll(detailArgs);
-    }
+    final filter = _Filter(q, search);
+    final where = filter.where;
+    final args = filter.args;
+    final conceptMatch = search == null ? '0' : _conceptMatch;
+    final conceptArgs = [if (search != null) search.like];
     const base = '''
       FROM movement_headers h
       JOIN movement_details d ON d.header_local_id = h.local_id
@@ -77,27 +50,9 @@ class LocalMovementsQuery {
 
     final ids = [for (final h in headers) h['local_id']! as int];
     final details = ids.isEmpty ? const <Map<String, Object?>>[] : await _details(ids);
-    final items = <Map<String, dynamic>>[];
-    for (final h in headers) {
-      var ds = details.where((d) => d['header_local_id'] == h['local_id']).toList();
-      var partial = false;
-      // Como la API: con filtro de categoría o cuenta solo se muestran los renglones que cumplen.
-      if (q.categoryIds.isNotEmpty || q.accountIds.isNotEmpty) {
-        final filtered = ds
-            .where((d) =>
-                (q.categoryIds.isEmpty || q.categoryIds.contains(d['c_sid'])) &&
-                (q.accountIds.isEmpty || q.accountIds.contains(d['a_sid'])))
-            .toList();
-        partial = filtered.length != ds.length;
-        ds = filtered;
-      }
-      if (search != null && (h['concept_match'] as int? ?? 0) == 0) {
-        final matched = ds.where(search.matches).toList();
-        partial = partial || matched.length != ds.length;
-        ds = matched;
-      }
-      items.add(_toDto(h, ds, partial));
-    }
+    final items = [
+      for (final h in headers) _visible(h, details.where((d) => d['header_local_id'] == h['local_id']).toList(), q, search),
+    ];
     final total = agg['total'] as int? ?? 0;
     return {
       'items': items,
@@ -108,6 +63,26 @@ class LocalMovementsQuery {
       'filteredTotalCents': ((agg['sum_all'] as int?) ?? 0).abs(),
     };
   }
+
+  static const _conceptMatch = r"(h.general_concept LIKE ? ESCAPE '\')";
+
+  /// Sin límite pedido: página más grande si hay rango de fechas.
+  static int _pageSize(MovementsQuery q) {
+    if (q.limit > 0) return q.limit;
+    final hasRange = (q.from?.isNotEmpty ?? false) || (q.to?.isNotEmpty ?? false);
+    return hasRange ? _rangePageSize : _defaultLimit;
+  }
+
+  /// Como la API: con filtro de categoría o cuenta, o búsqueda que no coincide por el concepto general,
+  /// solo se muestran los renglones que cumplen; `partialDetails` avisa que hay más.
+  static Map<String, dynamic> _visible(Map<String, Object?> h, List<Map<String, Object?>> all, MovementsQuery q, _Search? search) {
+    final bySearch = search != null && (h['concept_match'] as int? ?? 0) == 0;
+    final visible = all.where((d) => _matchesFilters(d, q) && (!bySearch || search.matches(d))).toList();
+    return _toDto(h, visible, visible.length != all.length);
+  }
+
+  static bool _matchesFilters(Map<String, Object?> d, MovementsQuery q) =>
+      (q.categoryIds.isEmpty || q.categoryIds.contains(d['c_sid'])) && (q.accountIds.isEmpty || q.accountIds.contains(d['a_sid']));
 
   Future<List<Map<String, Object?>>> _details(List<int> headerIds) => _db.rawQuery('''
       SELECT d.local_id, d.server_id, d.header_local_id, a.local_id AS a_lid, a.server_id AS a_sid, a.name AS account_name,
@@ -166,6 +141,34 @@ class LocalMovementsQuery {
   }
 
   static String _marks(List<Object?> v) => List.filled(v.length, '?').join(',');
+}
+
+/// Condiciones sobre el renglón: restringen qué renglones suman al importe del encabezado.
+class _Filter {
+  final where = <String>['h.deleted = 0', 'd.deleted = 0', 'a.active = 1'];
+  final args = <Object?>[];
+
+  _Filter(MovementsQuery q, _Search? search) {
+    if (q.from?.isNotEmpty ?? false) _add('h.occurred_at >= ?', ['${q.from} 00:00:00']);
+    if (q.to?.isNotEmpty ?? false) _add('h.occurred_at <= ?', ['${q.to} 23:59:59']);
+    if (q.categoryIds.isNotEmpty) {
+      _add('d.category_local_id IN (SELECT local_id FROM categories WHERE server_id IN (${LocalMovementsQuery._marks(q.categoryIds)}))', q.categoryIds);
+    }
+    if (q.accountIds.isNotEmpty) _add('a.server_id IN (${LocalMovementsQuery._marks(q.accountIds)})', q.accountIds);
+    if (search != null) {
+      final (detailSql, detailArgs) = search.sql('d2');
+      _add(
+        '(${LocalMovementsQuery._conceptMatch} OR EXISTS (SELECT 1 FROM movement_details d2 '
+        'WHERE d2.header_local_id = h.local_id AND d2.deleted = 0 AND $detailSql))',
+        [search.like, ...detailArgs],
+      );
+    }
+  }
+
+  void _add(String sql, List<Object?> values) {
+    where.add(sql);
+    args.addAll(values);
+  }
 }
 
 /// Búsqueda como texto o monto (`parseSearch` de la API).
