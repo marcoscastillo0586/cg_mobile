@@ -37,6 +37,13 @@ void main() {
     expect(ErrorMessages.forCode(null, 'Algo pasó', es), 'Algo pasó');
   });
 
+  test('con código: traducido + (código); desconocido no lo repite; sin código, sólo el motivo; separador', () {
+    expect(ErrorMessages.withCode(const ServerException('x', 400, 'INSUFFICIENT_FUNDS'), es), '${es.errInsufficientFunds} (INSUFFICIENT_FUNDS)');
+    expect(ErrorMessages.withCode(const ServerException('Algo pasó', 500, 'RARO'), es), 'Algo pasó (RARO)');
+    expect(ErrorMessages.withCode(StateError('x'), es), isNot(contains('(')));
+    expect(ErrorMessages.withCode(const ServerException('x', 400, 'INSUFFICIENT_FUNDS'), es, sep: '\n'), endsWith('\n(INSUFFICIENT_FUNDS)'));
+  });
+
   test('VALIDATION_ERROR: el mensaje del campo (en español tal cual; en inglés, envuelto)', () {
     expect(ErrorMessages.forCode('VALIDATION_ERROR', 'Fecha inválida', es), 'Fecha inválida');
     expect(ErrorMessages.forCode('VALIDATION_ERROR', 'Fecha inválida', en), en.errInvalidData('Fecha inválida'));

@@ -41,7 +41,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       debugPrint('[DIAG] $msg');
       setState(() => _diagnostico = msg);
     } catch (e) {
-      final msg = 'Error: ${ErrorMessages.describe(e, l)} (${ErrorMessages.codeOf(e) ?? '-'})';
+      final msg = 'Error: ${ErrorMessages.withCode(e, l)}';
       debugPrint('[DIAG] $msg');
       setState(() => _diagnostico = msg);
     }
@@ -49,241 +49,112 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settingsState = ref.watch(settingsProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final authState = ref.watch(authNotifierProvider);
-
+    final l10n = context.l10n;
+    final settings = ref.watch(settingsProvider);
+    final auth = ref.watch(authNotifierProvider);
+    final email = auth.user?.email ?? '';
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.settings, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-      ),
+      appBar: AppBar(title: Text(l10n.settings, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0).withBottomSafeArea(context),
         children: [
-          // 1. Sección: Módulos de Gestión Administrativa
-          _buildSectionHeader(context.l10n.management),
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-            ),
-            child: Column(
-              children: [
-                _buildAdminTile(
-                  icon: Icons.dashboard_outlined,
-                  color: AppColors.primary,
-                  title: context.l10n.dashboards,
-                  subtitle: context.l10n.manageDashboards,
-                  onTap: () => context.push(AppRoutes.dashboardsAdmin),
-                ),
-                const Divider(height: 1),
-                _buildAdminTile(
-                  icon: Icons.account_balance_wallet_outlined,
-                  color: AppColors.emerald,
-                  title: context.l10n.accountsPaymentMethods,
-                  subtitle: context.l10n.manageBanksWalletsCash,
-                  onTap: () => context.push(AppRoutes.accountsAdmin),
-                ),
-                const Divider(height: 1),
-                _buildAdminTile(
-                  icon: Icons.category_outlined,
-                  color: AppColors.primary,
-                  title: context.l10n.categories2,
-                  subtitle: context.l10n.createRenameActivateExpenseCategories,
-                  onTap: () => context.push(AppRoutes.categoriesAdmin),
-                ),
-                const Divider(height: 1),
-                _buildAdminTile(
-                  icon: Icons.pie_chart_outline_rounded,
-                  color: AppColors.amber,
-                  title: context.l10n.budgetsSpendingCaps,
-                  subtitle: context.l10n.monthlyLimitsAlertsOneTap,
-                  onTap: () => context.push(AppRoutes.limitsAdmin),
-                ),
-              ],
+          _Seccion(
+            titulo: l10n.management,
+            child: Column(children: [
+              _AdminTile(Icons.dashboard_outlined, AppColors.primary, l10n.dashboards, l10n.manageDashboards, AppRoutes.dashboardsAdmin),
+              const Divider(height: 1),
+              _AdminTile(Icons.account_balance_wallet_outlined, AppColors.emerald, l10n.accountsPaymentMethods, l10n.manageBanksWalletsCash,
+                  AppRoutes.accountsAdmin),
+              const Divider(height: 1),
+              _AdminTile(Icons.category_outlined, AppColors.primary, l10n.categories2, l10n.createRenameActivateExpenseCategories,
+                  AppRoutes.categoriesAdmin),
+              const Divider(height: 1),
+              _AdminTile(Icons.pie_chart_outline_rounded, AppColors.amber, l10n.budgetsSpendingCaps, l10n.monthlyLimitsAlertsOneTap,
+                  AppRoutes.limitsAdmin),
+            ]),
+          ),
+          _Seccion(
+            titulo: l10n.session,
+            child: ListTile(
+              key: const ValueKey('editar-nombre'),
+              leading: const Icon(Icons.person_outline_rounded),
+              // Nombre para mostrar: lo ven los integrantes de un dashboard compartido.
+              trailing: const Icon(Icons.edit_outlined, size: 18),
+              onTap: () => _editDisplayName(auth.user?.nombreUsuario ?? ''),
+              title: Text(auth.user?.nombreUsuario ?? ''),
+              subtitle: Text(auth.offline ? '$email · ${l10n.offline}' : email, style: const TextStyle(fontSize: 12)),
             ),
           ),
-          const SizedBox(height: 20),
-
-          // 2. Sección: Sesión
-          _buildSectionHeader(context.l10n.session),
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-            ),
-            child: Column(
-              children: [
-                ListTile(
-                  key: const ValueKey('editar-nombre'),
-                  leading: const Icon(Icons.person_outline_rounded),
-                  // Nombre para mostrar: lo ven los integrantes de un dashboard compartido.
-                  trailing: const Icon(Icons.edit_outlined, size: 18),
-                  onTap: () => _editDisplayName(authState.user?.nombreUsuario ?? ''),
-                  title: Text(authState.user?.nombreUsuario ?? ''),
-                  subtitle: Text(
-                    authState.offline
-                        ? '${authState.user?.email ?? ''} · ${context.l10n.offline}'
-                        : authState.user?.email ?? '',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
           // Solo en debug: diagnóstico de la sesión (verificación de la etapa 1).
-          if (kDebugMode) ...[
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-              ),
+          if (kDebugMode)
+            _Seccion(
               child: ListTile(
                 leading: const Icon(Icons.bug_report_outlined),
-                title: Text(context.l10n.sessionDiagnosticsDebug),
-                subtitle: Text(_diagnostico ?? context.l10n.n2ParallelGetAuthMe, style: const TextStyle(fontSize: 12)),
+                title: Text(l10n.sessionDiagnosticsDebug),
+                subtitle: Text(_diagnostico ?? l10n.n2ParallelGetAuthMe, style: const TextStyle(fontSize: 12)),
                 onTap: _diagnosticarSesion,
               ),
             ),
-            const SizedBox(height: 20),
-          ],
-
-          // 3. Sección: Idioma y Moneda por Defecto
-          _buildSectionHeader(context.l10n.languageDefaultCurrency),
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(context.l10n.appLanguage, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: settingsState.language,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      prefixIcon: const Icon(Icons.language_rounded),
-                    ),
-                    items: SettingsNotifier.idiomasDisponibles.entries.map((e) {
-                      return DropdownMenuItem<String>(
-                        value: e.key,
-                        child: Text(e.value),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        AppFeedback.selection();
-                        ref.read(settingsProvider.notifier).cambiarIdioma(val);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  Text(context.l10n.mainCurrency, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  Text(context.l10n.mainCurrencyHint, style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    // Si el servidor no la acepta, se reconstruye con la moneda que sigue vigente.
-                    key: ValueKey('moneda-principal-${settingsState.defaultCurrency}-$_monedaRechazada'),
-                    initialValue: settingsState.defaultCurrency,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      prefixIcon: const Icon(Icons.attach_money_rounded),
-                    ),
-                    items: SettingsNotifier.monedasDisponibles.map((code) {
-                      return DropdownMenuItem<String>(
-                        value: code,
-                        child: Text(SettingsNotifier.currencyLabel(code, context.l10n)),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        AppFeedback.selection();
-                        _cambiarMonedaPrincipal(val);
-                      }
-                    },
-                  ),
-                ],
-              ),
+          _Seccion(
+            titulo: l10n.languageDefaultCurrency,
+            padding: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l10n.appLanguage, style: _negrita),
+                const SizedBox(height: 8),
+                _Selector(
+                  key: const ValueKey('idioma'),
+                  value: settings.language,
+                  icon: Icons.language_rounded,
+                  opciones: SettingsNotifier.idiomasDisponibles,
+                  onChanged: ref.read(settingsProvider.notifier).cambiarIdioma,
+                ),
+                const SizedBox(height: 16),
+                Text(l10n.mainCurrency, style: _negrita),
+                Text(l10n.mainCurrencyHint, style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
+                const SizedBox(height: 8),
+                _Selector(
+                  // Si el servidor no la acepta, se reconstruye con la moneda que sigue vigente.
+                  key: ValueKey('moneda-principal-${settings.defaultCurrency}-$_monedaRechazada'),
+                  value: settings.defaultCurrency,
+                  icon: Icons.attach_money_rounded,
+                  opciones: {for (final code in SettingsNotifier.monedasDisponibles) code: SettingsNotifier.currencyLabel(code, l10n)},
+                  onChanged: _cambiarMonedaPrincipal,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 20),
-
-          // 4. Sección: Apariencia Visual
-          _buildSectionHeader(context.l10n.appearanceTheme),
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(context.l10n.displayMode, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 12),
-                  SegmentedButton<ThemeMode>(
-                    segments: [
-                      ButtonSegment(
-                        value: ThemeMode.system,
-                        icon: const Icon(Icons.brightness_auto_rounded),
-                        label: Text(context.l10n.system),
-                      ),
-                      ButtonSegment(
-                        value: ThemeMode.light,
-                        icon: const Icon(Icons.light_mode_rounded),
-                        label: Text(context.l10n.light),
-                      ),
-                      ButtonSegment(
-                        value: ThemeMode.dark,
-                        icon: const Icon(Icons.dark_mode_rounded),
-                        label: Text(context.l10n.dark),
-                      ),
-                    ],
-                    selected: {settingsState.themeMode},
-                    onSelectionChanged: (Set<ThemeMode> newSelection) {
-                      AppFeedback.selection();
-                      ref.read(settingsProvider.notifier).cambiarThemeMode(newSelection.first);
-                    },
-                  ),
-                ],
-              ),
+          _Seccion(
+            titulo: l10n.appearanceTheme,
+            padding: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l10n.displayMode, style: _negrita),
+                const SizedBox(height: 12),
+                SegmentedButton<ThemeMode>(
+                  segments: [
+                    ButtonSegment(value: ThemeMode.system, icon: const Icon(Icons.brightness_auto_rounded), label: Text(l10n.system)),
+                    ButtonSegment(value: ThemeMode.light, icon: const Icon(Icons.light_mode_rounded), label: Text(l10n.light)),
+                    ButtonSegment(value: ThemeMode.dark, icon: const Icon(Icons.dark_mode_rounded), label: Text(l10n.dark)),
+                  ],
+                  selected: {settings.themeMode},
+                  onSelectionChanged: (selection) {
+                    AppFeedback.selection();
+                    ref.read(settingsProvider.notifier).cambiarThemeMode(selection.first);
+                  },
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 12),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-          color: AppColors.primary,
-        ),
-      ),
-    );
-  }
+  static const _negrita = TextStyle(fontWeight: FontWeight.bold, fontSize: 14);
 
   /// Cambia el nombre para mostrar (con conexión; el servidor lo guarda).
   Future<void> _editDisplayName(String current) async {
@@ -331,30 +202,93 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await ref.read(settingsProvider.notifier).cambiarMonedaDefault(moneda);
     if (mounted) AppFeedback.showSuccess(context, l.mainCurrencySaved);
   }
+}
 
-  Widget _buildAdminTile({
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: color, size: 22),
+/// Título (opcional) y tarjeta con borde.
+class _Seccion extends StatelessWidget {
+  final String? titulo;
+  final double? padding;
+  final Widget child;
+  const _Seccion({this.titulo, this.padding, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final t = titulo;
+    final p = padding;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (t != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
+              child: Text(t, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary)),
+            ),
+          Card(
+            elevation: 0,
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            ),
+            child: p == null ? child : Padding(padding: EdgeInsets.all(p), child: child),
+          ),
+        ],
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
-      trailing: const Icon(Icons.chevron_right_rounded, size: 20),
-      onTap: () {
-        AppFeedback.light();
-        onTap();
-      },
     );
   }
+}
+
+/// Desplegable de una opción (valor → texto).
+class _Selector extends StatelessWidget {
+  final String value;
+  final IconData icon;
+  final Map<String, String> opciones;
+  final ValueChanged<String> onChanged;
+  const _Selector({super.key, required this.value, required this.icon, required this.opciones, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => DropdownButtonFormField<String>(
+        initialValue: value,
+        isExpanded: true,
+        decoration: InputDecoration(
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          prefixIcon: Icon(icon),
+        ),
+        items: [for (final e in opciones.entries) DropdownMenuItem<String>(value: e.key, child: Text(e.value))],
+        onChanged: (val) {
+          if (val == null) return;
+          AppFeedback.selection();
+          onChanged(val);
+        },
+      );
+}
+
+/// Acceso a una pantalla de administración.
+class _AdminTile extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final String route;
+  const _AdminTile(this.icon, this.color, this.title, this.subtitle, this.route);
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
+        trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+        onTap: () {
+          AppFeedback.light();
+          context.push(route);
+        },
+      );
 }

@@ -67,10 +67,12 @@ class ErrorMessages {
         _ => error.toString(),
       };
 
-  /// El motivo traducido seguido del código de la API entre paréntesis (si lo tiene), separado por [sep].
+  /// El motivo traducido seguido del código de la API entre paréntesis (si lo tiene), separado por [sep]. Un
+  /// código sin traducción ya viene en el motivo ([forCode]): no se repite.
   static String withCode(Object error, AppLocalizations l, {String sep = ' '}) {
     final code = codeOf(error);
-    return describe(error, l) + (code != null ? '$sep($code)' : '');
+    final text = describe(error, l);
+    return code == null || text.contains('($code)') ? text : '$text$sep($code)';
   }
 
   /// Código de la API del error, si lo tiene.
