@@ -164,58 +164,16 @@ class ReceiptSpatialParser {
     return _extraerBloquesYLineas(filasConsolidadas);
   }
 
-  /// Procesa una sola foto reconociendo filas espaciales y devuelve cadenas de texto
-  static List<String> parseRecognizedTextToLines(RecognizedText recognizedText) {
-    return parseMultipleRecognizedTextsToLines([recognizedText]);
-  }
+  static List<SpatialRow> _obtenerFilasHorizontales(RecognizedText recognizedText, int fotoNum) => rowsFromElements([
+        for (final block in recognizedText.blocks)
+          for (final line in block.lines)
+            if (line.text.trim().isNotEmpty) SpatialTextElement(text: line.text.trim(), rect: line.boundingBox),
+      ], fotoNum);
 
-  /// Paso 2: Reconstruye filas por foto, las une en una sola lista ordenada y desolapa bordes
-  static List<String> parseMultipleRecognizedTextsToLines(List<RecognizedText> recognizedTexts) {
-    final List<List<SpatialRow>> perPhotoRows = [];
-
-    for (int p = 0; p < recognizedTexts.length; p++) {
-      final rowsPhoto = _obtenerFilasHorizontales(recognizedTexts[p], p + 1);
-      perPhotoRows.add(rowsPhoto);
-    }
-
-    final List<SpatialRow> filasConsolidadas = _unirYDesolaparFilas(perPhotoRows);
-
-    final List<String> lineasResult = [];
-    debugPrint('========================================');
-    debugPrint('[TICKET-DEBUG] [FILAS] (Reconstrucción Espacial Dart)');
-    debugPrint('========================================');
-
-    for (int idx = 0; idx < filasConsolidadas.length; idx++) {
-      final fila = filasConsolidadas[idx];
-      final lineStr = '[${fila.index.toString().padLeft(2, '0')}] ${fila.fullText}';
-      lineasResult.add(lineStr);
-      debugPrint('[TICKET-DEBUG] [FILAS] $lineStr');
-    }
-
-    debugPrint('========================================');
-    debugPrint('[TICKET-DEBUG] [FILAS] Total de filas reconstruidas: ${lineasResult.length}');
-    debugPrint('========================================');
-
-    return lineasResult;
-  }
-
-  static List<SpatialRow> _obtenerFilasHorizontales(RecognizedText recognizedText, int fotoNum) {
-    final List<SpatialTextElement> allElements = [];
-
-    for (final block in recognizedText.blocks) {
-      for (final line in block.lines) {
-        final text = line.text.trim();
-        if (text.isNotEmpty) {
-          allElements.add(
-            SpatialTextElement(
-              text: text,
-              rect: line.boundingBox,
-            ),
-          );
-        }
-      }
-    }
-
+  /// Agrupa en filas los textos de una foto según su altura (lo que hace el OCR de ML Kit, sin depender de él).
+  @visibleForTesting
+  static List<SpatialRow> rowsFromElements(List<SpatialTextElement> elements, int fotoNum) {
+    final allElements = [...elements];
     if (allElements.isEmpty) return [];
 
     final heights = allElements.map((e) => e.height).toList()..sort();
@@ -270,6 +228,9 @@ class ReceiptSpatialParser {
   }
 
   /// Une fotos eliminando sólo secuencias de filas consecutivas repetidas en el borde entre fotos
+  @visibleForTesting
+  static List<SpatialRow> mergePhotos(List<List<SpatialRow>> perPhotoRows) => _unirYDesolaparFilas(perPhotoRows);
+
   static List<SpatialRow> _unirYDesolaparFilas(List<List<SpatialRow>> perPhotoRows) {
     if (perPhotoRows.isEmpty) return [];
     if (perPhotoRows.length == 1) return perPhotoRows.first;
