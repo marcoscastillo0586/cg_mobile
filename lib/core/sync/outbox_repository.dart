@@ -102,44 +102,52 @@ class OutboxRepository {
     );
   }
 
+  /// Texto de una operación para la pantalla de pendientes.
   Future<String> _describe(DatabaseExecutor db, Map<String, Object?> r) async {
     final d = jsonDecode(r['data']! as String) as Map<String, dynamic>;
-    if (r['entity'] == 'movement' && r['action'] == 'create') {
-      final type = d['type'] as int;
-      final cents = type == 2
-          ? (d['items'] as List).fold<int>(0, (s, i) => s + (Money.parseInput((i as Map)['amount'] as String) ?? 0))
-          : Money.parseInput(d['amount'] as String) ?? 0;
-      return switch (type) {
-        1 => 'Ingreso "${d['concept']}" ${Money.format(cents)} en ${await _accountName(db, d['accountRef'])} · ${d['date']}',
-        2 => 'Egreso "${d['generalConcept']}" ${Money.format(cents)} de ${await _accountName(db, d['accountRef'])} · ${d['date']}',
-        _ => 'Transferencia ${Money.format(cents)} de ${await _accountName(db, d['fromRef'])} a ${await _accountName(db, d['toRef'])} · ${d['date']}',
-      };
-    }
     final ref = r['ref'] == null ? null : jsonDecode(r['ref']! as String);
+    // El número del comprobante o renglón, sólo si ya está en el servidor.
     final target = ref is Map && ref['serverId'] != null ? ' #${ref['serverId']}' : '';
-    if (r['entity'] == 'movement' && r['action'] == 'update') {
-      final t = d['transfer'] as Map<String, dynamic>?;
-      final parts = [
-        if (d['generalConcept'] != null) 'concepto "${d['generalConcept']}"',
-        if (d['date'] != null) 'fecha ${d['date']}',
-        if (d['accountRef'] != null) 'cuenta ${await _accountName(db, d['accountRef'])}',
-        if (t != null)
-          'transferencia ${Money.format(Money.parseInput(t['amount'] as String) ?? 0)} de ${await _accountName(db, t['fromRef'])} a ${await _accountName(db, t['toRef'])}',
-      ];
-      return 'Edición de comprobante$target: ${parts.join(', ')}';
-    }
-    if (r['entity'] == 'movement' && r['action'] == 'delete') return 'Eliminación de comprobante$target';
-    if (r['entity'] == 'movement_detail' && r['action'] == 'update') {
-      final parts = [
-        if (d['concept'] != null) 'concepto "${d['concept']}"',
-        if (d['amount'] != null) 'monto ${Money.format(Money.parseInput(d['amount'] as String) ?? 0)}',
-        if (d['categoryRef'] != null) 'categoría',
-      ];
-      return 'Edición de renglón$target: ${parts.join(', ')}';
-    }
-    if (r['entity'] == 'movement_detail' && r['action'] == 'delete') return 'Eliminación de renglón$target';
-    return '${r['entity']} / ${r['action']}';
+    return switch ((r['entity'], r['action'])) {
+      ('movement', 'create') => await _describeCreate(db, d),
+      ('movement', 'update') => 'Edición de comprobante$target: ${await _movementChanges(db, d)}',
+      ('movement', 'delete') => 'Eliminación de comprobante$target',
+      ('movement_detail', 'update') => 'Edición de renglón$target: ${_detailChanges(d)}',
+      ('movement_detail', 'delete') => 'Eliminación de renglón$target',
+      _ => '${r['entity']} / ${r['action']}',
+    };
   }
+
+  Future<String> _describeCreate(DatabaseExecutor db, Map<String, dynamic> d) async {
+    final type = d['type'] as int;
+    final cents = type == 2 ? (d['items'] as List).fold<int>(0, (s, i) => s + _cents((i as Map)['amount'])) : _cents(d['amount']);
+    return switch (type) {
+      1 => 'Ingreso "${d['concept']}" ${Money.format(cents)} en ${await _accountName(db, d['accountRef'])} · ${d['date']}',
+      2 => 'Egreso "${d['generalConcept']}" ${Money.format(cents)} de ${await _accountName(db, d['accountRef'])} · ${d['date']}',
+      _ => 'Transferencia ${Money.format(cents)} de ${await _transferAccounts(db, d)} · ${d['date']}',
+    };
+  }
+
+  Future<String> _movementChanges(DatabaseExecutor db, Map<String, dynamic> d) async {
+    final t = d['transfer'] as Map<String, dynamic>?;
+    return [
+      if (d['generalConcept'] != null) 'concepto "${d['generalConcept']}"',
+      if (d['date'] != null) 'fecha ${d['date']}',
+      if (d['accountRef'] != null) 'cuenta ${await _accountName(db, d['accountRef'])}',
+      if (t != null) 'transferencia ${Money.format(_cents(t['amount']))} de ${await _transferAccounts(db, t)}',
+    ].join(', ');
+  }
+
+  static String _detailChanges(Map<String, dynamic> d) => [
+        if (d['concept'] != null) 'concepto "${d['concept']}"',
+        if (d['amount'] != null) 'monto ${Money.format(_cents(d['amount']))}',
+        if (d['categoryRef'] != null) 'categoría',
+      ].join(', ');
+
+  Future<String> _transferAccounts(DatabaseExecutor db, Map<String, dynamic> d) async =>
+      '${await _accountName(db, d['fromRef'])} a ${await _accountName(db, d['toRef'])}';
+
+  static int _cents(Object? amount) => Money.parseInput(amount as String) ?? 0;
 
   Future<String> _accountName(DatabaseExecutor db, Object? ref) async {
     final id = await _localId(db, 'accounts', ref);
