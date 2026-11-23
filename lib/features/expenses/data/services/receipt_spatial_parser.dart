@@ -2,7 +2,6 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import '../../../../core/money/money.dart';
 
 class SpatialTextElement {
   final String text;
@@ -295,155 +294,20 @@ class ReceiptSpatialParser {
       );
     }
 
-    String? comercio;
-    String? sucursal;
-    String? direccion;
-    String? cuit;
-    String? fecha;
-    String? hora;
-
-    for (final fila in spatialRows) {
-      final text = fila.fullText;
-      final lower = text.toLowerCase();
-
-      if (comercio == null && (lower.contains('coto') || lower.contains('goto') || lower.contains('c.i.c.s.a'))) {
-        comercio = 'COTO';
-      }
-      if (sucursal == null && lower.contains('suc')) {
-        sucursal = text.trim();
-      }
-      if (direccion == null && (lower.contains('avda') || lower.contains('calle') || lower.contains('paz') || lower.contains('yrigoyen'))) {
-        direccion = text.trim();
-      }
-      if (cuit == null) {
-        final matchCuit = RegExp(r'\b\d{2}-\d{8}-\d{1}\b').firstMatch(text);
-        if (matchCuit != null) cuit = matchCuit.group(0);
-      }
-      if (fecha == null) {
-        final matchFecha = RegExp(r'\b\d{2}/\d{2}/\d{4}\b').firstMatch(text);
-        if (matchFecha != null) fecha = matchFecha.group(0);
-      }
-      if (hora == null) {
-        final matchHora = RegExp(r'\b\d{2}:\d{2}(?::\d{2})?\b').firstMatch(text);
-        if (matchHora != null) hora = matchHora.group(0);
-      }
-    }
-
-    final List<StructuredTicketItem> items = [];
-    int? totalDetectadoEnTicket;
-    bool isPostTotal = false;
-
-    for (int i = 0; i < spatialRows.length; i++) {
-      final fila = spatialRows[i];
-      final lower = fila.fullText.toLowerCase();
-
-      if (lower.contains('total') && !lower.contains('subtotal') && !lower.contains('puntos')) {
-        final totalMonto = _extraerMontoDeTexto(fila.fullText);
-        if (totalMonto != null && totalMonto > 0) {
-          totalDetectadoEnTicket = totalMonto;
-        }
-        isPostTotal = true;
-        continue;
-      }
-
-      if (isPostTotal) continue;
-
-      if (_esFilaIgnorable(lower) || _esSoloCodigoDeBarra(fila.fullText)) continue;
-
-      // Fila de Código PLU + EAN con Precio al final
-      if (_esFilaDeCodigoConPrecio(fila)) {
-        final precioBruto = _extraerPrecioDeFila(fila);
-        if (precioBruto != null && precioBruto > 0 && precioBruto <= _maxCents) {
-          String descripcion = '';
-          String? detalleAdicional;
-          int fotoOrigenItem = fila.fotoOrigen;
-
-          for (int j = i - 1; j >= 0; j--) {
-            final prevFila = spatialRows[j];
-            final prevText = prevFila.fullText;
-
-            if (_esPatronDetalleAdicional(prevText)) {
-              detalleAdicional = prevText.trim();
-            } else {
-              final nombreCand = _extraerDescripcionPura(prevText);
-              if (nombreCand.isNotEmpty && !_esFilaIgnorable(prevText.toLowerCase())) {
-                descripcion = nombreCand;
-                fotoOrigenItem = prevFila.fotoOrigen;
-                break;
-              }
-            }
-          }
-
-          if (descripcion.isNotEmpty) {
-            var descuento = 0;
-
-            if (i + 1 < spatialRows.length && _esFilaDescuento(spatialRows[i + 1])) {
-              final sigFila = spatialRows[i + 1];
-              if (detalleAdicional == null && _esPatronDetalleAdicional(sigFila.fullText)) {
-                detalleAdicional = _extraerDetallePuro(sigFila.fullText);
-              }
-              final montoDesc = _extraerMontoDeTexto(sigFila.fullText);
-              // Un descuento mayor o igual al precio es una lectura equivocada: no se aplica.
-              if (montoDesc != null && montoDesc > 0 && montoDesc < precioBruto) {
-                descuento = montoDesc;
-                i++; // Consumir fila de descuento
-              }
-            }
-
-            final montoNeto = max(1, precioBruto - descuento);
-
-            items.add(
-              StructuredTicketItem(
-                renglon: items.length + 1,
-                descripcion: descripcion,
-                detalleAdicional: detalleAdicional,
-                montoBruto: precioBruto,
-                descuento: descuento,
-                montoNeto: montoNeto,
-                fotoOrigen: fotoOrigenItem,
-              ),
-            );
-          }
-        }
-        continue;
-      }
-
-      // Formato C: Fila única de Nombre con Precio directo
-      if (!_esPatronCantidad(fila.fullText) && !_esFilaDescuento(fila)) {
-        if (i + 1 < spatialRows.length && _esFilaDeCodigoConPrecio(spatialRows[i + 1])) {
-          continue;
-        }
-
-        final precio = _extraerPrecioDeFila(fila);
-        final descripcion = _extraerDescripcionPura(fila.fullText);
-
-        if (precio != null && precio > 0 && precio <= _maxCents && descripcion.isNotEmpty) {
-          items.add(
-            StructuredTicketItem(
-              renglon: items.length + 1,
-              descripcion: descripcion,
-              detalleAdicional: null,
-              montoBruto: precio,
-              descuento: 0,
-              montoNeto: precio,
-              fotoOrigen: fila.fotoOrigen,
-            ),
-          );
-        }
-      }
-    }
+    final h = _encabezado(spatialRows);
+    final (items, totalDetectadoEnTicket) = _renglones(spatialRows);
 
     final subtotalBruto = items.fold<int>(0, (acc, item) => acc + item.montoBruto);
     final totalDescuentos = items.fold<int>(0, (acc, item) => acc + item.descuento);
     final totalPagado = totalDetectadoEnTicket ?? subtotalBruto - totalDescuentos;
 
     final parseResult = SpatialParseResult(
-      comercio: comercio,
-      sucursal: sucursal,
-      direccion: direccion,
-      cuit: cuit,
-      fecha: fecha,
-      hora: hora,
+      comercio: h.comercio,
+      sucursal: h.sucursal,
+      direccion: h.direccion,
+      cuit: h.cuit,
+      fecha: h.fecha,
+      hora: h.hora,
       items: items,
       totales: StructuredTicketTotals(
         subtotalBruto: subtotalBruto,
@@ -457,23 +321,130 @@ class ReceiptSpatialParser {
     return parseResult;
   }
 
-  static bool _esFilaIgnorable(String lower) {
-    return lower.contains('cuit') ||
-        lower.contains('subtot') ||
-        lower.contains('cae') ||
-        lower.contains('factura') ||
-        lower.contains('ticket') ||
-        lower.contains('efectivo') ||
-        lower.contains('tarjeta') ||
-        lower.contains('debito') ||
-        lower.contains('credito') ||
-        lower.contains('gracias por su compra') ||
-        lower.contains('caja #') ||
-        lower.contains('operador') ||
-        lower.contains('puntos') ||
-        lower.contains('vuelto') ||
-        lower.contains('cambio');
+  /// Datos del encabezado: vale la primera fila que los tiene.
+  static ({String? comercio, String? sucursal, String? direccion, String? cuit, String? fecha, String? hora}) _encabezado(List<SpatialRow> rows) {
+    String? first(String? Function(String text, String lower) pick) {
+      for (final fila in rows) {
+        final v = pick(fila.fullText, fila.fullText.toLowerCase());
+        if (v != null) return v;
+      }
+      return null;
+    }
+
+    String? match(String text, RegExp re) => re.firstMatch(text)?.group(0);
+    return (
+      comercio: first((_, lower) => ['coto', 'goto', 'c.i.c.s.a'].any(lower.contains) ? 'COTO' : null),
+      sucursal: first((text, lower) => lower.contains('suc') ? text.trim() : null),
+      direccion: first((text, lower) => ['avda', 'calle', 'paz', 'yrigoyen'].any(lower.contains) ? text.trim() : null),
+      cuit: first((text, _) => match(text, RegExp(r'\b\d{2}-\d{8}-\d{1}\b'))),
+      fecha: first((text, _) => match(text, RegExp(r'\b\d{2}/\d{2}/\d{4}\b'))),
+      hora: first((text, _) => match(text, RegExp(r'\b\d{2}:\d{2}(?::\d{2})?\b'))),
+    );
   }
+
+  /// Renglones hasta la fila del total (lo que sigue no se lee) y el total impreso, si se leyó.
+  static (List<StructuredTicketItem>, int?) _renglones(List<SpatialRow> rows) {
+    final items = <StructuredTicketItem>[];
+    for (int i = 0; i < rows.length; i++) {
+      final fila = rows[i];
+      final lower = fila.fullText.toLowerCase();
+      if (_esFilaTotal(lower)) return (items, _ultimoTotal(rows.sublist(i)));
+      if (_esFilaIgnorable(lower) || _esSoloCodigoDeBarra(fila.fullText)) continue;
+      if (_esFilaDeCodigoConPrecio(fila)) {
+        final (item, consumioDescuento) = _renglonConCodigo(rows, i, items.length + 1);
+        if (item != null) items.add(item);
+        if (consumioDescuento) i++;
+        continue;
+      }
+      final item = _renglonEnUnaFila(rows, i, items.length + 1);
+      if (item != null) items.add(item);
+    }
+    return (items, null);
+  }
+
+  /// Desde la primera fila del total: el último importe positivo de una fila de total.
+  static int? _ultimoTotal(List<SpatialRow> rows) {
+    int? total;
+    for (final fila in rows) {
+      final monto = _esFilaTotal(fila.fullText.toLowerCase()) ? _extraerMontoDeTexto(fila.fullText) : null;
+      if (monto != null && monto > 0) total = monto;
+    }
+    return total;
+  }
+
+  static bool _esFilaTotal(String lower) => lower.contains('total') && !lower.contains('subtotal') && !lower.contains('puntos');
+
+  /// Fila de código PLU + EAN con el precio al final: el nombre está en una fila anterior y el descuento, si hay,
+  /// en la siguiente. Devuelve también si consumió la fila del descuento.
+  static (StructuredTicketItem?, bool) _renglonConCodigo(List<SpatialRow> rows, int i, int renglon) {
+    final precioBruto = _extraerPrecioDeFila(rows[i]);
+    if (precioBruto == null || precioBruto <= 0 || precioBruto > _maxCents) return (null, false);
+    final previo = _nombreAnterior(rows, i);
+    if (previo == null) return (null, false);
+    final sig = i + 1 < rows.length && _esFilaDescuento(rows[i + 1]) ? rows[i + 1] : null;
+    final detalle = previo.detalle ?? _detalleDeDescuento(sig);
+    final descuento = _descuentoValido(sig, precioBruto);
+    final item = StructuredTicketItem(
+      renglon: renglon,
+      descripcion: previo.nombre,
+      detalleAdicional: detalle,
+      montoBruto: precioBruto,
+      descuento: descuento,
+      montoNeto: max(1, precioBruto - descuento),
+      fotoOrigen: previo.foto,
+    );
+    return (item, descuento > 0);
+  }
+
+  static String? _detalleDeDescuento(SpatialRow? fila) =>
+      fila != null && _esPatronDetalleAdicional(fila.fullText) ? _extraerDetallePuro(fila.fullText) : null;
+
+  /// Un descuento mayor o igual al precio es una lectura equivocada: no se aplica (0).
+  static int _descuentoValido(SpatialRow? fila, int precioBruto) {
+    final monto = fila == null ? null : _extraerMontoDeTexto(fila.fullText);
+    return monto != null && monto > 0 && monto < precioBruto ? monto : 0;
+  }
+
+  /// Hacia atrás desde la fila del código: el detalle (cantidad, descuento, %) más cercano al nombre y el nombre.
+  static ({String nombre, String? detalle, int foto})? _nombreAnterior(List<SpatialRow> rows, int i) {
+    String? detalle;
+    for (int j = i - 1; j >= 0; j--) {
+      final prevText = rows[j].fullText;
+      if (_esPatronDetalleAdicional(prevText)) {
+        detalle = prevText.trim();
+        continue;
+      }
+      final nombre = _extraerDescripcionPura(prevText);
+      if (nombre.isNotEmpty && !_esFilaIgnorable(prevText.toLowerCase())) return (nombre: nombre, detalle: detalle, foto: rows[j].fotoOrigen);
+    }
+    return null;
+  }
+
+  /// Fila única con nombre y precio (si la sigue una fila de código, el precio es de esa).
+  static StructuredTicketItem? _renglonEnUnaFila(List<SpatialRow> rows, int i, int renglon) {
+    final fila = rows[i];
+    if (_esPatronCantidad(fila.fullText) || _esFilaDescuento(fila)) return null;
+    if (i + 1 < rows.length && _esFilaDeCodigoConPrecio(rows[i + 1])) return null;
+    final precio = _extraerPrecioDeFila(fila);
+    final descripcion = _extraerDescripcionPura(fila.fullText);
+    if (precio == null || precio <= 0 || precio > _maxCents || descripcion.isEmpty) return null;
+    return StructuredTicketItem(
+      renglon: renglon,
+      descripcion: descripcion,
+      detalleAdicional: null,
+      montoBruto: precio,
+      descuento: 0,
+      montoNeto: precio,
+      fotoOrigen: fila.fotoOrigen,
+    );
+  }
+
+  static const _palabrasIgnorables = [
+    'cuit', 'subtot', 'cae', 'factura', 'ticket', 'efectivo', 'tarjeta', 'debito', 'credito', 'gracias por su compra',
+    'caja #', 'operador', 'puntos', 'vuelto', 'cambio',
+  ];
+
+  static bool _esFilaIgnorable(String lower) => _palabrasIgnorables.any(lower.contains);
 
   static bool _esSoloCodigoDeBarra(String texto) {
     final clean = texto.replaceAll(' ', '').trim();
@@ -580,19 +551,12 @@ class ReceiptSpatialParser {
   /// "1.234,56", "1234,56" o "1234.56" → centavos (entero, sin pasar por double).
   static int? _parseMontoArgentino(String str) {
     final clean = str.replaceAll('\$', '').replaceAll(' ', '').trim();
-    if (clean.isEmpty) return null;
-
-    final lastComma = clean.lastIndexOf(',');
-    final lastDot = clean.lastIndexOf('.');
-    final sep = lastComma != -1 && lastComma == clean.length - 3
-        ? lastComma
-        : (lastDot != -1 && lastDot == clean.length - 3 ? lastDot : -1);
-    if (sep != -1) {
-      final before = clean.substring(0, sep).replaceAll('.', '').replaceAll(',', '');
-      final decimals = clean.substring(sep + 1);
-      if (!RegExp(r'^\d*$').hasMatch(before) || !RegExp(r'^\d{2}$').hasMatch(decimals)) return null;
-      return (before.isEmpty ? 0 : int.parse(before)) * 100 + int.parse(decimals);
-    }
-    return Money.parseInput(clean);
+    // Separador decimal: la coma o el punto antes de los dos últimos dígitos.
+    final sep = clean.length - 3;
+    if (sep < 0 || (clean[sep] != ',' && clean[sep] != '.')) return null;
+    final before = clean.substring(0, sep).replaceAll('.', '').replaceAll(',', '');
+    final decimals = clean.substring(sep + 1);
+    if (!RegExp(r'^\d*$').hasMatch(before) || !RegExp(r'^\d{2}$').hasMatch(decimals)) return null;
+    return (before.isEmpty ? 0 : int.parse(before)) * 100 + int.parse(decimals);
   }
 }
