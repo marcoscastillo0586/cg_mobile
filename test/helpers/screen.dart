@@ -64,9 +64,11 @@ class FakeDashboardsRepository implements DashboardsRepository {
   @override
   Future<List<AppNotification>> notifications() => _call(() => pendingNotifications);
   @override
-  Future<String?> readPendingName(String key) async => null;
+  final pendingNames = <String, String>{};
   @override
-  Future<void> savePendingName(String key, String? value) async {}
+  Future<String?> readPendingName(String key) async => pendingNames[key];
+  @override
+  Future<void> savePendingName(String key, String? value) async => value == null ? pendingNames.remove(key) : pendingNames[key] = value;
   @override
   Future<void> markRead(int id) => _call(() {
         read.add(id);

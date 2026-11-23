@@ -2,7 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../network/dio_client.dart';
+
+/// Crea la conexión de avisos en vivo de la pantalla principal (en los tests, una que no se conecta).
+final liveEventsProvider =
+    Provider<LiveEvents Function(void Function(LiveEvent event))>((ref) => (onEvent) => LiveEvents(ref.read(dioClientProvider), onEvent));
 
 /// Evento en vivo de GET /events (DashboardEventDto de la API).
 class LiveEvent {
