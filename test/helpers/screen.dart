@@ -14,6 +14,11 @@ import 'package:go_router/go_router.dart';
 /// Con [pushed], '/' muestra "inicio" y la pantalla se abre encima (su `pop` vuelve a "inicio").
 Future<GoRouter> pumpScreen(WidgetTester tester, Widget screen,
     {List<Override> overrides = const [], Locale locale = const Locale('es'), bool pushed = false, bool settle = true}) async {
+  // Alto de celular (con el de prueba por defecto, 800×600, quedan botones fuera de la pantalla) y ancho
+  // generoso: la fuente de los tests dibuja cada letra como un cuadrado y desbordaría un ancho real.
+  tester.view.physicalSize = const Size(1200, 2400);
+  tester.view.devicePixelRatio = 2;
+  addTearDown(tester.view.reset);
   final router = GoRouter(routes: [
     GoRoute(path: '/', builder: (_, __) => pushed ? const Scaffold(body: Text('inicio')) : screen),
     GoRoute(path: '/pantalla', builder: (_, __) => screen),
