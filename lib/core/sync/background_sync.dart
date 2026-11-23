@@ -68,7 +68,7 @@ class BackgroundSync {
   /// Una vez al arrancar la app, antes de abrir la base o la sesión.
   static Future<void> initialize() async {
     try {
-      await SyncCoordinator.startApp(_syncForTask);
+      await SyncCoordinator.startApp(syncForTask);
       await Workmanager().initialize(backgroundSyncDispatcher);
       Outbox.onEnqueued = scheduleSend;
       // keep: abrir la app no reinicia el ciclo.
@@ -109,7 +109,8 @@ class BackgroundSync {
       task == periodicTask || outcome != BackgroundSyncOutcome.retryLater;
 
   /// Pedido de una tarea con la app viva: la misma sincronización de siempre, con sus bloqueos.
-  static Future<BackgroundSyncOutcome> _syncForTask(bool onlyIfPending) async {
+  @visibleForTesting
+  static Future<BackgroundSyncOutcome> syncForTask(bool onlyIfPending) async {
     final container = appContainer;
     if (container == null || CurrentAccount.id == null) return BackgroundSyncOutcome.nothingToDo;
     if (onlyIfPending && await Outbox.pendingCount(await container.read(localDatabaseProvider)) == 0) {
