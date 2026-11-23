@@ -56,6 +56,26 @@ void main() {
     expect(jsonDecode(op['data']! as String), {'generalConcept': 'Almacén'});
   });
 
+  testWidgets('encabezado: pasar todo a otra cuenta de la misma moneda y cambiar la fecha', (tester) async {
+    await abrir(tester, 900);
+    await tester.tap(find.byKey(const ValueKey('editar-fecha')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('15'));
+    await tester.tap(find.text(MaterialLocalizations.of(tester.element(find.byType(DatePickerDialog))).okButtonLabel));
+    await tester.pumpAndSettle();
+    expect(find.text('15/10/2026'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('editar-cuenta')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('DOLARES'), findsNothing); // sólo cuentas de la moneda del comprobante
+    await tester.tap(find.textContaining('BANCO').last);
+    await tester.pumpAndSettle();
+    await tocar(tester, 'guardar-encabezado');
+    expect(find.text(l.balanceWillNegative), findsNothing); // Banco queda con saldo
+    final data = jsonDecode((await ops(tester)).single['data']! as String) as Map<String, dynamic>;
+    expect(data, containsPair('date', '2026-10-15'));
+    expect(data, containsPair('accountRef', {'serverId': 1}));
+  });
+
   testWidgets('renglón: monto inválido avisa; guardar y borrar renglones los encolan', (tester) async {
     await abrir(tester, 900);
     final pan = (await tester.runAsync(() => s.db.query('movement_details', where: 'server_id = 9001')))!.single['local_id'];
