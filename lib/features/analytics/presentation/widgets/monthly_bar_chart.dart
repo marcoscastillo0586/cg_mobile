@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'chart_touch.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
@@ -72,17 +73,8 @@ class _MonthlyBarChartState extends State<MonthlyBarChart> {
                     );
                   },
                 ),
-                touchCallback: (event, response) {
-                  setState(() {
-                    if (!event.isInterestedForInteractions ||
-                        response == null ||
-                        response.spot == null) {
-                      _touchedGroupIndex = -1;
-                      return;
-                    }
-                    _touchedGroupIndex = response.spot!.touchedBarGroupIndex;
-                  });
-                },
+                touchCallback: (event, response) => setState(() => _touchedGroupIndex =
+                    resaltadoTrasToque(interesado: event.isInterestedForInteractions, tocado: response?.spot?.touchedBarGroupIndex)),
               ),
               titlesData: FlTitlesData(
                 show: true,

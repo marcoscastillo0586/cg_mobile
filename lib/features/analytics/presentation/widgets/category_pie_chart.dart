@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'chart_touch.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/app_feedback.dart';
@@ -43,30 +44,10 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final categorias = widget.report.categorias;
 
-    if (categorias.isEmpty || widget.report.totalCents <= 0) {
-      return Container(
-        height: 260,
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.pie_chart_outline_rounded, size: 54, color: isDark ? Colors.white24 : Colors.black26),
-            const SizedBox(height: 12),
-            Text(
-              context.l10n.noExpensesPeriod,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+    if (categorias.isEmpty || widget.report.totalCents <= 0) return const _SinGastos();
+    final seleccionada = _touchedIndex >= 0 && _touchedIndex < categorias.length ? categorias[_touchedIndex] : null;
 
     return Column(
       children: [
@@ -79,20 +60,12 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
               PieChart(
                 PieChartData(
                   pieTouchData: PieTouchData(
-                    touchCallback: (event, pieTouchResponse) {
-                      setState(() {
-                        if (!event.isInterestedForInteractions ||
-                            pieTouchResponse == null ||
-                            pieTouchResponse.touchedSection == null) {
-                          _touchedIndex = -1;
-                          return;
-                        }
-                        final newIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
-                        if (newIndex != _touchedIndex) {
-                          AppFeedback.selection();
-                          _touchedIndex = newIndex;
-                        }
-                      });
+                    touchCallback: (event, response) {
+                      final nuevo = resaltadoTrasToque(
+                          interesado: event.isInterestedForInteractions, tocado: response?.touchedSection?.touchedSectionIndex);
+                      if (nuevo == _touchedIndex) return;
+                      if (nuevo >= 0) AppFeedback.selection();
+                      setState(() => _touchedIndex = nuevo);
                     },
                   ),
                   borderData: FlBorderData(show: false),
@@ -135,40 +108,10 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
               ),
 
               // Contenido en el centro del Donut
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _touchedIndex >= 0 && _touchedIndex < categorias.length
-                        ? categorias[_touchedIndex].nombre
-                        : context.l10n.totalExpenses,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _touchedIndex >= 0 && _touchedIndex < categorias.length
-                        ? Money.format(categorias[_touchedIndex].montoCents, currency: reportCurrency(context))
-                        : Money.format(widget.report.totalCents, currency: reportCurrency(context)),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: _touchedIndex >= 0 && _touchedIndex < categorias.length
-                          ? _getColor(_touchedIndex)
-                          : (isDark ? Colors.white : AppColors.lightTextPrimary),
-                    ),
-                  ),
-                  if (_touchedIndex >= 0 && _touchedIndex < categorias.length)
-                    Text(
-                      context.l10n.tostringasfixedTotal(categorias[_touchedIndex].porcentaje.toStringAsFixed(1)),
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
-                    ),
-                ],
+              _Centro(
+                seleccionada: seleccionada,
+                color: seleccionada == null ? null : _getColor(_touchedIndex),
+                totalCents: widget.report.totalCents,
               ),
             ],
           ),
@@ -262,6 +205,64 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
             );
           },
         ),
+      ],
+    );
+  }
+}
+
+/// Sin gastos en el período: no hay torta.
+class _SinGastos extends StatelessWidget {
+  const _SinGastos();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      height: 260,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.pie_chart_outline_rounded, size: 54, color: isDark ? Colors.white24 : Colors.black26),
+          const SizedBox(height: 12),
+          Text(
+            context.l10n.noExpensesPeriod,
+            style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Centro de la dona: la categoría elegida (nombre, monto y porcentaje) o el total del período.
+class _Centro extends StatelessWidget {
+  final CategoryExpenseItemEntity? seleccionada;
+  final Color? color;
+  final int totalCents;
+  const _Centro({required this.seleccionada, required this.color, required this.totalCents});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sel = seleccionada;
+    final currency = reportCurrency(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          sel?.nombre ?? context.l10n.totalExpenses,
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          Money.format(sel?.montoCents ?? totalCents, currency: currency),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color ?? (isDark ? Colors.white : AppColors.lightTextPrimary)),
+        ),
+        if (sel != null)
+          Text(context.l10n.tostringasfixedTotal(sel.porcentaje.toStringAsFixed(1)), style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
     );
   }
