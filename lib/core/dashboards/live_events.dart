@@ -49,26 +49,32 @@ class LiveEvents {
           options: Options(responseType: ResponseType.stream, receiveTimeout: _idle, headers: {'Accept': 'text/event-stream'}),
         );
         wait = const Duration(seconds: 1);
-        final lines = res.data!.stream.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter());
-        String? type;
-        String? data;
-        await for (final line in lines) {
-          if (!_running) break;
-          if (line.startsWith('event:')) type = line.substring(6).trim();
-          if (line.startsWith('data:')) data = line.substring(5).trim();
-          if (line.isEmpty) {
-            _emit(type, data);
-            type = null;
-            data = null;
-          }
-        }
+        await _listen(res.data!.stream.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter()));
       } catch (e) {
         if (!_running) return;
         debugPrint('[EVENTS] Conexión de avisos en vivo cortada; se reintenta: $e');
       }
       if (!_running) return;
       await Future<void>.delayed(wait);
-      wait = wait * 2 > const Duration(seconds: 30) ? const Duration(seconds: 30) : wait * 2;
+      wait = _backoff(wait);
+    }
+  }
+
+  /// Espera creciente entre reconexiones: el doble cada vez, hasta 30 s.
+  static Duration _backoff(Duration wait) => wait * 2 > const Duration(seconds: 30) ? const Duration(seconds: 30) : wait * 2;
+
+  /// Lee el stream SSE: cada evento termina con una línea vacía.
+  Future<void> _listen(Stream<String> lines) async {
+    String? type;
+    String? data;
+    await for (final line in lines) {
+      if (!_running) return;
+      if (line.startsWith('event:')) type = line.substring(6).trim();
+      if (line.startsWith('data:')) data = line.substring(5).trim();
+      if (line.isEmpty) {
+        _emit(type, data);
+        (type, data) = (null, null);
+      }
     }
   }
 
