@@ -30,6 +30,8 @@ void main() {
   }
 
   Future<void> completar(WidgetTester tester, {required String cuenta, required String monto}) async {
+    await tester.ensureVisible(find.byKey(ValueKey('cuenta-$cuenta')));
+    await tester.pump();
     await tester.tap(find.byKey(ValueKey('cuenta-$cuenta')));
     await tester.pump();
     final campos = find.byType(TextField);
