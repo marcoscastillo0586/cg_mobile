@@ -1,0 +1,7 @@
+name: crap
+description: CRAP por función (complejidad × cobertura) para lib/ de cg_mobile.
+publish_to: none
+environment:
+  sdk: ^3.5.0
+dependencies:
+  analyzer: any
