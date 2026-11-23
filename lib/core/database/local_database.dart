@@ -18,6 +18,10 @@ class LocalDatabase {
   LocalDatabase._();
 
   /// Archivos de antes de separar por cuenta (`cg_local.db`, `cg_local_<dashboard>.db`).
+  /// Carpeta de las bases (los tests la cambian por una temporal).
+  @visibleForTesting
+  static Future<Directory> Function() documentsDirectory = getApplicationDocumentsDirectory;
+
   static final _legacyFile = RegExp(r'^cg_local(?:_(\d+))?\.db(-journal|-wal|-shm)?$');
 
   static const _uuid = Uuid();
@@ -47,14 +51,14 @@ class LocalDatabase {
 
   /// Archivo de la base de una cuenta y un dashboard (null = el principal de la cuenta).
   static Future<String> pathFor(int userId, int? dashboardId) async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await documentsDirectory();
     return p.join(dir.path, dashboardId == null ? 'cg_u$userId.db' : 'cg_u${userId}_d$dashboardId.db');
   }
 
   /// Una sola vez, al pasar a una base por cuenta: los archivos de antes pasan a ser de [ownerId]
   /// (el dueño registrado). No pisa archivos que ya existan.
   static Future<void> adoptLegacyFiles(int ownerId) async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await documentsDirectory();
     for (final file in Directory(dir.path).listSync().whereType<File>()) {
       final m = _legacyFile.firstMatch(p.basename(file.path));
       if (m == null) continue;
