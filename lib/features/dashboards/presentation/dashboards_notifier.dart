@@ -92,12 +92,7 @@ class DashboardsNotifier extends StateNotifier<DashboardsState> {
     try {
       final name = await _repository.readPendingName(_pendingNameKey);
       if (name == null || name.isEmpty) return;
-      var mine = state.dashboards.where(isMyPrincipal).firstOrNull;
-      if (mine == null) {
-        final list = await _repository.list();
-        if (mounted) state = state.copyWith(dashboards: list);
-        mine = list.where(isMyPrincipal).firstOrNull;
-      }
+      final mine = await _myPrincipal();
       if (mine == null) return;
       if (mine.name != name) {
         final renamed = await _repository.rename(mine.id, name);
@@ -107,6 +102,24 @@ class DashboardsNotifier extends StateNotifier<DashboardsState> {
     } catch (e) {
       _fail('nombre del dashboard', e);
     }
+  }
+
+  /// Dashboards que ya no están (quitaron el acceso, salió o se eliminó), más el elegido si tampoco está: se
+  /// borran sus datos del celular y, si era el elegido, se vuelve al principal.
+  static Set<int> _gone(List<Dashboard> previous, List<Dashboard> list) {
+    final gone = {for (final d in previous) d.id}..removeAll(list.map((d) => d.id));
+    final chosen = CurrentDashboard.id.value;
+    if (chosen != null && !list.any((d) => d.id == chosen)) gone.add(chosen);
+    return gone;
+  }
+
+  /// El principal propio: de la lista que ya está o, si no está, de la del servidor.
+  Future<Dashboard?> _myPrincipal() async {
+    final known = state.dashboards.where(isMyPrincipal).firstOrNull;
+    if (known != null) return known;
+    final list = await _repository.list();
+    if (mounted) state = state.copyWith(dashboards: list);
+    return list.where(isMyPrincipal).firstOrNull;
   }
 
   /// Lista (primero la guardada, después la del servidor), invitaciones y avisos.
@@ -123,12 +136,7 @@ class DashboardsNotifier extends StateNotifier<DashboardsState> {
       final list = await _repository.list();
       if (!mounted) return;
       state = state.copyWith(dashboards: list, clearError: true);
-      // Dashboards que ya no están (quitaron el acceso, salió o se eliminó): se borran sus datos del
-      // celular; si era el elegido, se vuelve al principal.
-      final gone = {for (final d in previous) d.id}..removeAll(list.map((d) => d.id));
-      final chosen = CurrentDashboard.id.value;
-      if (chosen != null && !list.any((d) => d.id == chosen)) gone.add(chosen);
-      for (final id in gone) {
+      for (final id in _gone(previous, list)) {
         await DashboardSwitch.lost(id);
       }
       await _sendPendingName();

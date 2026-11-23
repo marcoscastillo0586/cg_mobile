@@ -197,6 +197,28 @@ class _OwnDashboardCardState extends ConsumerState<_OwnDashboardCard> {
     }
   }
 
+  /// Segunda línea solo con lo que el nombre no dice: que es el principal (si se llama distinto) y si está compartido.
+  List<String> _details(AppLocalizations l) => [
+        if (d.principal && d.name.trim().toLowerCase() != l.dashboardDefaultName) l.dashboardIsPrincipal,
+        if (d.shared) l.dashboardSharedCount(d.membersCount),
+      ];
+
+  IconData get _icon => d.principal ? Icons.home_outlined : (d.shared ? Icons.group_outlined : Icons.dashboard_outlined);
+
+  /// El principal no se elimina: se limpia (se borran sus movimientos y límites).
+  Future<void> _clear() async {
+    final l = context.l10n;
+    if (!await widget.confirm(l.clearDashboard, l.confirmClearDashboard(d.name), l.clearDashboard)) return;
+    await widget.run((r) => r.clear(d.id), l.dashboardClearedMsg);
+  }
+
+  /// Se borra también su base local en el celular (y si era el elegido, se vuelve al principal).
+  Future<void> _delete() async {
+    final l = context.l10n;
+    if (!await widget.confirm(l.deleteDashboard, l.confirmDeleteDashboard(d.name), l.deleteDashboard)) return;
+    if (await widget.run((r) => r.remove(d.id), l.dashboardDeletedMsg)) await DashboardSwitch.lost(d.id);
+  }
+
   Future<void> _rename() async {
     final name = await showDialog<String>(context: context, builder: (_) => _RenameDialog(initial: d.name));
     if (!mounted || name == null || name.isEmpty || name == d.name) return;
@@ -207,11 +229,7 @@ class _OwnDashboardCardState extends ConsumerState<_OwnDashboardCard> {
   Widget build(BuildContext context) {
     final l = context.l10n;
     final theme = Theme.of(context);
-    // Segunda línea solo con lo que el nombre no dice: que es el principal (si se llama distinto) y si está compartido.
-    final details = [
-      if (d.principal && d.name.trim().toLowerCase() != l.dashboardDefaultName) l.dashboardIsPrincipal,
-      if (d.shared) l.dashboardSharedCount(d.membersCount),
-    ];
+    final details = _details(l);
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
@@ -221,8 +239,7 @@ class _OwnDashboardCardState extends ConsumerState<_OwnDashboardCard> {
           children: [
             Row(
               children: [
-                Icon(d.principal ? Icons.home_outlined : (d.shared ? Icons.group_outlined : Icons.dashboard_outlined),
-                    color: theme.colorScheme.primary),
+                Icon(_icon, color: theme.colorScheme.primary),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -263,47 +280,60 @@ class _OwnDashboardCardState extends ConsumerState<_OwnDashboardCard> {
                 ),
               ],
             ),
-            if (_members.length > 1) ...[
-              const SizedBox(height: 8),
-              Text(l.dashboardMembers, style: const TextStyle(fontWeight: FontWeight.w600)),
-              for (final m in _members)
-                ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(m.isOwner ? '${m.name} (${l.ownerTag})' : m.name),
-                  subtitle: Text(m.email),
-                  trailing: m.isOwner
-                      ? null
-                      : TextButton(
-                          style: TextButton.styleFrom(minimumSize: const Size(48, 40)),
-                          onPressed: () async {
-                            if (!await widget.confirm(l.removeAccess, l.confirmRemoveMember(m.name, d.name), l.removeAccess)) return;
-                            if (await widget.run((r) => r.removeMember(d.id, m.userId), l.accessRemovedMsg)) await _loadMembers();
-                          },
-                          child: Text(l.removeAccess),
-                        ),
-                ),
-            ],
+            if (_members.length > 1) _Integrantes(dashboard: d, members: _members, run: widget.run, confirm: widget.confirm, onChanged: _loadMembers),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 style: TextButton.styleFrom(minimumSize: const Size(48, 40), foregroundColor: Colors.red.shade700),
-                onPressed: () async {
-                  if (d.principal) {
-                    if (!await widget.confirm(l.clearDashboard, l.confirmClearDashboard(d.name), l.clearDashboard)) return;
-                    await widget.run((r) => r.clear(d.id), l.dashboardClearedMsg);
-                  } else {
-                    if (!await widget.confirm(l.deleteDashboard, l.confirmDeleteDashboard(d.name), l.deleteDashboard)) return;
-                    // Se borra también su base local en el celular (y si era el elegido, vuelve al principal).
-                    if (await widget.run((r) => r.remove(d.id), l.dashboardDeletedMsg)) await DashboardSwitch.lost(d.id);
-                  }
-                },
+                onPressed: d.principal ? _clear : _delete,
                 child: Text(d.principal ? l.clearDashboard : l.deleteDashboard),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Integrantes de un dashboard compartido; a cada uno (salvo el dueño) se le puede quitar el acceso.
+class _Integrantes extends StatelessWidget {
+  final Dashboard dashboard;
+  final List<DashboardMember> members;
+  final _Run run;
+  final _Confirm confirm;
+  final Future<void> Function() onChanged;
+  const _Integrantes({required this.dashboard, required this.members, required this.run, required this.confirm, required this.onChanged});
+
+  Future<void> _remove(BuildContext context, DashboardMember m) async {
+    final l = context.l10n;
+    if (!await confirm(l.removeAccess, l.confirmRemoveMember(m.name, dashboard.name), l.removeAccess)) return;
+    if (await run((r) => r.removeMember(dashboard.id, m.userId), l.accessRemovedMsg)) await onChanged();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        Text(l.dashboardMembers, style: const TextStyle(fontWeight: FontWeight.w600)),
+        for (final m in members)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: Text(m.isOwner ? '${m.name} (${l.ownerTag})' : m.name),
+            subtitle: Text(m.email),
+            trailing: m.isOwner
+                ? null
+                : TextButton(
+                    style: TextButton.styleFrom(minimumSize: const Size(48, 40)),
+                    onPressed: () => _remove(context, m),
+                    child: Text(l.removeAccess),
+                  ),
+          ),
+      ],
     );
   }
 }
