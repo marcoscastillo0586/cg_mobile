@@ -103,9 +103,8 @@ class DioClient {
   /// Convierte un [DioException] en la excepción de dominio correspondiente.
   static Exception mapDioError(DioException error) {
     final inner = error.error;
-    if (inner is AuthException || inner is NetworkException || inner is ServerException) {
-      return inner as Exception; // ya mapeada por un interceptor (p. ej. sesión expirada)
-    }
+    // Ya mapeada por un interceptor (p. ej. sesión expirada).
+    if (inner case AuthException() || NetworkException() || ServerException()) return inner as Exception;
     return switch (error.type) {
       DioExceptionType.connectionTimeout ||
       DioExceptionType.sendTimeout ||

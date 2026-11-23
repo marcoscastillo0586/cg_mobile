@@ -16,13 +16,12 @@ class LocalMovementsQuery {
 
   Future<Map<String, dynamic>> list(MovementsQuery q) async {
     final limit = _pageSize(q);
-    final text = q.q?.trim() ?? '';
-    final search = text.isEmpty ? null : _Search.parse(text);
+    final search = _Search.from(q.q);
     final filter = _Filter(q, search);
     final where = filter.where;
     final args = filter.args;
-    final conceptMatch = search == null ? '0' : _conceptMatch;
-    final conceptArgs = [if (search != null) search.like];
+    // Si el encabezado coincide por su concepto general se muestran todos sus renglones.
+    final (conceptMatch, conceptArgs) = search == null ? ('0', const <Object?>[]) : (_conceptMatch, [search.like]);
     const base = '''
       FROM movement_headers h
       JOIN movement_details d ON d.header_local_id = h.local_id
@@ -177,6 +176,12 @@ class _Search {
   final int? exactCents;
   final int? intPesos;
   const _Search(this.like, {this.exactCents, this.intPesos});
+
+  /// Búsqueda del texto ingresado; null si está vacío.
+  static _Search? from(String? q) {
+    final text = q?.trim() ?? '';
+    return text.isEmpty ? null : parse(text);
+  }
 
   static _Search parse(String q) {
     final like = '%${q.replaceAllMapped(RegExp(r'[\\%_]'), (m) => '\\${m[0]}')}%';

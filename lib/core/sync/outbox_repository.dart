@@ -105,9 +105,7 @@ class OutboxRepository {
   /// Texto de una operación para la pantalla de pendientes.
   Future<String> _describe(DatabaseExecutor db, Map<String, Object?> r) async {
     final d = jsonDecode(r['data']! as String) as Map<String, dynamic>;
-    final ref = r['ref'] == null ? null : jsonDecode(r['ref']! as String);
-    // El número del comprobante o renglón, sólo si ya está en el servidor.
-    final target = ref is Map && ref['serverId'] != null ? ' #${ref['serverId']}' : '';
+    final target = _target(r['ref'] as String?);
     return switch ((r['entity'], r['action'])) {
       ('movement', 'create') => await _describeCreate(db, d),
       ('movement', 'update') => 'Edición de comprobante$target: ${await _movementChanges(db, d)}',
@@ -116,6 +114,12 @@ class OutboxRepository {
       ('movement_detail', 'delete') => 'Eliminación de renglón$target',
       _ => '${r['entity']} / ${r['action']}',
     };
+  }
+
+  /// El número del comprobante o renglón (" #123"), sólo si ya está en el servidor.
+  static String _target(String? ref) {
+    final r = ref == null ? null : jsonDecode(ref);
+    return r is Map && r['serverId'] != null ? ' #${r['serverId']}' : '';
   }
 
   Future<String> _describeCreate(DatabaseExecutor db, Map<String, dynamic> d) async {
