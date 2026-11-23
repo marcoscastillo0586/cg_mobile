@@ -6,7 +6,6 @@ import '../../../../core/sync/sync_controller.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/date_utils.dart';
-import '../../../../core/widgets/dialog_controllers.dart';
 import '../../../../core/database/local_catalog.dart';
 import '../../../../core/sync/local_ops.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
@@ -105,87 +104,36 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
     );
   }
 
-  Future<void> _accion(BuildContext context, Budget b, String accion) async {
-    final notifier = ref.read(limitsAdminNotifierProvider.notifier);
-    switch (accion) {
-      case 'edit':
-        await _editar(context, b);
-      case 'renew':
-        final error = await notifier.run((r) => r.renew(b.id));
-        if (context.mounted) await reportLocalAction(context, ref, error, ok: context.l10n.budgetRenewed);
-      case 'delete':
-        if (!await confirmar(context, title: context.l10n.deleteBudget, message: b.title, action: context.l10n.delete)) return;
-        final error = await notifier.run((r) => r.delete(b.id));
-        if (context.mounted) await reportLocalAction(context, ref, error, ok: context.l10n.budgetDeleted);
-    }
+  Future<void> _accion(BuildContext context, Budget b, String accion) => switch (accion) {
+        'edit' => _editar(context, b),
+        'renew' => _ejecutar(context, (r) => r.renew(b.id), context.l10n.budgetRenewed),
+        _ => _eliminar(context, b),
+      };
+
+  Future<void> _ejecutar(BuildContext context, Future<Object?> Function(LocalBudgetsRepository r) accion, String ok) async {
+    final error = await ref.read(limitsAdminNotifierProvider.notifier).run(accion);
+    if (context.mounted) await reportLocalAction(context, ref, error, ok: ok);
   }
 
-  static String _iso(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  /// Monto escrito por el usuario: inválido se avisa sin guardar nada.
+  Future<void> _conMonto(BuildContext context, String texto, Future<Object?> Function(LocalBudgetsRepository r, int cents) accion, String ok) async {
+    final cents = Money.parseInput(texto);
+    if (cents != null) return _ejecutar(context, (r) => accion(r, cents), ok);
+    await reportLocalAction(context, ref, LocalOps.invalid((l) => l.invalidAmountMax2Decimals), ok: ok);
+  }
 
-  Future<String?> _pickDate(BuildContext context, String current) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.tryParse(current) ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    return picked == null ? null : _iso(picked);
+  Future<void> _eliminar(BuildContext context, Budget b) async {
+    if (!await confirmar(context, title: context.l10n.deleteBudget, message: b.title, action: context.l10n.delete)) return;
+    if (context.mounted) await _ejecutar(context, (r) => r.delete(b.id), context.l10n.budgetDeleted);
   }
 
   /// Edición de fechas y monto (la sincronización no cambia categorías ni cuentas de un límite).
   Future<void> _editar(BuildContext context, Budget b) async {
-    var desde = b.startDate, hasta = b.endDate;
-    final montoTexto = await showDialog<String>(
-      context: context,
-      builder: (ctx) => DialogControllers(
-        initial: [Money.toApiDecimal(b.limitCents).replaceAll('.', ',')],
-        builder: (ctx, c) => StatefulBuilder(
-          builder: (ctx, setLocal) => AlertDialog(
-            title: Text(context.l10n.editBudget),
-            content: Column(mainAxisSize: MainAxisSize.min, children: [
-              Text(b.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-              _fecha(ctx, context.l10n.from, desde, (v) => setLocal(() => desde = v)),
-              _fecha(ctx, context.l10n.to, hasta, (v) => setLocal(() => hasta = v)),
-              TextField(
-                key: const ValueKey('limite-monto'),
-                controller: c[0],
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(labelText: context.l10n.limit, prefixText: '${(b.currency ?? Currency.ars).symbol} '),
-              ),
-            ]),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.l10n.cancel)),
-              TextButton(
-                  key: const ValueKey('limite-guardar'),
-                  onPressed: () => Navigator.pop(ctx, c[0].text),
-                  child: Text(context.l10n.save)),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (montoTexto == null || !context.mounted) return;
-    final cents = Money.parseInput(montoTexto);
-    final error = cents == null
-        ? LocalOps.invalid((l) => l.invalidAmountMax2Decimals)
-        : await ref
-            .read(limitsAdminNotifierProvider.notifier)
-            .run((r) => r.update(b.id, startDate: desde, endDate: hasta, limitCents: cents));
-    if (context.mounted) await reportLocalAction(context, ref, error, ok: context.l10n.budgetUpdated);
+    final datos = await showDialog<_DatosLimite>(context: context, builder: (_) => _EditarLimiteDialog(budget: b));
+    if (datos == null || !context.mounted) return;
+    await _conMonto(context, datos.monto, (r, cents) => r.update(b.id, startDate: datos.desde, endDate: datos.hasta, limitCents: cents),
+        context.l10n.budgetUpdated);
   }
-
-  Widget _fecha(BuildContext ctx, String label, String value, ValueChanged<String> onChanged) => Row(children: [
-        Expanded(child: Text(label)),
-        TextButton(
-          key: ValueKey('limite-$label'),
-          onPressed: () async {
-            final v = await _pickDate(ctx, value);
-            if (v != null) onChanged(v);
-          },
-          child: Text(AppDateUtils.formatDateString(value)),
-        ),
-      ]);
 
   /// Alta: período (por defecto el mes en curso), monto, hasta 5 categorías y una o más cuentas.
   Future<void> _crear(BuildContext context) async {
@@ -193,87 +141,196 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
     final categorias = await catalog.expenseCategories();
     final cuentas = await catalog.activeAccounts();
     if (!context.mounted) return;
-    final hoy = LocalOps.todayAr();
-    var desde = '${hoy.substring(0, 8)}01';
-    var hasta = LocalBudgetsRepository.lastDayOfMonth(hoy);
-    final cats = <int>{}, accs = <int>{};
-    // Una sola moneda por límite: arranca en la principal y solo se ofrecen las cuentas de esa moneda.
-    var moneda = Currency.parse(ref.read(settingsProvider).defaultCurrency);
-    final montoTexto = await showDialog<String>(
+    final principal = Currency.parse(ref.read(settingsProvider).defaultCurrency);
+    final datos = await showDialog<_NuevoLimite>(
       context: context,
-      builder: (ctx) => DialogControllers(
-        initial: const [''],
-        builder: (ctx, c) => StatefulBuilder(
-          builder: (ctx, setLocal) => AlertDialog(
-            title: Text(context.l10n.newBudget),
-            content: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _fecha(ctx, context.l10n.from, desde, (v) => setLocal(() => desde = v)),
-                _fecha(ctx, context.l10n.to, hasta, (v) => setLocal(() => hasta = v)),
-                const SizedBox(height: 8),
-                Text(context.l10n.budgetCurrency, style: const TextStyle(fontWeight: FontWeight.w600)),
-                Wrap(spacing: 6, children: [
-                  for (final m in Currency.values)
-                    ChoiceChip(
-                      key: ValueKey('limite-moneda-${m.code}'),
-                      label: Text(m.code),
-                      selected: moneda == m,
-                      onSelected: (_) => setLocal(() {
-                        if (moneda != m) accs.clear();
-                        moneda = m;
-                      }),
-                    ),
-                ]),
-                TextField(
-                  key: const ValueKey('limite-monto'),
-                  controller: c[0],
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(labelText: context.l10n.limit, prefixText: '${moneda.symbol} '),
-                ),
-                const SizedBox(height: 10),
-                Text('${context.l10n.categories2} (${cats.length}/$budgetMaxCategories)',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                Wrap(spacing: 6, children: [
-                  for (final c in categorias)
-                    FilterChip(
-                      key: ValueKey('limite-cat-${c.name}'),
-                      label: Text(c.name),
-                      selected: cats.contains(c.localId),
-                      onSelected: (sel) =>
-                          setLocal(() => sel && cats.length < budgetMaxCategories ? cats.add(c.localId) : cats.remove(c.localId)),
-                    ),
-                ]),
-                const SizedBox(height: 10),
-                Text(context.l10n.accounts2, style: const TextStyle(fontWeight: FontWeight.w600)),
-                Wrap(spacing: 6, children: [
-                  for (final a in cuentas.where((a) => a.currency == moneda))
-                    FilterChip(
-                      key: ValueKey('limite-cuenta-${a.name}'),
-                      label: Text(a.name.toUpperCase()),
-                      selected: accs.contains(a.localId),
-                      onSelected: (sel) => setLocal(() => sel ? accs.add(a.localId) : accs.remove(a.localId)),
-                    ),
-                ]),
-              ]),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.l10n.cancel)),
-              TextButton(
-                  key: const ValueKey('limite-guardar'),
-                  onPressed: () => Navigator.pop(ctx, c[0].text),
-                  child: Text(context.l10n.save)),
-            ],
-          ),
-        ),
-      ),
+      builder: (_) => _NuevoLimiteDialog(categorias: categorias, cuentas: cuentas, monedaInicial: principal),
     );
-    if (montoTexto == null || !context.mounted) return;
-    final cents = Money.parseInput(montoTexto);
-    final error = cents == null
-        ? LocalOps.invalid((l) => l.invalidAmountMax2Decimals)
-        : await ref.read(limitsAdminNotifierProvider.notifier).run(
-            (r) => r.create(startDate: desde, endDate: hasta, limitCents: cents, categoryIds: cats.toList(), accountIds: accs.toList()));
-    if (context.mounted) await reportLocalAction(context, ref, error, ok: context.l10n.budgetCreated);
+    if (datos == null || !context.mounted) return;
+    final (:limite, :cats, :accs) = datos;
+    await _conMonto(
+      context,
+      limite.monto,
+      (r, cents) => r.create(startDate: limite.desde, endDate: limite.hasta, limitCents: cents, categoryIds: cats, accountIds: accs),
+      context.l10n.budgetCreated,
+    );
+  }
+}
+
+typedef _DatosLimite = ({String desde, String hasta, String monto});
+typedef _NuevoLimite = ({_DatosLimite limite, List<int> cats, List<int> accs});
+
+/// "Desde"/"Hasta" con selector de fecha (yyyy-MM-dd).
+class _FechaFila extends StatelessWidget {
+  final String label;
+  final String value;
+  final ValueChanged<String> onChanged;
+  const _FechaFila({required this.label, required this.value, required this.onChanged});
+
+  static String _iso(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  Future<void> _elegir(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.tryParse(value) ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) onChanged(_iso(picked));
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Expanded(child: Text(label)),
+        TextButton(key: ValueKey('limite-$label'), onPressed: () => _elegir(context), child: Text(AppDateUtils.formatDateString(value))),
+      ]);
+}
+
+/// Fechas y monto de un límite, con su controlador de texto.
+abstract class _LimiteDialogState<T extends StatefulWidget> extends State<T> {
+  late String desde;
+  late String hasta;
+  late final TextEditingController monto;
+
+  @override
+  void dispose() {
+    monto.dispose();
+    super.dispose();
+  }
+
+  _DatosLimite get datos => (desde: desde, hasta: hasta, monto: monto.text);
+
+  List<Widget> fechas(BuildContext context) => [
+        _FechaFila(label: context.l10n.from, value: desde, onChanged: (v) => setState(() => desde = v)),
+        _FechaFila(label: context.l10n.to, value: hasta, onChanged: (v) => setState(() => hasta = v)),
+      ];
+
+  Widget campoMonto(BuildContext context, Currency moneda) => TextField(
+        key: const ValueKey('limite-monto'),
+        controller: monto,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(labelText: context.l10n.limit, prefixText: '${moneda.symbol} '),
+      );
+
+  Widget dialogo(BuildContext context, {required String titulo, required List<Widget> contenido, required Object Function() resultado}) =>
+      AlertDialog(
+        title: Text(titulo),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: contenido),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.cancel)),
+          TextButton(key: const ValueKey('limite-guardar'), onPressed: () => Navigator.pop(context, resultado()), child: Text(context.l10n.save)),
+        ],
+      );
+}
+
+class _EditarLimiteDialog extends StatefulWidget {
+  final Budget budget;
+  const _EditarLimiteDialog({required this.budget});
+
+  @override
+  State<_EditarLimiteDialog> createState() => _EditarLimiteDialogState();
+}
+
+class _EditarLimiteDialogState extends _LimiteDialogState<_EditarLimiteDialog> {
+  @override
+  void initState() {
+    super.initState();
+    final b = widget.budget;
+    desde = b.startDate;
+    hasta = b.endDate;
+    monto = TextEditingController(text: Money.toApiDecimal(b.limitCents).replaceAll('.', ','));
+  }
+
+  @override
+  Widget build(BuildContext context) => dialogo(
+        context,
+        titulo: context.l10n.editBudget,
+        contenido: [
+          Text(widget.budget.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+          ...fechas(context),
+          campoMonto(context, widget.budget.currency ?? Currency.ars),
+        ],
+        resultado: () => datos,
+      );
+}
+
+class _NuevoLimiteDialog extends StatefulWidget {
+  final List<LocalCategory> categorias;
+  final List<LocalAccount> cuentas;
+  final Currency monedaInicial;
+  const _NuevoLimiteDialog({required this.categorias, required this.cuentas, required this.monedaInicial});
+
+  @override
+  State<_NuevoLimiteDialog> createState() => _NuevoLimiteDialogState();
+}
+
+class _NuevoLimiteDialogState extends _LimiteDialogState<_NuevoLimiteDialog> {
+  final _cats = <int>{};
+  final _accs = <int>{};
+
+  /// Una sola moneda por límite: arranca en la principal y solo se ofrecen las cuentas de esa moneda.
+  late var _moneda = widget.monedaInicial;
+
+  @override
+  void initState() {
+    super.initState();
+    final hoy = LocalOps.todayAr();
+    desde = '${hoy.substring(0, 8)}01';
+    hasta = LocalBudgetsRepository.lastDayOfMonth(hoy);
+    monto = TextEditingController();
+  }
+
+  void _elegirMoneda(Currency m) => setState(() {
+        if (_moneda != m) _accs.clear();
+        _moneda = m;
+      });
+
+  void _elegirCategoria(int id, bool sel) => setState(() => sel && _cats.length < budgetMaxCategories ? _cats.add(id) : _cats.remove(id));
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    const negrita = TextStyle(fontWeight: FontWeight.w600);
+    return dialogo(
+      context,
+      titulo: l10n.newBudget,
+      contenido: [
+        ...fechas(context),
+        const SizedBox(height: 8),
+        Text(l10n.budgetCurrency, style: negrita),
+        Wrap(spacing: 6, children: [
+          for (final m in Currency.values)
+            ChoiceChip(key: ValueKey('limite-moneda-${m.code}'), label: Text(m.code), selected: _moneda == m, onSelected: (_) => _elegirMoneda(m)),
+        ]),
+        campoMonto(context, _moneda),
+        const SizedBox(height: 10),
+        Text('${l10n.categories2} (${_cats.length}/$budgetMaxCategories)', style: negrita),
+        Wrap(spacing: 6, children: [
+          for (final c in widget.categorias)
+            FilterChip(
+              key: ValueKey('limite-cat-${c.name}'),
+              label: Text(c.name),
+              selected: _cats.contains(c.localId),
+              onSelected: (sel) => _elegirCategoria(c.localId, sel),
+            ),
+        ]),
+        const SizedBox(height: 10),
+        Text(l10n.accounts2, style: negrita),
+        Wrap(spacing: 6, children: [
+          for (final a in widget.cuentas.where((a) => a.currency == _moneda))
+            FilterChip(
+              key: ValueKey('limite-cuenta-${a.name}'),
+              label: Text(a.name.toUpperCase()),
+              selected: _accs.contains(a.localId),
+              onSelected: (sel) => setState(() => sel ? _accs.add(a.localId) : _accs.remove(a.localId)),
+            ),
+        ]),
+      ],
+      resultado: () => (limite: datos, cats: _cats.toList(), accs: _accs.toList()),
+    );
   }
 }
 
