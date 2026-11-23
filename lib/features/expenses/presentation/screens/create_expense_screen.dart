@@ -152,51 +152,54 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
 
   Future<void> _guardarGastoAhora() async {
     final st = ref.read(expenseFormNotifierProvider);
-    final cuenta = st.cuentaSeleccionada;
-    // Sin fondos se puede guardar igual (el dinero puede no estar cargado), pero se avisa y se confirma.
-    // Solo con conexión (saldo recién traído del servidor); sin conexión se guarda sin diálogos.
-    if (cuenta != null && st.fondosInsuficientes && !ServerReachability.offline.value) {
-      final seguir = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(context.l10n.balanceWillNegative),
-          content: Text(negativeBalanceText(cuenta, st.totalCents, context.l10n)),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.l10n.cancel)),
-            TextButton(
-              key: const ValueKey('guardar-igual'),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(context.l10n.saveAnyway),
-            ),
-          ],
-        ),
-      );
-      if (seguir != true || !mounted) return;
-    }
+    if (!await _confirmarSaldoNegativo(st) || !mounted) return;
     final esQr = st.ticketParseResult?.qr != null;
     final notifier = ref.read(expenseFormNotifierProvider.notifier);
     final ok = await notifier.guardarEgreso();
     if (!mounted) return;
-    if (ok && esQr) {
-      // Quedó registrado en el servidor y ya se trajo al celular; la sincronización trae el resto.
-      unawaited(ref.read(syncControllerProvider.notifier).sync());
-      final localError = notifier.ticketLocalCopyError;
-      if (notifier.ticketAlreadyRegistered) {
-        AppFeedback.showInfo(context, context.l10n.ticketAlreadyRegistered);
-      } else if (localError != null) {
-        AppFeedback.showError(context, context.l10n.ticketRecordedNotOnPhoneYet(describeWithCode(localError, context.l10n)));
-      } else {
-        AppFeedback.showSuccess(context, context.l10n.ticketRecordedServer);
-      }
-      context.pop(true);
-    } else if (ok) {
-      if (await afterLocalWrite(context, ref, context.l10n.expense) && mounted) context.pop(true);
+    if (!ok) return _mostrarError(esQr);
+    if (esQr) return _ticketQrRegistrado(notifier);
+    if (await afterLocalWrite(context, ref, context.l10n.expense) && mounted) context.pop(true);
+  }
+
+  /// Sin fondos se puede guardar igual (el dinero puede no estar cargado), pero se avisa y se confirma.
+  /// Solo con conexión (saldo recién traído del servidor); sin conexión se guarda sin diálogos.
+  Future<bool> _confirmarSaldoNegativo(ExpenseFormState st) async {
+    final cuenta = st.cuentaSeleccionada;
+    if (cuenta == null || !st.fondosInsuficientes || ServerReachability.offline.value) return true;
+    final seguir = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.l10n.balanceWillNegative),
+        content: Text(negativeBalanceText(cuenta, st.totalCents, context.l10n)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.l10n.cancel)),
+          TextButton(key: const ValueKey('guardar-igual'), onPressed: () => Navigator.pop(ctx, true), child: Text(context.l10n.saveAnyway)),
+        ],
+      ),
+    );
+    return seguir == true;
+  }
+
+  /// Ticket QR: quedó registrado en el servidor y ya se trajo al celular; la sincronización trae el resto.
+  void _ticketQrRegistrado(ExpenseFormNotifier notifier) {
+    unawaited(ref.read(syncControllerProvider.notifier).sync());
+    final localError = notifier.ticketLocalCopyError;
+    if (notifier.ticketAlreadyRegistered) {
+      AppFeedback.showInfo(context, context.l10n.ticketAlreadyRegistered);
+    } else if (localError != null) {
+      AppFeedback.showError(context, context.l10n.ticketRecordedNotOnPhoneYet(describeWithCode(localError, context.l10n)));
     } else {
-      final error = ref.read(expenseFormNotifierProvider).error;
-      if (error == null) return;
-      final hint = esQr && error is NetworkException ? (context.l10n.confirmingQrTicketRequiresConnection) : '';
-      AppFeedback.showError(context, describeWithCode(error, context.l10n) + hint);
+      AppFeedback.showSuccess(context, context.l10n.ticketRecordedServer);
     }
+    context.pop(true);
+  }
+
+  void _mostrarError(bool esQr) {
+    final error = ref.read(expenseFormNotifierProvider).error;
+    if (error == null) return;
+    final hint = esQr && error is NetworkException ? context.l10n.confirmingQrTicketRequiresConnection : '';
+    AppFeedback.showError(context, describeWithCode(error, context.l10n) + hint);
   }
 
   @override
@@ -216,17 +219,13 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
 
     final categorias = state.categorias;
     final sugerenciasConceptos = state.conceptos;
-    final formatoFecha = AppDateUtils.formatDate(state.fecha);
     final cuenta = state.cuentaSeleccionada;
     final moneda = cuenta?.currency ?? Currency.ars;
     final totalFormateado = Money.format(state.totalCents, currency: moneda);
-    // Tarjeta del total: el símbolo va aparte, más chico.
-    final totalSinSimbolo = totalFormateado.replaceFirst('${moneda.symbol} ', '');
 
     final tituloModulo = widget.correction != null ? (context.l10n.correctExpense) : (context.l10n.newExpense);
     final textoBoton = (context.l10n.registerExpense(totalFormateado));
     final conceptoVacio = state.conceptoGeneral.trim().isEmpty;
-    final ahora = DateTime.now();
 
     const lateral = 16.0;
     // Espacio del botón fijo (con el margen del sistema): la tarjeta del total no queda oculta detrás.
@@ -327,110 +326,19 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                       const SizedBox(height: 20),
 
                       // 3. Fecha, con píldoras "Hoy" y "Ayer"
-                      Row(
-                        children: [
-                          Expanded(child: _Etiqueta(context.l10n.date, color: t.fieldLabel, estilo: e.etiqueta)),
-                          // Control segmentado: se destaca la opción que coincide con la fecha cargada.
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(color: e.segmentoFondo, borderRadius: BorderRadius.circular(12)),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _Segmento(
-                                  texto: context.l10n.today,
-                                  activo: DateUtils.isSameDay(state.fecha, ahora),
-                                  completo: state.isFormComplete,
-                                  onTap: () => _fechaRapida(0),
-                                ),
-                                const SizedBox(width: 6),
-                                _Segmento(
-                                  texto: context.l10n.yesterday,
-                                  activo: DateUtils.isSameDay(state.fecha, ahora.subtract(const Duration(days: 1))),
-                                  completo: state.isFormComplete,
-                                  onTap: () => _fechaRapida(1),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => _seleccionarFecha(context),
-                          borderRadius: BorderRadius.circular(FormScreenTheme.radius),
-                          child: EgresoFieldBox(
-                            stitch: true,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: EgresoEstilo.campoIcono,
-                                    height: EgresoEstilo.campoIcono,
-                                    decoration: BoxDecoration(
-                                      color: e.campoIconoFondo(vacio: true),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(Icons.calendar_today_outlined, size: 15, color: e.campoIconoColor(vacio: true)),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(child: Text(formatoFecha, style: e.fechaTexto)),
-                                  Icon(Icons.calendar_month_rounded, size: 18, color: e.fechaIconoDerecha),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+                      _FechaSeccion(
+                        fecha: state.fecha,
+                        completo: state.isFormComplete,
+                        onDiasAtras: _fechaRapida,
+                        onElegir: () => _seleccionarFecha(context),
                       ),
                       const SizedBox(height: 20),
 
                       // Banner Feedback de Lectura de Ticket
                       if (state.ticketParseResult != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: (state.ticketParseResult?.tieneDiferenciaTotal == true)
-                                ? AppColors.amber.withValues(alpha: 0.15)
-                                : AppColors.emerald.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(FormScreenTheme.radius),
-                            border: Border.all(
-                              color: (state.ticketParseResult?.tieneDiferenciaTotal == true)
-                                  ? AppColors.amber.withValues(alpha: 0.5)
-                                  : AppColors.emerald.withValues(alpha: 0.4),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                (state.ticketParseResult?.tieneDiferenciaTotal == true)
-                                    ? Icons.warning_amber_rounded
-                                    : Icons.receipt_long_rounded,
-                                color: (state.ticketParseResult?.tieneDiferenciaTotal == true) ? AppColors.amberDark : AppColors.emerald,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  _ticketFeedback(state.ticketParseResult!, context.l10n),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: (state.ticketParseResult?.tieneDiferenciaTotal == true)
-                                        ? AppColors.amberDark
-                                        : AppColors.emeraldDark,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.close, size: 18),
-                                onPressed: () {
-                                  ref.read(expenseFormNotifierProvider.notifier).limpiarItemsTicket();
-                                },
-                              ),
-                            ],
-                          ),
+                        _TicketBanner(
+                          result: state.ticketParseResult!,
+                          onClose: () => ref.read(expenseFormNotifierProvider.notifier).limpiarItemsTicket(),
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -476,76 +384,8 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // 6. Total del gasto: oscuro (incompleto) o verde claro (completo). En tema oscuro, la tarjeta de siempre.
-                      if (!e.oscuro)
-                        _TotalGasto(
-                          completo: state.isFormComplete,
-                          simbolo: moneda.symbol,
-                          total: totalFormateado,
-                          renglones: context.l10n.linesCount(state.cantidadRenglones),
-                        )
-                      else
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [t.accentSoft.withValues(alpha: 0.8), t.surface, t.accentSoft.withValues(alpha: 0.5)],
-                            ),
-                            borderRadius: BorderRadius.circular(FormScreenTheme.radius),
-                            border: Border.all(color: t.accentSoftBorder.withValues(alpha: 0.9)),
-                            boxShadow: t.shadow,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      context.l10n.expenseTotal.toUpperCase(),
-                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.5, color: t.text),
-                                    ),
-                                    Text(
-                                      context.l10n.linesCount(state.cantidadRenglones),
-                                      style: TextStyle(fontSize: 12, color: t.fieldLabel),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                flex: 2,
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerRight,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                                    textBaseline: TextBaseline.alphabetic,
-                                    children: [
-                                      Text(
-                                        moneda.symbol,
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: t.accent),
-                                      ),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        totalSinSimbolo,
-                                        style: TextStyle(
-                                            fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5, color: t.accentStrong),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      const SizedBox(height: 16),
-
-                      // Aviso de fondos antes de guardar (saldo local, ya descuenta lo pendiente).
-                      if (cuenta != null && state.fondosInsuficientes) FundsWarning(cuenta: cuenta, amountCents: state.totalCents),
+                      // 6. Total del gasto y aviso de fondos antes de guardar.
+                      _SeccionTotal(state: state, moneda: moneda, totalFormateado: totalFormateado),
                     ],
                   ),
                 ),
@@ -564,57 +404,11 @@ class _CreateExpenseScreenState extends ConsumerState<CreateExpenseScreen> {
               child: BottomActionArea(
                 padding: _pieBoton,
                 fadeColor: e.oscuro ? t.background : null,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(FormScreenTheme.radius),
-                    boxShadow: e.botonSombra(state.isFormComplete),
-                  ),
-                  child: ElevatedButton(
-                    key: const ValueKey('guardar-egreso'),
-                    onPressed: state.isSubmitting ? null : _guardarGasto,
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      disabledForegroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(FormScreenTheme.bottomButtonHeight),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(FormScreenTheme.radius),
-                      ),
-                    ).copyWith(
-                      // Rojo hasta completar los campos obligatorios (isFormComplete); verde al completarlos.
-                      backgroundColor: WidgetStateProperty.resolveWith(
-                        (states) => e.botonFondo(completo: state.isFormComplete, presionado: states.contains(WidgetState.pressed)),
-                      ),
-                    ),
-                    child: state.isSubmitting
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Disquete hasta completar los obligatorios; check al completarlos.
-                              Icon(state.isFormComplete ? Icons.check_rounded : Icons.save_rounded, size: 20),
-                              const SizedBox(width: 10),
-                              Flexible(
-                                child: Text(
-                                  textoBoton,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
+                child: _BotonGuardar(
+                  completo: state.isFormComplete,
+                  guardando: state.isSubmitting,
+                  texto: textoBoton,
+                  onPressed: _guardarGasto,
                 ),
               ),
             ),
@@ -962,4 +756,238 @@ String _ticketFeedback(TicketParseResult r, AppLocalizations l) {
   return r.tieneDiferenciaTotal
       ? l.ticketSumDiffers(suma, Money.format(total), Money.format(r.sumaRenglonesCents - total))
       : l.ticketReadSumTotal(suma, Money.format(total));
+}
+
+/// Resultado de la lectura del ticket: verde si la suma coincide con el total impreso, ámbar si no. Se puede descartar.
+class _TicketBanner extends StatelessWidget {
+  final TicketParseResult result;
+  final VoidCallback onClose;
+  const _TicketBanner({required this.result, required this.onClose});
+
+  @override
+  Widget build(BuildContext context) {
+    final difiere = result.tieneDiferenciaTotal;
+    final color = difiere ? AppColors.amber : AppColors.emerald;
+    final texto = difiere ? AppColors.amberDark : AppColors.emeraldDark;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: difiere ? 0.15 : 0.12),
+        borderRadius: BorderRadius.circular(FormScreenTheme.radius),
+        border: Border.all(color: color.withValues(alpha: difiere ? 0.5 : 0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(difiere ? Icons.warning_amber_rounded : Icons.receipt_long_rounded, color: difiere ? AppColors.amberDark : AppColors.emerald),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(_ticketFeedback(result, context.l10n), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: texto)),
+          ),
+          IconButton(key: const ValueKey('ticket-descartar'), icon: const Icon(Icons.close, size: 18), onPressed: onClose),
+        ],
+      ),
+    );
+  }
+}
+
+/// Total del gasto en tema oscuro (la tarjeta de siempre).
+class _TotalGastoOscuro extends StatelessWidget {
+  final String simbolo;
+  final String total;
+  final String renglones;
+  const _TotalGastoOscuro({required this.simbolo, required this.total, required this.renglones});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = FormScreenTheme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [t.accentSoft.withValues(alpha: 0.8), t.surface, t.accentSoft.withValues(alpha: 0.5)]),
+        borderRadius: BorderRadius.circular(FormScreenTheme.radius),
+        border: Border.all(color: t.accentSoftBorder.withValues(alpha: 0.9)),
+        boxShadow: t.shadow,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(context.l10n.expenseTotal.toUpperCase(),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.5, color: t.text)),
+                Text(renglones, style: TextStyle(fontSize: 12, color: t.fieldLabel)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(simbolo, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: t.accent)),
+                  const SizedBox(width: 3),
+                  Text(total, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5, color: t.accentStrong)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Botón inferior: rojo hasta completar los obligatorios, verde al completarlos; indicador mientras guarda.
+class _BotonGuardar extends StatelessWidget {
+  final bool completo;
+  final bool guardando;
+  final String texto;
+  final VoidCallback onPressed;
+  const _BotonGuardar({required this.completo, required this.guardando, required this.texto, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final e = EgresoEstilo.of(context);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(FormScreenTheme.radius), boxShadow: e.botonSombra(completo)),
+      child: ElevatedButton(
+        key: const ValueKey('guardar-egreso'),
+        onPressed: guardando ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          foregroundColor: Colors.white,
+          disabledForegroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(FormScreenTheme.bottomButtonHeight),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(FormScreenTheme.radius)),
+        ).copyWith(
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => e.botonFondo(completo: completo, presionado: states.contains(WidgetState.pressed)),
+          ),
+        ),
+        child: guardando
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2.5, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Disquete hasta completar los obligatorios; check al completarlos.
+                  Icon(completo ? Icons.check_rounded : Icons.save_rounded, size: 20),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(texto, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: 0.2)),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+/// Fecha del egreso: control "Hoy" / "Ayer" (se destaca el que coincide) y selector de fecha.
+class _FechaSeccion extends StatelessWidget {
+  final DateTime fecha;
+  final bool completo;
+  final void Function(int diasAtras) onDiasAtras;
+  final VoidCallback onElegir;
+  const _FechaSeccion({required this.fecha, required this.completo, required this.onDiasAtras, required this.onElegir});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = FormScreenTheme.of(context);
+    final e = EgresoEstilo.of(context);
+    final ahora = DateTime.now();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: _Etiqueta(context.l10n.date, color: t.fieldLabel, estilo: e.etiqueta)),
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(color: e.segmentoFondo, borderRadius: BorderRadius.circular(12)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _Segmento(texto: context.l10n.today, activo: DateUtils.isSameDay(fecha, ahora), completo: completo, onTap: () => onDiasAtras(0)),
+                  const SizedBox(width: 6),
+                  _Segmento(
+                    texto: context.l10n.yesterday,
+                    activo: DateUtils.isSameDay(fecha, ahora.subtract(const Duration(days: 1))),
+                    completo: completo,
+                    onTap: () => onDiasAtras(1),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onElegir,
+            borderRadius: BorderRadius.circular(FormScreenTheme.radius),
+            child: EgresoFieldBox(
+              stitch: true,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: EgresoEstilo.campoIcono,
+                      height: EgresoEstilo.campoIcono,
+                      decoration: BoxDecoration(color: e.campoIconoFondo(vacio: true), borderRadius: BorderRadius.circular(8)),
+                      child: Icon(Icons.calendar_today_outlined, size: 15, color: e.campoIconoColor(vacio: true)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(AppDateUtils.formatDate(fecha), style: e.fechaTexto)),
+                    Icon(Icons.calendar_month_rounded, size: 18, color: e.fechaIconoDerecha),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Total del gasto (claro: oscuro incompleto / verde completo; en tema oscuro, la tarjeta de siempre) y el aviso
+/// de fondos (saldo local, ya descuenta lo pendiente).
+class _SeccionTotal extends StatelessWidget {
+  final ExpenseFormState state;
+  final Currency moneda;
+  final String totalFormateado;
+  const _SeccionTotal({required this.state, required this.moneda, required this.totalFormateado});
+
+  @override
+  Widget build(BuildContext context) {
+    final renglones = context.l10n.linesCount(state.cantidadRenglones);
+    final cuenta = state.cuentaSeleccionada;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!EgresoEstilo.of(context).oscuro)
+          _TotalGasto(completo: state.isFormComplete, simbolo: moneda.symbol, total: totalFormateado, renglones: renglones)
+        else
+          // El símbolo va aparte, más chico.
+          _TotalGastoOscuro(simbolo: moneda.symbol, total: totalFormateado.replaceFirst('${moneda.symbol} ', ''), renglones: renglones),
+        const SizedBox(height: 16),
+        if (cuenta != null && state.fondosInsuficientes) FundsWarning(cuenta: cuenta, amountCents: state.totalCents),
+      ],
+    );
+  }
 }
