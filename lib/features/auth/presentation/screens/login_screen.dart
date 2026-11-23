@@ -8,8 +8,34 @@ import '../providers/auth_state.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../../core/constants/app_info.dart';
 
+/// Correo con '@' y '.'; null si es válido.
+@visibleForTesting
+String? validarEmail(String? val, AppLocalizations l) {
+  final v = val?.trim() ?? '';
+  if (v.isEmpty) return l.enterEmail;
+  return v.contains('@') && v.contains('.') ? null : l.invalidEmail;
+}
+
+/// La contraseña solo tiene que estar (los espacios pueden ser parte de ella).
+@visibleForTesting
+String? validarPassword(String? val, AppLocalizations l) => val == null || val.isEmpty ? l.enterPassword : null;
+
+/// Aviso de por qué se volvió al login: sesión vencida, o se cerró en el celular pero el servidor no la revocó.
+@visibleForTesting
+String? avisoDeSesion(AuthState state, AppLocalizations l) {
+  final detalle = state.noticeError;
+  return switch (state.notice) {
+    AuthNotice.sessionExpired => l.sessionExpiredPleaseSignAgain,
+    AuthNotice.logoutNotRevoked => l.signedOutDeviceButServer(detalle == null ? '' : ' (${ErrorMessages.describe(detalle, l)})'),
+    null => null,
+  };
+}
+
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  /// Servidor fijado al compilar ([ApiConfig.baseUrl]); en los tests se indica acá. null = el compilado.
+  final String? servidor;
+
+  const LoginScreen({super.key, this.servidor});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -21,6 +47,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passController = TextEditingController();
   bool _obscurePassword = true;
 
+  String get _servidor => (widget.servidor ?? ApiConfig.baseUrl).trim();
 
   @override
   void dispose() {
@@ -32,20 +59,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submitLogin() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-
     // La contraseña se envía tal cual: los espacios pueden ser parte de ella.
-    final ok = await ref.read(authNotifierProvider.notifier).login(
-          _emailController.text.trim(),
-          _passController.text,
-        );
+    final ok = await ref.read(authNotifierProvider.notifier).login(_emailController.text.trim(), _passController.text);
     if (ok || !mounted) return;
-
     final error = ref.read(authNotifierProvider).error;
-    if (error == null) return;
-    _showError(ErrorMessages.describe(error, context.l10n), ErrorMessages.codeOf(error));
+    if (error != null) _showError(error);
   }
 
-  void _showError(String message, String? code) {
+  void _showError(Object error) {
+    final code = ErrorMessages.codeOf(error);
+    final message = ErrorMessages.describe(error, context.l10n);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -53,10 +76,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const Icon(Icons.error_outline, color: Colors.white),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                code == null ? message : '$message\n${context.l10n.code}: $code',
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
+              child: Text(code == null ? message : '$message\n${context.l10n.code}: $code', style: const TextStyle(fontWeight: FontWeight.w500)),
             ),
           ],
         ),
@@ -68,23 +88,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  String? _noticeText(AuthState state) {
-    switch (state.notice) {
-      case AuthNotice.sessionExpired:
-        return context.l10n.sessionExpiredPleaseSignAgain;
-      case AuthNotice.logoutNotRevoked:
-        final detail = state.noticeError == null ? '' : ' (${ErrorMessages.describe(state.noticeError!, context.l10n)})';
-        return context.l10n.signedOutDeviceButServer(detail);
-      case null:
-        return null;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final authState = ref.watch(authNotifierProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final notice = _noticeText(authState);
+    final notice = avisoDeSesion(authState, l10n);
+    final configurada = _servidor.isNotEmpty;
+    const etiqueta = TextStyle(fontWeight: FontWeight.w600, fontSize: 13);
 
     return Scaffold(
       body: SafeArea(
@@ -99,73 +110,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Center(
-                      child: Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.25), width: 1.5),
-                        ),
-                        child: const Icon(Icons.account_balance_wallet_rounded, size: 42, color: AppColors.primary),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      appName,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                          ),
-                    ),
+                    const _Logo(),
                     const SizedBox(height: 28),
-                    if (!ApiConfig.isConfigured)
-                      _Banner(
-                        color: AppColors.rose,
-                        icon: Icons.dns_outlined,
-                        text: ErrorMessages.forCode('CONFIG_MISSING', '', context.l10n),
-                      ),
-                    if (notice != null)
-                      _Banner(color: AppColors.amber, icon: Icons.info_outline_rounded, text: notice),
+                    if (!configurada) _Banner(color: AppColors.rose, icon: Icons.dns_outlined, text: ErrorMessages.forCode('CONFIG_MISSING', '', l10n)),
+                    if (notice != null) _Banner(color: AppColors.amber, icon: Icons.info_outline_rounded, text: notice),
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(24.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              context.l10n.sign,
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                            ),
+                            Text(l10n.sign, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 20),
-                            const Text('Email', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            const Text('Email', style: etiqueta),
                             const SizedBox(height: 6),
                             TextFormField(
+                              key: const ValueKey('login-email'),
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
                               autofillHints: const [AutofillHints.email],
                               autocorrect: false,
                               textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                hintText: context.l10n.youExampleCom,
-                                prefixIcon: const Icon(Icons.alternate_email_rounded, size: 20),
-                              ),
-                              validator: (val) {
-                                final v = val?.trim() ?? '';
-                                if (v.isEmpty) return context.l10n.enterEmail;
-                                if (!v.contains('@') || !v.contains('.')) {
-                                  return context.l10n.invalidEmail;
-                                }
-                                return null;
-                              },
+                              decoration: InputDecoration(hintText: l10n.youExampleCom, prefixIcon: const Icon(Icons.alternate_email_rounded, size: 20)),
+                              validator: (val) => validarEmail(val, l10n),
                             ),
                             const SizedBox(height: 18),
-                            Text(context.l10n.password,
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            Text(l10n.password, style: etiqueta),
                             const SizedBox(height: 6),
                             TextFormField(
+                              key: const ValueKey('login-password'),
                               controller: _passController,
                               obscureText: _obscurePassword,
                               autofillHints: const [AutofillHints.password],
@@ -175,33 +148,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 hintText: '••••••••',
                                 prefixIcon: const Icon(Icons.lock_outline, size: 20),
                                 suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                                    size: 20,
-                                  ),
+                                  icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 20),
                                   onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                                 ),
                               ),
-                              validator: (val) {
-                                if (val == null || val.isEmpty) {
-                                  return context.l10n.enterPassword;
-                                }
-                                return null;
-                              },
+                              validator: (val) => validarPassword(val, l10n),
                             ),
                             const SizedBox(height: 24),
                             ElevatedButton(
-                              onPressed: authState.isLoading || !ApiConfig.isConfigured ? null : _submitLogin,
+                              key: const ValueKey('login-ingresar'),
+                              onPressed: authState.isLoading || !configurada ? null : _submitLogin,
                               child: authState.isLoading
                                   ? const SizedBox(
                                       height: 22,
                                       width: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                      ),
+                                      child: CircularProgressIndicator(strokeWidth: 2.5, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
                                     )
-                                  : Text(context.l10n.sign2),
+                                  : Text(l10n.sign2),
                             ),
                           ],
                         ),
@@ -210,11 +173,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 24),
                     Center(
                       child: Text(
-                        ApiConfig.isConfigured ? ApiConfig.baseUrl : '',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                        ),
+                        _servidor,
+                        style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                       ),
                     ),
                   ],
@@ -226,6 +186,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
+}
+
+class _Logo extends StatelessWidget {
+  const _Logo();
+
+  @override
+  Widget build(BuildContext context) => Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.25), width: 1.5),
+            ),
+            child: const Icon(Icons.account_balance_wallet_rounded, size: 42, color: AppColors.primary),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            appName,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5),
+          ),
+        ],
+      );
 }
 
 class _Banner extends StatelessWidget {
