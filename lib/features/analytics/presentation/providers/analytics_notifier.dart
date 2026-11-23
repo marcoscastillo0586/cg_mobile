@@ -18,17 +18,16 @@ class AnalyticsNotifier extends StateNotifier<AnalyticsState> {
 
   Future<void> inicializar() => cargarReporteCategorias();
 
+  /// Cada pestaña consulta la primera vez que se abre; después muestra lo ya cargado (↻ vuelve a consultar).
   Future<void> cambiarTab(int tabIndex) async {
     state = state.copyWith(activeTab: tabIndex);
-    if (tabIndex == 0 && state.categoryReport == null) {
-      await cargarReporteCategorias();
-    } else if (tabIndex == 1 && state.monthlyReport == null) {
-      await cargarComparativaMensual();
-    } else if (tabIndex == 2 && state.dailyReport == null) {
-      await cargarEvolucionDiaria();
-    } else if (tabIndex == 3 && state.productosPrecios.isEmpty) {
-      await cargarPreciosProductos();
-    }
+    final (cargada, cargar) = switch (tabIndex) {
+      0 => (state.categoryReport != null, cargarReporteCategorias),
+      1 => (state.monthlyReport != null, cargarComparativaMensual),
+      2 => (state.dailyReport != null, cargarEvolucionDiaria),
+      _ => (state.productosPrecios.isNotEmpty, cargarPreciosProductos),
+    };
+    if (!cargada) await cargar();
   }
 
   /// Ejecuta una consulta registrando y guardando el error (nunca lo descarta).
@@ -48,37 +47,26 @@ class AnalyticsNotifier extends StateNotifier<AnalyticsState> {
         final report = await _repository.getCategoryReport(
           from: _iso(state.desde),
           to: _iso(state.hasta),
-          accountIds: state.idLugarFiltro == null ? const [] : [state.idLugarFiltro!],
         );
         if (mounted) state = state.copyWith(categoryReport: report);
       });
 
   Future<void> cambiarPeriodo(String periodo) {
-    final now = DateTime.now();
-    late DateTime desde;
-    late DateTime hasta;
-    switch (periodo) {
-      case 'mes_anterior':
-        desde = DateTime(now.year, now.month - 1, 1);
-        hasta = DateTime(now.year, now.month, 0);
-      case 'anio_actual':
-        desde = DateTime(now.year, 1, 1);
-        hasta = DateTime(now.year, 12, 31);
-      default:
-        desde = DateTime(now.year, now.month, 1);
-        hasta = DateTime(now.year, now.month + 1, 0);
-    }
+    final (desde, hasta) = rangoDe(periodo, DateTime.now());
     state = state.copyWith(selectedPeriodo: periodo, desde: desde, hasta: hasta);
     return cargarReporteCategorias();
   }
 
+  /// Primer y último día de 'mes_anterior', 'anio_actual' o (cualquier otro) el mes de [now].
+  @visibleForTesting
+  static (DateTime, DateTime) rangoDe(String periodo, DateTime now) => switch (periodo) {
+        'mes_anterior' => (DateTime(now.year, now.month - 1, 1), DateTime(now.year, now.month, 0)),
+        'anio_actual' => (DateTime(now.year, 1, 1), DateTime(now.year, 12, 31)),
+        _ => (DateTime(now.year, now.month, 1), DateTime(now.year, now.month + 1, 0)),
+      };
+
   Future<void> cambiarRangoFechas(DateTime desde, DateTime hasta) {
     state = state.copyWith(selectedPeriodo: 'personalizado', desde: desde, hasta: hasta);
-    return cargarReporteCategorias();
-  }
-
-  Future<void> cambiarLugarFiltro(int? idLugar) {
-    state = state.copyWith(idLugarFiltro: idLugar);
     return cargarReporteCategorias();
   }
 
@@ -101,10 +89,6 @@ class AnalyticsNotifier extends StateNotifier<AnalyticsState> {
     });
   }
 
-  void setTouchedPieIndex(int index) => state = state.copyWith(touchedPieIndex: index);
-
-  void setTouchedBarGroupIndex(int index) => state = state.copyWith(touchedBarGroupIndex: index);
-
   Future<void> cargarPreciosProductos({String? search}) {
     state = state.copyWith(isLoadingPrecios: true, busquedaPrecios: search ?? state.busquedaPrecios, clearError: true);
     return _run('catálogo de precios', () async {
@@ -114,24 +98,4 @@ class AnalyticsNotifier extends StateNotifier<AnalyticsState> {
   }
 
   Future<void> buscarPrecios(String query) => cargarPreciosProductos(search: query);
-
-  Future<void> cargarHistorialProducto(String concepto, {String? plu}) {
-    return _run('historial de producto', () async {
-      final history = await _repository.getProductHistory(concept: plu == null ? concepto : null, plu: plu);
-      if (mounted) state = state.copyWith(productoSeleccionadoHistorial: history);
-    }, usesStatus: false);
-  }
-
-  Future<void> ejecutarComparativaPrecios({
-    required String desde1,
-    required String hasta1,
-    required String desde2,
-    required String hasta2,
-  }) {
-    state = state.copyWith(isLoadingPrecios: true, clearError: true);
-    return _run('comparativa de precios', () async {
-      final res = await _repository.compareProducts(from1: desde1, to1: hasta1, from2: desde2, to2: hasta2);
-      if (mounted) state = state.copyWith(isLoadingPrecios: false, comparativaPrecios: res);
-    }, usesStatus: false);
-  }
 }
