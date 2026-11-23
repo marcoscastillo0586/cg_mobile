@@ -10,6 +10,33 @@ import '../../domain/entities/ticket_parse_result.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../../core/network/server_reachability.dart';
 
+/// La dirección del ticket digital (http/https, sin espacios) o null si el QR no es uno.
+@visibleForTesting
+String? qrUrl(String raw) {
+  final url = raw.trim();
+  return url.startsWith('http://') || url.startsWith('https://') ? url : null;
+}
+
+/// El primer código con contenido de una captura.
+@visibleForTesting
+String? primerCodigo(List<Barcode> barcodes) =>
+    barcodes.map((b) => b.rawValue).firstWhere((code) => code != null && code.isNotEmpty, orElse: () => null);
+
+/// El servidor descarga y analiza el ticket: sin conexión no se puede leer; si no, el motivo con su código.
+@visibleForTesting
+String motivoFalloQr(Object e, AppLocalizations l) {
+  if (ServerReachability.isOfflineError(e)) return l.qrNeedsConnection;
+  final code = ErrorMessages.codeOf(e);
+  return ErrorMessages.describe(e, l) + (code != null ? ' ($code)' : '');
+}
+
+@visibleForTesting
+String errorDeCamara(MobileScannerErrorCode code, AppLocalizations l) => switch (code) {
+      MobileScannerErrorCode.permissionDenied => l.cameraPermissionDenied,
+      MobileScannerErrorCode.unsupported => l.cameraUnsupported,
+      _ => l.cameraError,
+    };
+
 class QrScannerScreen extends ConsumerStatefulWidget {
   const QrScannerScreen({super.key});
 
@@ -30,51 +57,29 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
   Future<void> _procesarQrDetectado(String rawUrl) async {
     if (_isProcessing) return;
-
-    final trimmedUrl = rawUrl.trim();
-    if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
+    final url = qrUrl(rawUrl);
+    if (url == null) {
       AppFeedback.selection();
-      if (mounted) {
-        AppFeedback.showError(
-          context,
-          context.l10n.scannedQrCodeNotValid,
-        );
-      }
+      AppFeedback.showError(context, context.l10n.scannedQrCodeNotValid);
       return;
     }
-
     setState(() {
       _isProcessing = true;
       _processingMessage = context.l10n.loadingExpenses;
     });
-
     try {
       await _controller.stop();
       // El servidor descarga y analiza el ticket (solo con conexión).
-      final qr = await ref.read(ticketsRepositoryProvider).parseUrl(trimmedUrl);
+      final qr = await ref.read(ticketsRepositoryProvider).parseUrl(url);
       if (!mounted) return;
-      final result = TicketParseResult(
-        readerName: qr.reader,
-        items: [
-          for (final i in qr.items) ParsedTicketItem(nombre: i.description, precioCents: i.netCents, esDudoso: i.doubtful),
-        ],
-        totalDetectadoCents: qr.totalPrintedCents,
-        rawTexts: [trimmedUrl],
-        imagePaths: const [],
-        qr: qr,
-      );
       AppFeedback.showSuccess(context, context.l10n.receiptReadItemsLines(qr.items.length));
-      context.pop(result);
+      context.pop(TicketParseResult.fromQr(qr, url));
     } catch (e) {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-        debugPrint('[TICKET] No se pudo leer el QR: $e');
-        // El servidor descarga y analiza el ticket: sin conexión no se puede leer.
-        _mostrarDialogoFalloQr(ServerReachability.isOfflineError(e)
-            ? context.l10n.qrNeedsConnection
-            : ErrorMessages.describe(e, context.l10n) + (ErrorMessages.codeOf(e) != null ? ' (${ErrorMessages.codeOf(e)})' : ''));
-        await _controller.start();
-      }
+      debugPrint('[TICKET] No se pudo leer el QR: $e');
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      _mostrarDialogoFalloQr(motivoFalloQr(e, context.l10n));
+      await _controller.start();
     }
   }
 
@@ -154,25 +159,15 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    switch (error.errorCode) {
-                      MobileScannerErrorCode.permissionDenied => context.l10n.cameraPermissionDenied,
-                      MobileScannerErrorCode.unsupported => context.l10n.cameraUnsupported,
-                      _ => context.l10n.cameraError,
-                    },
+                    errorDeCamara(error.errorCode, context.l10n),
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),
               ),
               onDetect: (capture) {
-                final barcodes = capture.barcodes;
-                for (final barcode in barcodes) {
-                  final String? code = barcode.rawValue;
-                  if (code != null && code.isNotEmpty) {
-                    _procesarQrDetectado(code);
-                    break;
-                  }
-                }
+                final code = primerCodigo(capture.barcodes);
+                if (code != null) _procesarQrDetectado(code);
               },
             ),
 

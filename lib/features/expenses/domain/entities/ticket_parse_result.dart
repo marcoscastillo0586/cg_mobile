@@ -51,6 +51,16 @@ class TicketParseResult extends Equatable {
     this.qr,
   });
 
+  /// Ticket digital leído por el servidor desde la dirección del QR [url].
+  factory TicketParseResult.fromQr(QrTicket qr, String url) => TicketParseResult(
+        readerName: qr.reader,
+        items: [for (final i in qr.items) ParsedTicketItem(nombre: i.description, precioCents: i.netCents, esDudoso: i.doubtful)],
+        totalDetectadoCents: qr.totalPrintedCents,
+        rawTexts: [url],
+        imagePaths: const [],
+        qr: qr,
+      );
+
   int get sumaRenglonesCents => items.fold(0, (acc, item) => acc + item.precioCents);
 
   /// Diferencia con el total impreso mayor a $ 0,05 (tolerancia de redondeo del comercio).
