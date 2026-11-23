@@ -55,9 +55,11 @@ void main() {
 
   test('la app que arranca le pide parar a la tarea y la espera', () async {
     final events = <String>[];
+    var working = false;
     final task = SyncCoordinator.runTask(
       onlyIfPending: false,
       work: (isStopped) async {
+        working = true;
         while (!isStopped()) {
           await Future<void>.delayed(const Duration(milliseconds: 5));
         }
@@ -65,7 +67,8 @@ void main() {
         return BackgroundSyncOutcome.retryLater;
       },
     );
-    while (IsolateNameServer.lookupPortByName(SyncCoordinator.taskPortName) == null) {
+    // Esperar a que la tarea esté sincronizando: si la app arranca antes, la tarea le cede el trabajo.
+    while (!working) {
       await Future<void>.delayed(const Duration(milliseconds: 5));
     }
     await SyncCoordinator.startApp(appSync);

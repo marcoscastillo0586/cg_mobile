@@ -1,6 +1,7 @@
 // Dashboards compartidos en la app con un repositorio SIMULADO (sin servidor ni almacenamiento real).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gastos_mobile/core/auth/current_account.dart';
 import 'package:gastos_mobile/core/errors/exceptions.dart';
 import 'package:gastos_mobile/features/dashboards/data/dashboards_repository.dart';
 import 'package:gastos_mobile/features/dashboards/domain/dashboard.dart';
@@ -84,6 +85,8 @@ void main() {
     final repo = _Repo()
       ..online = false
       ..server = [Dashboard.fromJson(_json(1, 'principal', owner: 1))];
+    CurrentAccount.id = 1; // el nombre pendiente es propio de la cuenta conectada
+    addTearDown(() => CurrentAccount.id = null);
     final n = DashboardsNotifier(repo, 1);
     await n.namePrincipal('Casa');
     expect(repo.renamed, isEmpty);

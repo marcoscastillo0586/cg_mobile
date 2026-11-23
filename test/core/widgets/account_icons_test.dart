@@ -4,11 +4,10 @@ import 'package:gastos_mobile/core/widgets/account_avatar.dart';
 import 'package:gastos_mobile/core/widgets/account_icon_catalog.dart';
 
 void main() {
-  test('cada ícono del catálogo tiene su imagen incluida en la app', () {
-    expect(accountIconCatalog, hasLength(50));
-    for (final e in accountIconCatalog) {
-      expect(File(e.asset).existsSync(), isTrue, reason: e.asset);
-    }
+  test('el catálogo y las imágenes incluidas en la app coinciden una a una', () {
+    final files = Directory('assets/account_icons').listSync().map((f) => f.path.replaceAll(r'\', '/')).toSet();
+    expect(accountIconCatalog.map((e) => e.asset).toSet(), files);
+    expect(accountIconCatalog.map((e) => e.key).toSet(), hasLength(accountIconCatalog.length));
   });
 
   test('una clave conocida se conserva; una desconocida o vacía usa el 01', () {

@@ -7,7 +7,7 @@ import 'package:gastos_mobile/features/expenses/domain/entities/ticket_parse_res
 
 void main() {
   final body = {
-    'reader': 'ollama',
+    'reader': 'gemini',
     'merchant': 'SUPER DIA',
     'receiptDate': '07/10/2026',
     'receiptNumber': '0001-00012345',
@@ -22,7 +22,7 @@ void main() {
 
   test('renglones con su importe neto y total impreso, sin QR (se guarda como la lectura del celular)', () {
     final r = TicketsRepository.parseImageTicket(body, ['a.jpg', 'b.jpg']);
-    expect(r.readerName, 'ollama');
+    expect(r.readerName, 'gemini');
     expect(r.items, const [
       ParsedTicketItem(nombre: 'LECHE ENTERA', precioCents: 200000),
       ParsedTicketItem(nombre: 'PAN', precioCents: 90050),

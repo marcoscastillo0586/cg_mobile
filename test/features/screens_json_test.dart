@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gastos_mobile/core/auth/current_account.dart';
 import 'package:gastos_mobile/core/money/money.dart';
 import 'package:gastos_mobile/core/database/local_database.dart';
 import 'package:gastos_mobile/core/network/dio_client.dart';
@@ -153,6 +154,8 @@ void main() {
   });
 
   testWidgets('Movimientos: importe y renglón iguales al JSON', (tester) async {
+    CurrentAccount.id = 1; // ajustes y base local son propios de la cuenta conectada
+    addTearDown(() => CurrentAccount.id = null);
     await _pump(tester, const MovementsScreen());
     expect(tester.widget<Text>(find.byKey(const ValueKey('mov-importe-500'))).data, Money.format(-2534099));
     await tester.tap(find.text('Supermercado'));
