@@ -187,46 +187,12 @@ class LocalReports {
       WHERE $_inCurrency AND d.deleted = 0 AND h.deleted = 0 AND h.type = 2 AND d.concept IS NOT NULL AND TRIM(d.concept) <> ''
         ${like == null ? '' : "AND (d.concept LIKE ? ESCAPE '\\' OR d.plu LIKE ? ESCAPE '\\')"}
       ORDER BY h.occurred_at, $_detailOrder''', [currency, if (like != null) ...[like, like]]);
-    final map = <String, Map<String, dynamic>>{};
+    // Compras agrupadas por concepto normalizado, en orden cronológico.
+    final groups = <String, List<Map<String, Object?>>>{};
     for (final r in rows) {
-      final key = _groupKey(r['concept']! as String);
-      final unit = r['unit']! as int;
-      final date = (r['occurred_at']! as String).substring(0, 10);
-      final plu = (r['plu'] as String?)?.isEmpty ?? true ? null : r['plu'] as String;
-      final cur = map[key];
-      if (cur == null) {
-        map[key] = {
-          'concept': _upper(r['concept']! as String),
-          'plu': plu,
-          'purchases': 1,
-          'firstDate': date,
-          'lastDate': date,
-          'firstPriceCents': unit,
-          'lastPriceCents': unit,
-          'minPriceCents': unit,
-          'maxPriceCents': unit,
-          'variationPercent': 0,
-          'lastAccount': r['account'],
-        };
-      } else {
-        cur['purchases'] = (cur['purchases'] as int) + 1;
-        cur['lastDate'] = date;
-        cur['lastPriceCents'] = unit;
-        cur['lastAccount'] = r['account'];
-        cur['plu'] ??= plu;
-        if (unit < (cur['minPriceCents'] as int)) cur['minPriceCents'] = unit;
-        if (unit > (cur['maxPriceCents'] as int)) cur['maxPriceCents'] = unit;
-      }
+      (groups[_groupKey(r['concept']! as String)] ??= []).add(r);
     }
-    final list = [
-      for (final p in map.values)
-        {
-          ...p,
-          'variationPercent': (p['firstPriceCents'] as int) > 0
-              ? _jsRound(((p['lastPriceCents'] as int) - (p['firstPriceCents'] as int)) / (p['firstPriceCents'] as int) * 1000) / 10
-              : 0,
-        },
-    ];
+    final list = [for (final g in groups.values) _productSummary(g)];
     _stableSort(list, (a, b) {
       final byPurchases = (b['purchases'] as int).compareTo(a['purchases'] as int);
       return byPurchases != 0 ? byPurchases : (b['lastDate'] as String).compareTo(a['lastDate'] as String);
@@ -237,7 +203,7 @@ class LocalReports {
   /// Historial cronológico de precios de un producto (por concepto o PLU).
   Future<Map<String, dynamic>> productHistory(Map<String, dynamic> params) async {
     final concept = params['concept'] as String?;
-    final plu = (params['plu'] as String?)?.isEmpty ?? true ? null : params['plu'] as String;
+    final plu = _nonEmpty(params['plu'] as String?);
     final rows = await _db.rawQuery('''
       SELECT h.server_id AS h_sid, h.local_id AS h_lid, h.occurred_at, a.name AS account, c.name AS category, d.concept,
              COALESCE(NULLIF(d.unit_price_cents, 0), ABS(d.amount_cents)) AS unit, ABS(d.amount_cents) AS total
@@ -248,17 +214,15 @@ class LocalReports {
       WHERE $_inCurrency AND d.deleted = 0 AND h.deleted = 0 AND h.type = 2 AND ${plu != null ? 'd.plu = ?' : 'd.concept IS NOT NULL'}
       ORDER BY h.occurred_at, $_detailOrder''', [currency, if (plu != null) plu]);
     final filtered = plu != null ? rows : rows.where((r) => _groupKey((r['concept'] as String?) ?? '') == _groupKey(concept ?? '')).toList();
-    final prices = [for (final r in filtered) r['unit']! as int];
-    final first = prices.isEmpty ? 0 : prices.first;
-    final last = prices.isEmpty ? 0 : prices.last;
+    final stats = _priceStats([for (final r in filtered) r['unit']! as int]);
     return {
-      'concept': _upper(concept ?? (filtered.isEmpty ? null : filtered.first['concept'] as String?) ?? plu ?? ''),
+      'concept': _upper(concept ?? filtered.firstOrNull?['concept'] as String? ?? plu ?? ''),
       'purchases': filtered.length,
-      'currentPriceCents': last,
-      'initialPriceCents': first,
-      'minPriceCents': prices.isEmpty ? 0 : prices.reduce((a, b) => a < b ? a : b),
-      'maxPriceCents': prices.isEmpty ? 0 : prices.reduce((a, b) => a > b ? a : b),
-      'increasePercent': first > 0 ? _jsRound((last - first) / first * 1000) / 10 : 0,
+      'currentPriceCents': stats.last,
+      'initialPriceCents': stats.first,
+      'minPriceCents': stats.min,
+      'maxPriceCents': stats.max,
+      'increasePercent': stats.variation,
       'history': [
         for (final r in filtered)
           {
@@ -338,6 +302,41 @@ class LocalReports {
   }
 
   // ---------------- ayudas ----------------
+
+  /// Resumen de las compras de un producto (en orden cronológico): el PLU es el primero informado.
+  static Map<String, dynamic> _productSummary(List<Map<String, Object?>> rows) {
+    final stats = _priceStats([for (final r in rows) r['unit']! as int]);
+    String date(Map<String, Object?> r) => (r['occurred_at']! as String).substring(0, 10);
+    return {
+      'concept': _upper(rows.first['concept']! as String),
+      'plu': rows.map((r) => _nonEmpty(r['plu'] as String?)).nonNulls.firstOrNull,
+      'purchases': rows.length,
+      'firstDate': date(rows.first),
+      'lastDate': date(rows.last),
+      'firstPriceCents': stats.first,
+      'lastPriceCents': stats.last,
+      'minPriceCents': stats.min,
+      'maxPriceCents': stats.max,
+      'variationPercent': stats.variation,
+      'lastAccount': rows.last['account'],
+    };
+  }
+
+  /// Precio inicial, final, mínimo, máximo y variación (% con un decimal) de una serie cronológica; 0 sin compras.
+  static ({int first, int last, int min, int max, num variation}) _priceStats(List<int> prices) {
+    if (prices.isEmpty) return (first: 0, last: 0, min: 0, max: 0, variation: 0);
+    final first = prices.first;
+    final last = prices.last;
+    return (
+      first: first,
+      last: last,
+      min: prices.reduce((a, b) => a < b ? a : b),
+      max: prices.reduce((a, b) => a > b ? a : b),
+      variation: first > 0 ? _jsRound((last - first) / first * 1000) / 10 : 0,
+    );
+  }
+
+  static String? _nonEmpty(String? s) => s == null || s.isEmpty ? null : s;
 
   static const _from = '''
     FROM movement_details d
