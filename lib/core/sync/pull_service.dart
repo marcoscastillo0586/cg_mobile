@@ -186,12 +186,36 @@ class PullService {
     for (final m in movements) {
       if (m['partialDetails'] == true) throw _bad('movimiento ${m['id']} con renglones parciales');
     }
-    final accounts = await _serverToLocal(txn, 'accounts');
-    final categories = await _serverToLocal(txn, 'categories');
-    int need(Map<Object?, int> ids, String table, int serverId) =>
-        ids[serverId] ?? (throw _bad('$table #$serverId referenciada pero no recibida'));
+    final ids = (accounts: await _serverToLocal(txn, 'accounts'), categories: await _serverToLocal(txn, 'categories'));
+    final headerIds = await _upsertHeaders(txn, movements);
+    final details = [for (final m in movements) _list(m['details']).cast<Map<String, dynamic>>()];
+    final existingDetails = await _localIdsIn(txn, 'movement_details', 'server_id', [
+      for (final ds in details)
+        for (final d in ds) d['id'],
+    ]);
+    final batch = txn.batch();
+    for (final (i, m) in movements.indexed) {
+      final updatedAt = m['updatedAt'] as String? ?? DateTime.now().toUtc().toIso8601String();
+      for (final d in details[i]) {
+        final values = _detailValues(d, headerIds[i], updatedAt, ids);
+        final localId = existingDetails[values['server_id']];
+        if (localId == null) {
+          batch.insert('movement_details', values);
+        } else {
+          batch.update('movement_details', values, where: 'local_id = ?', whereArgs: [localId]);
+        }
+      }
+    }
+    // Los borrados van después de todas las altas y cambios: un renglón que pasó a otro
+    // comprobante de la misma página ya no está en el anterior cuando se borra lo que sobra.
+    for (final (i, headerId) in headerIds.indexed) {
+      _deleteMissingDetails(batch, headerId, [for (final d in details[i]) d['id'] as int]);
+    }
+    await batch.commit(noResult: true);
+  }
 
-    // Encabezados: por server_id y, si no está, por client_id (alta hecha en el celular).
+  /// Encabezados: por server_id y, si no está, por client_id (alta hecha en el celular). Devuelve sus local_id.
+  static Future<List<int>> _upsertHeaders(Transaction txn, List<Map<String, dynamic>> movements) async {
     final byServer = await _localIdsIn(txn, 'movement_headers', 'server_id', [for (final m in movements) m['id']]);
     final byClient = await _localIdsIn(txn, 'movement_headers', 'client_id', [
       for (final m in movements)
@@ -215,58 +239,46 @@ class PullService {
       }
     }
     final inserted = await headers.commit();
-    final headerIds = [for (final (i, localId) in existing.indexed) localId ?? inserted[i] as int];
+    return [for (final (i, localId) in existing.indexed) localId ?? inserted[i] as int];
+  }
 
-    final details = [for (final m in movements) _list(m['details']).cast<Map<String, dynamic>>()];
-    final existingDetails = await _localIdsIn(txn, 'movement_details', 'server_id', [
-      for (final ds in details)
-        for (final d in ds) d['id'],
-    ]);
-    final batch = txn.batch();
-    for (final (i, m) in movements.indexed) {
-      final updatedAt = m['updatedAt'] as String? ?? DateTime.now().toUtc().toIso8601String();
-      for (final d in details[i]) {
-        final serverId = d['id'] as int;
-        final categoryId = d['categoryId'] as int?;
-        final unit = d['unitPriceCents'];
-        final values = {
-          'server_id': serverId,
-          'header_local_id': headerIds[i],
-          'account_local_id': need(accounts, 'accounts', d['accountId'] as int),
-          'category_local_id': categoryId == null ? null : need(categories, 'categories', categoryId),
-          'concept': d['concept'],
-          'amount_cents': Money.centsFrom(d['amountCents'], 'detail.amountCents'),
-          'plu': d['plu'],
-          'unit_price_cents': unit == null ? null : Money.centsFrom(unit, 'detail.unitPriceCents'),
-          'image_url': d['imageUrl'],
-          'deleted': 0,
-          'deleted_at': null,
-          'updated_at': updatedAt,
-        };
-        final localId = existingDetails[serverId];
-        if (localId == null) {
-          batch.insert('movement_details', values);
-        } else {
-          batch.update('movement_details', values, where: 'local_id = ?', whereArgs: [localId]);
-        }
-      }
-    }
-    // Los borrados van después de todas las altas y cambios: un renglón que pasó a otro
-    // comprobante de la misma página ya no está en el anterior cuando se borra lo que sobra.
-    for (final (i, headerId) in headerIds.indexed) {
-      final keep = [for (final d in details[i]) d['id'] as int];
-      // Si el comprobante se cargó en el celular (encontrado por clientId), el servidor ya lo
-      // registró: sus renglones reemplazan a los locales sin server_id (no se duplican).
-      batch.delete('movement_details', where: 'header_local_id = ? AND server_id IS NULL', whereArgs: [headerId]);
-      // El servidor manda el comprobante completo: los renglones del servidor que ya no vienen se borraron.
-      batch.delete(
-        'movement_details',
-        where: 'header_local_id = ? AND server_id IS NOT NULL'
-            '${keep.isEmpty ? '' : ' AND server_id NOT IN (${List.filled(keep.length, '?').join(',')})'}',
-        whereArgs: [headerId, ...keep],
-      );
-    }
-    await batch.commit(noResult: true);
+  /// Fila local de un renglón del servidor; la cuenta y la categoría tienen que haber llegado antes.
+  static Map<String, Object?> _detailValues(
+    Map<String, dynamic> d,
+    int headerId,
+    String updatedAt,
+    ({Map<Object?, int> accounts, Map<Object?, int> categories}) ids,
+  ) {
+    int need(Map<Object?, int> local, String table, int serverId) => local[serverId] ?? (throw _bad('$table #$serverId referenciada pero no recibida'));
+    final categoryId = d['categoryId'] as int?;
+    final unit = d['unitPriceCents'];
+    return {
+      'server_id': d['id'] as int,
+      'header_local_id': headerId,
+      'account_local_id': need(ids.accounts, 'accounts', d['accountId'] as int),
+      'category_local_id': categoryId == null ? null : need(ids.categories, 'categories', categoryId),
+      'concept': d['concept'],
+      'amount_cents': Money.centsFrom(d['amountCents'], 'detail.amountCents'),
+      'plu': d['plu'],
+      'unit_price_cents': unit == null ? null : Money.centsFrom(unit, 'detail.unitPriceCents'),
+      'image_url': d['imageUrl'],
+      'deleted': 0,
+      'deleted_at': null,
+      'updated_at': updatedAt,
+    };
+  }
+
+  /// El servidor manda el comprobante completo: los renglones que ya no vienen se borraron. Si el comprobante
+  /// se cargó en el celular (encontrado por clientId), el servidor ya lo registró: sus renglones reemplazan a
+  /// los locales sin server_id (no se duplican).
+  static void _deleteMissingDetails(Batch batch, int headerId, List<int> keep) {
+    batch.delete('movement_details', where: 'header_local_id = ? AND server_id IS NULL', whereArgs: [headerId]);
+    batch.delete(
+      'movement_details',
+      where: 'header_local_id = ? AND server_id IS NOT NULL'
+          '${keep.isEmpty ? '' : ' AND server_id NOT IN (${List.filled(keep.length, '?').join(',')})'}',
+      whereArgs: [headerId, ...keep],
+    );
   }
 
   static Future<Map<Object?, int>> _serverToLocal(Transaction txn, String table) async => {
