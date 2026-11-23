@@ -45,7 +45,7 @@ final novedadesNotifierProvider = StateNotifierProvider<NovedadesNotifier, Noved
     ref.watch(localBudgetsRepositoryProvider),
     ref.watch(secureStorageServiceProvider),
     ref.watch(budgetAlertsRepositoryProvider),
-    ref,
+    () => ref.read(authNotifierProvider).user?.idUsuario,
   );
 });
 
@@ -65,13 +65,13 @@ class NovedadesNotifier extends StateNotifier<NovedadesState> {
   final Future<LocalBudgetsRepository> _budgets;
   final SecureStorageService _storage;
   final BudgetAlertsRepository _alerts;
-  final Ref _ref;
 
-  NovedadesNotifier(this._budgets, this._storage, this._alerts, this._ref) : super(const NovedadesState()) {
+  /// Usuario de la sesión (las marcas de "vista" son por usuario).
+  final int? Function() _userId;
+
+  NovedadesNotifier(this._budgets, this._storage, this._alerts, this._userId) : super(const NovedadesState()) {
     calcularNovedades();
   }
-
-  int? _userId() => _ref.read(authNotifierProvider).user?.idUsuario;
 
   Future<void> calcularNovedades() async {
     final userId = _userId();
