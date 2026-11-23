@@ -172,6 +172,55 @@ void main() {
       await rule(() => crear(cats: seis), 'VALIDATION_ERROR');
     });
 
+    Future<int> unLimite() async {
+      await repo.create(startDate: '2026-10-01', endDate: '2026-10-31', limitCents: 1000,
+          categoryIds: [s.categories['Comida']!], accountIds: [s.accounts['Banco']!]);
+      return (await repo.list()).single.id;
+    }
+
+    test('alta: monto, categorías y cuentas obligatorios; una sola moneda; ids repetidos cuentan una vez', () async {
+      Future<String> crear({int limit = 1, List<int>? cats, List<int>? accs}) => repo.create(startDate: '2026-10-01', endDate: '2026-10-31',
+          limitCents: limit, categoryIds: cats ?? [s.categories['Comida']!], accountIds: accs ?? [s.accounts['Banco']!]);
+      await rule(() => crear(limit: 0), 'VALIDATION_ERROR');
+      await rule(() => crear(cats: []), 'VALIDATION_ERROR');
+      await rule(() => crear(accs: []), 'VALIDATION_ERROR');
+      await rule(() => crear(accs: [s.accounts['Banco']!, s.accounts['Dolares']!]), 'BUDGET_MIXED_CURRENCY');
+      await crear(cats: [s.categories['Comida']!, s.categories['Comida']!], accs: [s.accounts['Banco']!, s.accounts['Efectivo']!]);
+      expect(await lastData(), containsPair('categoryRefs', [{'serverId': 5}]));
+      expect(await lastData(), containsPair('accountRefs', [{'serverId': 1}, {'serverId': 2}]));
+    });
+
+    test('editar: sólo lo que cambió, con lo anterior para deshacer; sin cambios, monto 0 o período inválido se rechazan', () async {
+      final id = await unLimite();
+      await repo.update(id, startDate: '2026-10-02', endDate: '2026-10-31', limitCents: 2500);
+      final op = await lastOp();
+      expect(op['action'], 'update');
+      expect(jsonDecode(op['data']! as String), {'startDate': '2026-10-02', 'limit': '25.00'});
+      expect((jsonDecode(op['undo']! as String) as Map)['values'], {'start_date': '2026-10-01', 'limit_cents': 1000});
+      final b = (await repo.list()).single;
+      expect((b.startDate, b.endDate, b.limitCents), ('2026-10-02', '2026-10-31', 2500));
+      await repo.update(id, endDate: '2026-11-30');
+      expect(await lastData(), {'endDate': '2026-11-30'});
+      await rule(() => repo.update(id, startDate: '2026-10-02', limitCents: 2500), 'VALIDATION_ERROR');
+      await rule(() => repo.update(id, limitCents: 0), 'VALIDATION_ERROR');
+      await rule(() => repo.update(id, startDate: '2026-12-01'), 'INVALID_PERIOD');
+    });
+
+    test('eliminar: un alta nunca enviada se quita del celular; uno ya enviado se borra por la outbox', () async {
+      final local = await unLimite();
+      expect(await repo.delete(local), isNull);
+      expect(await s.count('outbox'), 0);
+      expect(await s.count('budgets'), 0);
+      final sent = await unLimite();
+      await s.db.update('budgets', {'server_id': 300, 'version': 2}, where: 'local_id = ?', whereArgs: [sent]);
+      await s.db.delete('outbox');
+      expect(await repo.delete(sent), isNotNull);
+      final op = await lastOp();
+      expect((op['action'], op['ref'], op['base_version']), ('delete', jsonEncode({'serverId': 300}), 2));
+      expect(await s.count('budgets', 'deleted = 1'), 1);
+      expect(await repo.list(), isEmpty);
+    });
+
     test('renovar: desde +1 mes y hasta = último día del mes siguiente (semántica MySQL)', () async {
       expect(LocalBudgetsRepository.addMonths('2026-01-31', 1), '2026-02-28');
       expect(LocalBudgetsRepository.addMonths('2028-01-31', 1), '2028-02-29'); // bisiesto

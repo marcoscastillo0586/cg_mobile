@@ -93,20 +93,8 @@ class LocalBudgetsRepository {
         if (cats.isEmpty) throw LocalOps.invalid((l) => l.selectLeastOneCategory);
         if (cats.length > budgetMaxCategories) throw LocalOps.invalid((l) => l.mostBudgetmaxcategoriesCategories(budgetMaxCategories));
         if (accs.isEmpty) throw LocalOps.invalid((l) => l.selectLeastOneAccountApply);
-        final catRefs = <Map<String, Object>>[];
-        for (final id in cats) {
-          final c = await LocalOps.require(txn, 'categories', id, (l) => l.category2);
-          if (c['role'] == 'TRANSFER' || c['role'] == 'INCOME') {
-            throw ValidationFailure.t((l) => l.categoryNotForBudgets(c['name']! as String), 'RESERVED_CATEGORY');
-          }
-          catRefs.add(LocalOps.ref(c));
-        }
-        final accRows = [for (final id in accs) await LocalOps.require(txn, 'accounts', id, (l) => l.account)];
-        // Una sola moneda por límite (regla del servidor: BUDGET_MIXED_CURRENCY).
-        if (accRows.map((a) => a['currency']).toSet().length > 1) {
-          throw ValidationFailure.t((l) => l.budgetMixedCurrency, 'BUDGET_MIXED_CURRENCY');
-        }
-        final accRefs = [for (final a in accRows) LocalOps.ref(a)];
+        final catRefs = await _categoryRefs(txn, cats);
+        final accRefs = await _accountRefs(txn, accs);
         final clientId = LocalDatabase.newId();
         final localId = await txn.insert('budgets', {
           'client_id': clientId, 'start_date': startDate, 'end_date': endDate, 'limit_cents': limitCents, 'updated_at': LocalOps.stamp(),
@@ -129,21 +117,7 @@ class LocalBudgetsRepository {
   /// Fechas y/o monto (la API de sincronización no cambia categorías ni cuentas de un límite).
   Future<String> update(int localId, {String? startDate, String? endDate, int? limitCents}) => _db.transaction((txn) async {
         final row = await LocalOps.require(txn, 'budgets', localId, (l) => l.limit2);
-        final changes = <String, Object?>{};
-        final data = <String, Object?>{};
-        if (startDate != null && startDate != row['start_date']) {
-          changes['start_date'] = startDate;
-          data['startDate'] = startDate;
-        }
-        if (endDate != null && endDate != row['end_date']) {
-          changes['end_date'] = endDate;
-          data['endDate'] = endDate;
-        }
-        if (limitCents != null && limitCents != row['limit_cents']) {
-          if (limitCents <= 0) throw LocalOps.invalid((l) => l.amountMustGreaterThanZero);
-          changes['limit_cents'] = limitCents;
-          data['limit'] = Money.toApiDecimal(limitCents);
-        }
+        final (changes, data) = _budgetChanges(row, startDate, endDate, limitCents);
         if (data.isEmpty) throw LocalOps.invalid((l) => l.noChangesSave);
         _period((changes['start_date'] ?? row['start_date'])! as String, (changes['end_date'] ?? row['end_date'])! as String);
         return _enqueueUpdate(txn, row, changes, data);
@@ -162,6 +136,43 @@ class LocalBudgetsRepository {
         final row = await LocalOps.require(txn, 'budgets', localId, (l) => l.limit2);
         return LocalOps.deleteRow(txn, entity: 'budget', table: 'budgets', row: row);
       });
+
+  /// Lo que cambió: columnas locales y campos para la API (el monto tiene que ser mayor a cero).
+  static (Map<String, Object?>, Map<String, Object?>) _budgetChanges(Map<String, Object?> row, String? startDate, String? endDate, int? limitCents) {
+    final changes = <String, Object?>{};
+    final data = <String, Object?>{};
+    void change(String column, String field, Object? value, Object? apiValue) {
+      if (value == null || value == row[column]) return;
+      changes[column] = value;
+      data[field] = apiValue;
+    }
+
+    if (limitCents != null && limitCents != row['limit_cents'] && limitCents <= 0) throw LocalOps.invalid((l) => l.amountMustGreaterThanZero);
+    change('start_date', 'startDate', startDate, startDate);
+    change('end_date', 'endDate', endDate, endDate);
+    change('limit_cents', 'limit', limitCents, limitCents == null ? null : Money.toApiDecimal(limitCents));
+    return (changes, data);
+  }
+
+  /// Referencias de las categorías del límite: no pueden ser las reservadas de transferencias ni de ingresos.
+  static Future<List<Map<String, Object>>> _categoryRefs(Transaction txn, List<int> ids) async {
+    final refs = <Map<String, Object>>[];
+    for (final id in ids) {
+      final c = await LocalOps.require(txn, 'categories', id, (l) => l.category2);
+      if (c['role'] == 'TRANSFER' || c['role'] == 'INCOME') {
+        throw ValidationFailure.t((l) => l.categoryNotForBudgets(c['name']! as String), 'RESERVED_CATEGORY');
+      }
+      refs.add(LocalOps.ref(c));
+    }
+    return refs;
+  }
+
+  /// Referencias de las cuentas del límite: una sola moneda por límite (regla del servidor: BUDGET_MIXED_CURRENCY).
+  static Future<List<Map<String, Object>>> _accountRefs(Transaction txn, List<int> ids) async {
+    final rows = [for (final id in ids) await LocalOps.require(txn, 'accounts', id, (l) => l.account)];
+    if (rows.map((a) => a['currency']).toSet().length > 1) throw ValidationFailure.t((l) => l.budgetMixedCurrency, 'BUDGET_MIXED_CURRENCY');
+    return [for (final a in rows) LocalOps.ref(a)];
+  }
 
   Future<String> _enqueueUpdate(Transaction txn, Map<String, Object?> row, Map<String, Object?> changes, Map<String, Object?> data) async {
     final localId = row['local_id']! as int;
