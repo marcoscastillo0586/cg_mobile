@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gastos_mobile/core/auth/current_account.dart';
 import 'package:gastos_mobile/core/auth/session_manager.dart';
 import 'package:gastos_mobile/core/auth/session_scope.dart';
+import 'package:gastos_mobile/core/dashboards/current_dashboard.dart';
 import 'package:gastos_mobile/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:gastos_mobile/features/auth/domain/entities/user_entity.dart';
 import 'package:gastos_mobile/features/auth/domain/repositories/auth_repository.dart';
@@ -99,6 +100,20 @@ void main() {
     await tester.pump();
     expect(find.text('authenticated 5 null'), findsOneWidget);
     expect(CurrentAccount.id, 5, reason: 'otra cuenta usa sus propios archivos, no los de la 1');
+  });
+
+  testWidgets('cambiar de dashboard: contenedor nuevo, misma sesión, sin volver a consultarla', (tester) async {
+    await pump(tester);
+    addTearDown(() => CurrentDashboard.id.value = null);
+    container().read(_userData.notifier).state = 'datos del dashboard 1';
+    final first = container();
+    CurrentDashboard.id.value = 3;
+    await tester.pump();
+    await tester.pump();
+    expect(container(), isNot(same(first)));
+    expect(container().read(_userData), isNull, reason: 'nada del dashboard anterior en memoria');
+    expect(container().read(authNotifierProvider).user?.idUsuario, 1);
+    expect(auth.restores, 1);
   });
 
   testWidgets('sesión expirada durante el uso: también se descarta el estado', (tester) async {

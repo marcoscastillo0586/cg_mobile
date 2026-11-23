@@ -167,11 +167,14 @@ class FormScreenTheme extends ThemeExtension<FormScreenTheme> {
         color: inner && !focused ? innerField : surface,
         borderRadius: BorderRadius.circular(inner ? innerRadius : radius),
         border: Border.all(color: error || focused ? accent : border),
-        boxShadow: [
-          if (focused) BoxShadow(color: accent.withValues(alpha: 0.10), spreadRadius: inner ? 2 : 4),
-          if (!inner && !focused) ...shadow,
-        ],
+        boxShadow: _sombra(focused: focused, inner: inner),
       );
+
+  /// Con foco, halo rosa (más chico en un renglón); sin foco, la sombra de tarjeta (los renglones no llevan).
+  List<BoxShadow> _sombra({required bool focused, required bool inner}) {
+    if (focused) return [BoxShadow(color: accent.withValues(alpha: 0.10), spreadRadius: inner ? 2 : 4)];
+    return inner ? const [] : shadow;
+  }
 
   @override
   FormScreenTheme copyWith() => this;

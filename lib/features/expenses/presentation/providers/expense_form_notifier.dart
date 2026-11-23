@@ -249,22 +249,7 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
       }
       final general = state.conceptoGeneral.trim();
       if (general.isEmpty) throw ValidationFailure.t((l) => l.fillConceptField, 'VALIDATION_ERROR');
-      final items = <QrTicketConfirmItem>[];
-      for (final (i, r) in state.renglones.indexed) {
-        final cat = state.categorias.where((c) => c.localId == r.categoriaId).firstOrNull;
-        if (cat == null) throw ValidationFailure.t((l) => l.selectCategoryLineI(i + 1), 'VALIDATION_ERROR');
-        if (cat.serverId == null) {
-          throw ValidationFailure.t((l) => l.categoryNameNotServerYet(cat.name), 'VALIDATION_ERROR');
-        }
-        if (r.montoCents <= 0) throw ValidationFailure.t((l) => l.lineIMustHaveAmount(i + 1), 'VALIDATION_ERROR');
-        items.add(QrTicketConfirmItem(
-          concept: r.concepto.trim().isEmpty ? general : r.concepto.trim(),
-          categoryServerId: cat.serverId!,
-          amountCents: r.montoCents,
-          plu: r.plu,
-          unitPriceCents: r.unitPriceCents,
-        ));
-      }
+      final items = _itemsQr(general);
       final f = state.fecha;
       final clientSyncId = _ticketClientSyncId ??= LocalDatabase.newId();
       final confirmed = await tickets().confirm(QrTicketConfirmation(
@@ -277,24 +262,46 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
       ));
       ticketAlreadyRegistered = confirmed.duplicate;
       ticketLocalCopyError = null;
-      // Ya está en el servidor: se trae al celular ahora (sin esperar al próximo pull, que por su
-      // margen de 2 s todavía no lo incluye). Si falla, el egreso igual quedó registrado.
-      final save = _saveServerMovement;
-      if (save != null) {
-        try {
-          final m = await tickets().movement(confirmed.headerId);
-          await save({...m, 'clientId': clientSyncId, 'version': m['version'] ?? 1});
-        } catch (e) {
-          debugPrint('[TICKET] Registrado en el servidor pero no se trajo al celular: $e');
-          ticketLocalCopyError = e;
-        }
-      }
+      await _copiaLocal(tickets(), confirmed.headerId, clientSyncId);
       if (mounted) state = state.copyWith(status: ExpenseFormStatus.success);
       return true;
     } catch (e) {
       debugPrint('[TICKET] No se confirmó: $e');
       if (mounted) state = state.copyWith(status: ExpenseFormStatus.ready, error: e);
       return false;
+    }
+  }
+
+  /// Renglones del ticket QR para el servidor: cada uno con una categoría ya sincronizada y monto positivo; sin
+  /// concepto propio, el general. Lanza [ValidationFailure] con el primer renglón que no cumple.
+  List<QrTicketConfirmItem> _itemsQr(String general) => [
+        for (final (i, r) in state.renglones.indexed)
+          QrTicketConfirmItem(
+            concept: r.concepto.trim().isEmpty ? general : r.concepto.trim(),
+            categoryServerId: _categoriaSincronizada(i, r.categoriaId),
+            amountCents: r.montoCents > 0 ? r.montoCents : throw ValidationFailure.t((l) => l.lineIMustHaveAmount(i + 1), 'VALIDATION_ERROR'),
+            plu: r.plu,
+            unitPriceCents: r.unitPriceCents,
+          ),
+      ];
+
+  int _categoriaSincronizada(int i, int? localId) {
+    final cat = state.categorias.where((c) => c.localId == localId).firstOrNull;
+    if (cat == null) throw ValidationFailure.t((l) => l.selectCategoryLineI(i + 1), 'VALIDATION_ERROR');
+    return cat.serverId ?? (throw ValidationFailure.t((l) => l.categoryNameNotServerYet(cat.name), 'VALIDATION_ERROR'));
+  }
+
+  /// Ya está en el servidor: se trae al celular ahora (sin esperar al próximo pull, que por su margen de 2 s
+  /// todavía no lo incluye). Si falla, el egreso igual quedó registrado y el motivo queda en [ticketLocalCopyError].
+  Future<void> _copiaLocal(TicketsRepository tickets, int headerId, String clientSyncId) async {
+    final save = _saveServerMovement;
+    if (save == null) return;
+    try {
+      final m = await tickets.movement(headerId);
+      await save({...m, 'clientId': clientSyncId, 'version': m['version'] ?? 1});
+    } catch (e) {
+      debugPrint('[TICKET] Registrado en el servidor pero no se trajo al celular: $e');
+      ticketLocalCopyError = e;
     }
   }
 }
