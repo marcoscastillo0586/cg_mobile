@@ -122,15 +122,18 @@ class SyncController extends StateNotifier<SyncState> {
     final rows = await db.query('outbox',
         where: "status = 'rejected' AND op_id IN (${List.filled(ops.length, '?').join(',')})", whereArgs: ops, orderBy: 'seq');
     if (rows.isEmpty) return null;
-    Object? rejection;
     for (final r in rows) {
-      final result = r['server_result'] == null ? null : jsonDecode(r['server_result']! as String);
-      final error = result is Map<String, dynamic> ? result['error'] as Map<String, dynamic>? : null;
-      rejection ??= ServerException(error?['message'] as String? ?? '', null, error?['code'] as String? ?? 'REJECTED');
       await db.delete('outbox', where: 'seq = ?', whereArgs: [r['seq']]);
     }
     await refreshCounts();
-    return rejection;
+    return _rejection(rows.first);
+  }
+
+  /// El rechazo del servidor guardado en la operación.
+  static ServerException _rejection(Map<String, Object?> op) {
+    final result = op['server_result'] == null ? null : jsonDecode(op['server_result']! as String);
+    final error = result is Map<String, dynamic> ? result['error'] as Map<String, dynamic>? : null;
+    return ServerException(error?['message'] as String? ?? '', null, error?['code'] as String? ?? 'REJECTED');
   }
 
   Future<void> _run() async {
@@ -153,18 +156,8 @@ class SyncController extends StateNotifier<SyncState> {
       }
       final c = await _counts();
       if (!mounted) return;
-      final SyncStatus status;
-      if (pushed.count('pending') > 0) {
-        status = SyncStatus.offline; // error temporal del servidor: queda en la cola, sin aviso
-      } else if (pushed.count('rejected') > 0) {
-        status = SyncStatus.attention;
-      } else if (pulled != null && !pulled.complete) {
-        status = SyncStatus.mismatch;
-      } else {
-        status = SyncStatus.complete;
-      }
       if (!pushed.complete) debugPrint('[SYNC] Envío incompleto: ${pushed.issues.join(' | ')}');
-      state = _withCounts(state.copyWith(status: status, lastPush: pushed, lastResult: pulled), c);
+      state = _withCounts(state.copyWith(status: statusAfter(pushed, pulled), lastPush: pushed, lastResult: pulled), c);
     } catch (e) {
       debugPrint('[SYNC] Falló la sincronización: $e');
       try {
@@ -180,6 +173,19 @@ class SyncController extends StateNotifier<SyncState> {
     }
   }
 
+  /// Estado al terminar: lo pendiente por error temporal es "sin conexión" (sin aviso); un rechazo pide
+  /// atención; una descarga que no coincide con el servidor, diferencias; si no, completa.
+  @visibleForTesting
+  static SyncStatus statusAfter(PushResult pushed, PullResult? pulled) {
+    if (pushed.count('pending') > 0) return SyncStatus.offline;
+    if (pushed.count('rejected') > 0) return SyncStatus.attention;
+    if (pulled != null && !pulled.complete) return SyncStatus.mismatch;
+    return SyncStatus.complete;
+  }
+
+  @visibleForTesting
+  static Future<int> resolveConflicts(Database db) => _resolveConflicts(db);
+
   /// Vale el último cambio: la hora del cambio en el celular contra la del último cambio en el
   /// servidor (`updated_at`, recién descargado). Si el del celular es posterior se reenvía como
   /// operación NUEVA sobre la versión actual (el servidor guarda el resultado de cada opId y
@@ -189,15 +195,8 @@ class SyncController extends StateNotifier<SyncState> {
     final ops = await db.query('outbox', where: "status = 'conflict'", orderBy: 'seq');
     var resent = 0;
     for (final op in ops) {
-      final table = Outbox.tables[op['entity']];
-      final ref = op['ref'] == null ? null : jsonDecode(op['ref']! as String);
-      final serverId = ref is Map<String, dynamic> ? ref['serverId'] : null;
-      final row = table == null || serverId is! int
-          ? null
-          : (await db.query(table, columns: ['version', 'updated_at'], where: 'server_id = ?', whereArgs: [serverId])).firstOrNull;
-      final changedAt = DateTime.tryParse(op['created_at']! as String);
-      final serverAt = DateTime.tryParse(row?['updated_at'] as String? ?? '');
-      final phoneWins = row != null && changedAt != null && serverAt != null && changedAt.isAfter(serverAt);
+      final row = await _serverRow(db, op);
+      final phoneWins = row != null && _isAfter(op['created_at'] as String?, row['updated_at'] as String?);
       debugPrint('[SYNC] Conflicto #${op['seq']}: ${phoneWins ? 'gana el celular, se reenvía' : 'gana el servidor'}');
       await db.transaction((txn) async {
         if (phoneWins) {
@@ -216,6 +215,21 @@ class SyncController extends StateNotifier<SyncState> {
       });
     }
     return resent;
+  }
+
+  /// Versión y última modificación (ya descargadas) del registro del servidor al que apunta la operación.
+  static Future<Map<String, Object?>?> _serverRow(Database db, Map<String, Object?> op) async {
+    final table = Outbox.tables[op['entity']];
+    final ref = op['ref'] == null ? null : jsonDecode(op['ref']! as String);
+    final serverId = ref is Map<String, dynamic> ? ref['serverId'] : null;
+    if (table == null || serverId is! int) return null;
+    return (await db.query(table, columns: ['version', 'updated_at'], where: 'server_id = ?', whereArgs: [serverId])).firstOrNull;
+  }
+
+  static bool _isAfter(String? a, String? b) {
+    final x = DateTime.tryParse(a ?? '');
+    final y = DateTime.tryParse(b ?? '');
+    return x != null && y != null && x.isAfter(y);
   }
 
   /// Lee los totales locales sin sincronizar (para mostrar el estado al abrir Ajustes).
