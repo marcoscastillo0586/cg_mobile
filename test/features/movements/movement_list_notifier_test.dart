@@ -25,7 +25,7 @@ class _Paginado implements HttpClientAdapter {
     return _json(200, {
       'items': [
         for (final id in ids)
-          {'id': id, 'type': 2, 'occurredAt': '2026-10-10 10:00:00', 'details': [], 'detailsCount': 0, 'amountCents': -100},
+          {'id': id, 'type': 2, 'occurredAt': '2026-10-10 10:00:00', 'details': <Object>[], 'detailsCount': 0, 'amountCents': -100},
       ],
       'total': 60, 'limit': limit, 'offset': offset, 'hasMore': offset + limit < 60, 'filteredTotalCents': -6000,
     });
