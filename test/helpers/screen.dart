@@ -11,9 +11,12 @@ import 'package:go_router/go_router.dart';
 
 /// Monta [screen] en la ruta '/' de un GoRouter; cualquier otra ruta muestra su path ("→ /ruta"), para
 /// comprobar a dónde navega la pantalla.
-Future<GoRouter> pumpScreen(WidgetTester tester, Widget screen, {List<Override> overrides = const [], Locale locale = const Locale('es')}) async {
+/// Con [pushed], '/' muestra "inicio" y la pantalla se abre encima (su `pop` vuelve a "inicio").
+Future<GoRouter> pumpScreen(WidgetTester tester, Widget screen,
+    {List<Override> overrides = const [], Locale locale = const Locale('es'), bool pushed = false, bool settle = true}) async {
   final router = GoRouter(routes: [
-    GoRoute(path: '/', builder: (_, __) => screen),
+    GoRoute(path: '/', builder: (_, __) => pushed ? const Scaffold(body: Text('inicio')) : screen),
+    GoRoute(path: '/pantalla', builder: (_, __) => screen),
     GoRoute(path: '/:a', builder: (_, s) => Scaffold(body: Text('→ ${s.uri.path}'))),
     GoRoute(path: '/:a/:b', builder: (_, s) => Scaffold(body: Text('→ ${s.uri.path}'))),
   ]);
@@ -26,7 +29,13 @@ Future<GoRouter> pumpScreen(WidgetTester tester, Widget screen, {List<Override> 
       supportedLocales: AppLocalizations.supportedLocales,
     ),
   ));
-  await tester.pumpAndSettle();
+  // Sin [settle] (pantallas con indicador de carga mientras lee SQLite) se avanza un tiempo fijo.
+  Future<void> wait() => settle ? tester.pumpAndSettle() : tester.pump(const Duration(milliseconds: 600));
+  await wait();
+  if (pushed) {
+    unawaited(router.push('/pantalla'));
+    await wait();
+  }
   return router;
 }
 
