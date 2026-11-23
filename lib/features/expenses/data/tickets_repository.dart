@@ -93,7 +93,6 @@ class TicketsRepository {
     if (json is! Map<String, dynamic>) throw _bad('ticket');
     final items = json['items'];
     if (items is! List) throw _bad('ticket.items');
-    int? cents(Object? v, String f) => v == null ? null : Money.centsFrom(v, f);
     return QrTicket(
       reader: json['reader'] as String? ?? '',
       sourceUrl: json['sourceUrl'] as String? ?? '',
@@ -105,25 +104,25 @@ class TicketsRepository {
       receiptDate: json['receiptDate'] as String?,
       isoDate: json['isoDate'] as String?,
       receiptTime: json['receiptTime'] as String?,
-      totalPrintedCents: cents(json['totalPrintedCents'], 'totalPrintedCents'),
+      totalPrintedCents: _cents(json['totalPrintedCents'], 'totalPrintedCents'),
       itemsTotalCents: Money.centsFrom(json['itemsTotalCents'], 'itemsTotalCents'),
-      warnings: [
-        for (final w in (json['warnings'] as List? ?? const []))
-          if (w is Map<String, dynamic>) QrTicketWarning(w['code'] as String? ?? '', w['message'] as String? ?? '', w['itemIndex'] as int?),
-      ],
-      items: [
-        for (final i in items.cast<Map<String, dynamic>>())
-          QrTicketItem(
-            description: i['description'] as String? ?? '',
-            plu: i['plu'] as String?,
-            unitPriceCents: cents(i['unitPriceCents'], 'unitPriceCents'),
-            netCents: Money.centsFrom(i['netCents'], 'netCents'),
-            suggestedCategoryServerId: i['suggestedCategoryId'] as int?,
-            doubtful: i['doubtful'] == true,
-          ),
-      ],
+      warnings: [for (final w in (json['warnings'] as List? ?? const []).whereType<Map<String, dynamic>>()) _warning(w)],
+      items: [for (final i in items.cast<Map<String, dynamic>>()) _item(i)],
     );
   }
+
+  static QrTicketWarning _warning(Map<String, dynamic> w) => QrTicketWarning(w['code'] as String? ?? '', w['message'] as String? ?? '', w['itemIndex'] as int?);
+
+  static QrTicketItem _item(Map<String, dynamic> i) => QrTicketItem(
+        description: i['description'] as String? ?? '',
+        plu: i['plu'] as String?,
+        unitPriceCents: _cents(i['unitPriceCents'], 'unitPriceCents'),
+        netCents: Money.centsFrom(i['netCents'], 'netCents'),
+        suggestedCategoryServerId: i['suggestedCategoryId'] as int?,
+        doubtful: i['doubtful'] == true,
+      );
+
+  static int? _cents(Object? v, String field) => v == null ? null : Money.centsFrom(v, field);
 
   static ServerException _bad(String field) => ServerException('Respuesta inesperada del servidor ($field)', null, 'UNEXPECTED_RESPONSE');
 }

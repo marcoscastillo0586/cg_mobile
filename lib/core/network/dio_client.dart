@@ -106,22 +106,18 @@ class DioClient {
     if (inner is AuthException || inner is NetworkException || inner is ServerException) {
       return inner as Exception; // ya mapeada por un interceptor (p. ej. sesión expirada)
     }
-    switch (error.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-      case DioExceptionType.transformTimeout:
-      case DioExceptionType.connectionError:
-        return const NetworkException();
-      case DioExceptionType.cancel:
-        return const NetworkException('La solicitud fue cancelada.');
-      case DioExceptionType.badResponse:
-        return fromResponse(error.response);
-      case DioExceptionType.badCertificate:
-        return const NetworkException('Certificado del servidor inválido.');
-      case DioExceptionType.unknown:
-        return NetworkException('Error de comunicación: ${error.message ?? inner}');
-    }
+    return switch (error.type) {
+      DioExceptionType.connectionTimeout ||
+      DioExceptionType.sendTimeout ||
+      DioExceptionType.receiveTimeout ||
+      DioExceptionType.transformTimeout ||
+      DioExceptionType.connectionError =>
+        const NetworkException(),
+      DioExceptionType.cancel => const NetworkException('La solicitud fue cancelada.'),
+      DioExceptionType.badResponse => fromResponse(error.response),
+      DioExceptionType.badCertificate => const NetworkException('Certificado del servidor inválido.'),
+      DioExceptionType.unknown => NetworkException('Error de comunicación: ${error.message ?? inner}'),
+    };
   }
 
   static Exception fromResponse(Response<dynamic>? response) {
