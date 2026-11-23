@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/sync/sync_controller.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/sync/outbox_repository.dart';
@@ -14,6 +13,8 @@ import '../providers/income_form_state.dart';
 import '../../../movements/data/local_movement_writer.dart' show conceptMax;
 import '../../../../l10n/l10n.dart';
 import '../../../../core/widgets/bottom_safe_area.dart';
+import '../../../../core/widgets/date_field_tile.dart';
+import '../../../../core/widgets/submit_button.dart';
 
 class CreateIncomeScreen extends ConsumerStatefulWidget {
   /// Alta rechazada a corregir (desde "Pendientes y rechazados").
@@ -102,8 +103,6 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(incomeFormNotifierProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final formatoFecha = DateFormat('dd/MM/yyyy').format(state.fecha);
 
     if (state.status == IncomeFormStatus.error) {
       return LocalDataError(error: state.error!, onRetry: ref.read(incomeFormNotifierProvider.notifier).cargarCuentas);
@@ -178,52 +177,16 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 6),
-            InkWell(
-              onTap: () => _seleccionarFecha(context),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_today_outlined, size: 18),
-                        const SizedBox(width: 10),
-                        Text(formatoFecha, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                    const Icon(Icons.chevron_right, size: 18, color: AppColors.lightTextSecondary),
-                  ],
-                ),
-              ),
-            ),
+            DateFieldTile(fecha: state.fecha, onTap: () => _seleccionarFecha(context)),
             const SizedBox(height: 32),
 
             // 5. Botón Guardar
-            ElevatedButton(
+            SubmitButton(
               key: const ValueKey('guardar-ingreso'),
-              onPressed: state.isSubmitting ? null : _guardarIngreso,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.emerald,
-              ),
-              child: state.isSubmitting
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Text(context.l10n.recordIncome2),
+              label: context.l10n.recordIncome2,
+              loading: state.isSubmitting,
+              color: AppColors.emerald,
+              onPressed: _guardarIngreso,
             ),
             const SizedBox(height: 24),
           ],

@@ -39,72 +39,81 @@ class AccountPicker extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final cuenta = cuentas[index];
-          final isSelected = cuenta.localId == selectedId;
-          return Material(
-            color: Colors.transparent,
-            child: InkWell(
-              key: ValueKey('cuenta-${cuenta.name}'),
-              onTap: () {
-                AppFeedback.selection();
-                onSelect(cuenta.localId);
-              },
-              borderRadius: BorderRadius.circular(14),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary.withValues(alpha: isDark ? 0.25 : 0.12)
-                      : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
-                    width: isSelected ? 2 : 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AccountAvatar(iconRef: cuenta.iconRef, size: 36),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          cuenta.name.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? (isDark ? Colors.white : AppColors.primaryDark) : null,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          Money.format(cuenta.balanceCents, currency: cuenta.currency),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: cuenta.balanceCents < 0
-                                ? AppColors.rose
-                                : (isSelected ? (isDark ? AppColors.primaryLight : AppColors.primary) : AppColors.lightTextSecondary),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (isSelected) ...[
-                      const SizedBox(width: 8),
-                      const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.primary),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          );
+          return _AccountChip(cuenta: cuenta, selected: cuenta.localId == selectedId, onTap: () => onSelect(cuenta.localId));
         },
       ),
     );
   }
+}
+
+/// Una cuenta del selector: avatar, nombre y saldo local; destacada si está elegida.
+class _AccountChip extends StatelessWidget {
+  final LocalAccount cuenta;
+  final bool selected;
+  final VoidCallback onTap;
+  const _AccountChip({required this.cuenta, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final c = _ChipColors(isDark: isDark, selected: selected);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: ValueKey('cuenta-${cuenta.name}'),
+        onTap: () {
+          AppFeedback.selection();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: c.fondo,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: c.borde, width: selected ? 2 : 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AccountAvatar(iconRef: cuenta.iconRef, size: 36),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(cuenta.name.toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: c.nombre)),
+                  const SizedBox(height: 2),
+                  Text(
+                    Money.format(cuenta.balanceCents, currency: cuenta.currency),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: cuenta.balanceCents < 0 ? AppColors.rose : c.saldo),
+                  ),
+                ],
+              ),
+              if (selected) ...[
+                const SizedBox(width: 8),
+                const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.primary),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Colores de una cuenta del selector según el tema y si está elegida.
+class _ChipColors {
+  final bool isDark;
+  final bool selected;
+  const _ChipColors({required this.isDark, required this.selected});
+
+  Color get _superficie => isDark ? AppColors.darkSurface : AppColors.lightSurface;
+  Color get fondo => selected ? AppColors.primary.withValues(alpha: isDark ? 0.25 : 0.12) : _superficie;
+  Color get borde => selected ? AppColors.primary : (isDark ? AppColors.darkBorder : AppColors.lightBorder);
+  Color? get nombre => selected ? (isDark ? Colors.white : AppColors.primaryDark) : null;
+  Color get saldo => selected ? (isDark ? AppColors.primaryLight : AppColors.primary) : AppColors.lightTextSecondary;
 }
 
 /// Texto del aviso de saldo negativo (egresos): la cuenta queda en negativo y conviene registrar un ingreso.

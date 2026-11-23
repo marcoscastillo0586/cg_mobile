@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/sync/sync_controller.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/database/local_catalog.dart';
 import '../../../../core/money/money.dart';
@@ -15,6 +14,8 @@ import '../providers/transfer_form_notifier.dart';
 import '../providers/transfer_form_state.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../../core/widgets/bottom_safe_area.dart';
+import '../../../../core/widgets/date_field_tile.dart';
+import '../../../../core/widgets/submit_button.dart';
 
 class CreateTransferScreen extends ConsumerStatefulWidget {
   /// Alta rechazada a corregir (desde "Pendientes y rechazados").
@@ -98,14 +99,15 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
     }
   }
 
-  static String _etiqueta(LocalAccount c) =>
-      '${c.name.toUpperCase()} (${Money.format(c.balanceCents, currency: c.currency)})';
+  /// Sin otra cuenta de la moneda del origen se avisa en vez de pedir que se elija.
+  static String _hintDestino(TransferFormState state, AppLocalizations l) {
+    final origen = state.origen;
+    return origen != null && state.destinosValidos.isEmpty ? l.noOtherAccount(origen.currency.code) : l.selectDestination;
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(transferFormNotifierProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final formatoFecha = DateFormat('dd/MM/yyyy').format(state.fecha);
     if (state.status == TransferFormStatus.error) {
       return LocalDataError(error: state.error!, onRetry: ref.read(transferFormNotifierProvider.notifier).cargarCuentas);
     }
@@ -127,52 +129,17 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
                 child: Column(
                   children: [
                     // Cuenta Origen
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.rose.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.arrow_upward_rounded, color: AppColors.rose, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                context.l10n.source,
-                                style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
-                              ),
-                              DropdownButtonHideUnderline(
-                                child: DropdownButton<int>(
-                                  isExpanded: true,
-                                  value: state.selectedOrigenId,
-                                  hint: Text(context.l10n.selectSource),
-                                  items: state.cuentas.map((lug) {
-                                    return DropdownMenuItem<int>(
-                                      value: lug.localId,
-                                      child: Text(
-                                        _etiqueta(lug),
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      AppFeedback.selection();
-                                      ref.read(transferFormNotifierProvider.notifier).setOrigen(val);
-                                    }
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    _CuentaFila(
+                      icono: Icons.arrow_upward_rounded,
+                      color: AppColors.rose,
+                      titulo: context.l10n.source,
+                      hint: context.l10n.selectSource,
+                      value: state.selectedOrigenId,
+                      cuentas: state.cuentas,
+                      onChanged: (val) {
+                        AppFeedback.selection();
+                        ref.read(transferFormNotifierProvider.notifier).setOrigen(val);
+                      },
                     ),
 
                     // Botón de Intercambio
@@ -192,54 +159,15 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
                       ],
                     ),
 
-                    // Cuenta Destino
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.emerald.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.arrow_downward_rounded, color: AppColors.emerald, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                context.l10n.destination,
-                                style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
-                              ),
-                              DropdownButtonHideUnderline(
-                                child: DropdownButton<int>(
-                                  isExpanded: true,
-                                  value: state.selectedDestinoId,
-                                  hint: Text(origen != null && state.destinosValidos.isEmpty
-                                      ? (context.l10n.noOtherAccount(origen.currency.code))
-                                      : (context.l10n.selectDestination)),
-                                  items: state.destinosValidos.map((lug) {
-                                    return DropdownMenuItem<int>(
-                                      value: lug.localId,
-                                      child: Text(
-                                        _etiqueta(lug),
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      ref.read(transferFormNotifierProvider.notifier).setDestino(val);
-                                    }
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    // Cuenta Destino (sólo de la moneda del origen)
+                    _CuentaFila(
+                      icono: Icons.arrow_downward_rounded,
+                      color: AppColors.emerald,
+                      titulo: context.l10n.destination,
+                      hint: _hintDestino(state, context.l10n),
+                      value: state.selectedDestinoId,
+                      cuentas: state.destinosValidos,
+                      onChanged: (val) => ref.read(transferFormNotifierProvider.notifier).setDestino(val),
                     ),
                   ],
                 ),
@@ -298,33 +226,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 6),
-            InkWell(
-              onTap: () => _seleccionarFecha(context),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_today_outlined, size: 18),
-                        const SizedBox(width: 10),
-                        Text(formatoFecha, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                    const Icon(Icons.chevron_right, size: 18, color: AppColors.lightTextSecondary),
-                  ],
-                ),
-              ),
-            ),
+            DateFieldTile(fecha: state.fecha, onTap: () => _seleccionarFecha(context)),
             const SizedBox(height: 32),
 
             // Aviso de fondos antes de guardar (saldo local del origen).
@@ -332,27 +234,78 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
               FundsWarning(cuenta: origen, amountCents: state.montoCents, blocking: true),
 
             // 5. Botón Confirmar
-            ElevatedButton(
+            SubmitButton(
               key: const ValueKey('guardar-transferencia'),
-              onPressed: state.isSubmitting ? null : _confirmarTransferencia,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-              ),
-              child: state.isSubmitting
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Text(context.l10n.confirmTransfer),
+              label: context.l10n.confirmTransfer,
+              loading: state.isSubmitting,
+              color: AppColors.primary,
+              onPressed: _confirmarTransferencia,
             ),
             const SizedBox(height: 24),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Origen o destino: ícono, título y la lista de cuentas con su saldo.
+class _CuentaFila extends StatelessWidget {
+  final IconData icono;
+  final Color color;
+  final String titulo;
+  final String hint;
+  final int? value;
+  final List<LocalAccount> cuentas;
+  final ValueChanged<int> onChanged;
+  const _CuentaFila({
+    required this.icono,
+    required this.color,
+    required this.titulo,
+    required this.hint,
+    required this.value,
+    required this.cuentas,
+    required this.onChanged,
+  });
+
+  static String _etiqueta(LocalAccount c) => '${c.name.toUpperCase()} (${Money.format(c.balanceCents, currency: c.currency)})';
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icono, color: color, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(titulo, style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary)),
+              DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  isExpanded: true,
+                  value: value,
+                  hint: Text(hint),
+                  items: [
+                    for (final c in cuentas)
+                      DropdownMenuItem<int>(
+                        value: c.localId,
+                        child: Text(_etiqueta(c), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis),
+                      ),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) onChanged(val);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
