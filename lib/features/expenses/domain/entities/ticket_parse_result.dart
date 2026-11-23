@@ -18,22 +18,6 @@ class ParsedTicketItem extends Equatable {
     this.motivoDuda,
   });
 
-  ParsedTicketItem copyWith({
-    String? nombre,
-    int? precioCents,
-    int? idCategoriaSugerida,
-    bool? esDudoso,
-    String? motivoDuda,
-  }) {
-    return ParsedTicketItem(
-      nombre: nombre ?? this.nombre,
-      precioCents: precioCents ?? this.precioCents,
-      idCategoriaSugerida: idCategoriaSugerida ?? this.idCategoriaSugerida,
-      esDudoso: esDudoso ?? this.esDudoso,
-      motivoDuda: motivoDuda ?? this.motivoDuda,
-    );
-  }
-
   @override
   List<Object?> get props => [
         nombre,
