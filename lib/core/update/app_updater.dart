@@ -41,10 +41,13 @@ class AppUpdater {
   /// Se puede fijar al compilar; si no, se usa el mismo host que la API: `http://<host>/downloads/version.json`.
   static const _overrideUrl = String.fromEnvironment('UPDATE_URL');
 
-  static String? get versionUrl {
-    if (_overrideUrl.isNotEmpty) return _overrideUrl;
-    if (!ApiConfig.isConfigured) return null;
-    final api = Uri.tryParse(ApiConfig.requireBaseUrl);
+  static String? get versionUrl => versionUrlFor(_overrideUrl, ApiConfig.isConfigured ? ApiConfig.requireBaseUrl : null);
+
+  /// La fijada al compilar o `<esquema>://<host de la API>/downloads/version.json`; null sin API configurada.
+  @visibleForTesting
+  static String? versionUrlFor(String overrideUrl, String? apiBaseUrl) {
+    if (overrideUrl.isNotEmpty) return overrideUrl;
+    final api = apiBaseUrl == null ? null : Uri.tryParse(apiBaseUrl);
     if (api == null || api.host.isEmpty) return null;
     return Uri(scheme: api.scheme, host: api.host, path: '/downloads/version.json').toString();
   }
@@ -73,20 +76,24 @@ class AppUpdater {
     if (!supported || url == null) return null;
     try {
       final res = await _dio().get<dynamic>(url, queryParameters: {'t': DateTime.now().millisecondsSinceEpoch});
-      final data = res.data;
-      // Apache puede servirlo como texto plano según su configuración.
-      final info = UpdateInfo.fromJson(data is String ? jsonDecode(data) : data);
-      if (info == null) {
-        debugPrint('[UPDATE] version.json sin version_code o apk_url');
-        return null;
-      }
-      final installed = await installedVersionCode();
-      debugPrint('[UPDATE] Instalada $installed, publicada ${info.versionCode}');
-      return info.versionCode > installed ? info : null;
+      return newerThan(res.data, await installedVersionCode());
     } catch (e) {
       debugPrint('[UPDATE] No se pudo consultar la versión publicada: $e');
       return null;
     }
+  }
+
+  /// La versión publicada en `version.json` si es más nueva que [installed]. Apache puede servirlo como texto
+  /// plano según su configuración.
+  @visibleForTesting
+  static UpdateInfo? newerThan(Object? data, int installed) {
+    final info = UpdateInfo.fromJson(data is String ? jsonDecode(data) : data);
+    if (info == null) {
+      debugPrint('[UPDATE] version.json sin version_code o apk_url');
+      return null;
+    }
+    debugPrint('[UPDATE] Instalada $installed, publicada ${info.versionCode}');
+    return info.versionCode > installed ? info : null;
   }
 
   /// Descarga el APK a la caché (carpeta compartida con el instalador, ver `update_paths.xml`).
