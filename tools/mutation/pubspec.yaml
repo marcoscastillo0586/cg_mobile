@@ -1,0 +1,7 @@
+name: mutation
+description: "Pruebas de mutación de lib de cg_mobile, en un paquete aparte para no sumar dependencias a la app."
+publish_to: none
+environment:
+  sdk: ^3.5.0
+dev_dependencies:
+  mutation_test: any
