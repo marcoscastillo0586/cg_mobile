@@ -56,4 +56,25 @@ void main() {
     expect(r.rawTexts, ['https://x']);
     expect(r.qr, qr);
   });
+
+  test('igualdad por valor: cada campo del renglón y del resultado cuenta', () {
+    const a = ParsedTicketItem(nombre: 'Pan', precioCents: 100, idCategoriaSugerida: 1, esDudoso: false, motivoDuda: null);
+    expect(a, const ParsedTicketItem(nombre: 'Pan', precioCents: 100, idCategoriaSugerida: 1, esDudoso: false, motivoDuda: null));
+    for (final otro in [
+      const ParsedTicketItem(nombre: 'Leche', precioCents: 100, idCategoriaSugerida: 1),
+      const ParsedTicketItem(nombre: 'Pan', precioCents: 101, idCategoriaSugerida: 1),
+      const ParsedTicketItem(nombre: 'Pan', precioCents: 100, idCategoriaSugerida: 2),
+      const ParsedTicketItem(nombre: 'Pan', precioCents: 100, idCategoriaSugerida: 1, esDudoso: true),
+      const ParsedTicketItem(nombre: 'Pan', precioCents: 100, idCategoriaSugerida: 1, motivoDuda: 'x'),
+    ]) {
+      expect(a == otro, isFalse);
+    }
+    const r = TicketParseResult(readerName: 'x', items: [a], totalDetectadoCents: 100, rawTexts: ['t'], imagePaths: ['i']);
+    expect(r, const TicketParseResult(readerName: 'x', items: [a], totalDetectadoCents: 100, rawTexts: ['t'], imagePaths: ['i']));
+    expect(r == const TicketParseResult(readerName: 'y', items: [a], totalDetectadoCents: 100, rawTexts: ['t'], imagePaths: ['i']), isFalse);
+    expect(r == const TicketParseResult(readerName: 'x', items: [], totalDetectadoCents: 100, rawTexts: ['t'], imagePaths: ['i']), isFalse);
+    expect(r == const TicketParseResult(readerName: 'x', items: [a], totalDetectadoCents: 99, rawTexts: ['t'], imagePaths: ['i']), isFalse);
+    expect(r == const TicketParseResult(readerName: 'x', items: [a], totalDetectadoCents: 100, rawTexts: ['u'], imagePaths: ['i']), isFalse);
+    expect(r == const TicketParseResult(readerName: 'x', items: [a], totalDetectadoCents: 100, rawTexts: ['t'], imagePaths: ['j']), isFalse);
+  });
 }

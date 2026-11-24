@@ -43,4 +43,23 @@ void main() {
     })));
     expect(leido, same(FormScreenTheme.light));
   });
+
+  test('medidas y sombras de ambos temas; el halo del foco es suave', () {
+    for (final tema in [FormScreenTheme.light, FormScreenTheme.dark]) {
+      expect(tema.shadow, isNotEmpty);
+      expect(tema.floatShadow, isNotEmpty);
+      expect(tema.floatShadow.first.offset.dy, greaterThan(0)); // la sombra cae hacia abajo
+    }
+    expect(FormScreenTheme.innerRadius, greaterThan(0));
+    expect(t.labelStyle(Colors.black).fontSize, 12);
+    expect(t.innerLabelStyle.fontSize, 11);
+    expect(t.fieldDecoration(focused: true).boxShadow!.single.color.a, closeTo(0.10, 0.001));
+  });
+
+  test('interpolación: las sombras cambian a la mitad del recorrido', () {
+    expect(t.lerp(FormScreenTheme.dark, 0.4).shadow, t.shadow);
+    expect(t.lerp(FormScreenTheme.dark, 0.6).shadow, FormScreenTheme.dark.shadow);
+    expect(t.lerp(FormScreenTheme.dark, 0.4).floatShadow, t.floatShadow);
+    expect(t.lerp(FormScreenTheme.dark, 0.6).floatShadow, FormScreenTheme.dark.floatShadow);
+  });
 }

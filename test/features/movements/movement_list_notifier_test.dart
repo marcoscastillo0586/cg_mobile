@@ -98,4 +98,35 @@ void main() {
     await n.cargarMovimientos();
     expect(n.state.status, MovementListStatus.error);
   });
+
+  test('un error que llega tarde (ya hay una consulta más nueva) no pisa el estado', () async {
+    await n.cargarMovimientos();
+    server.gate = Completer();
+    server.fallar = true;
+    final vieja = n.cargarMovimientos(); // falla cuando se libere
+    server.fallar = false;
+    final nueva = n.setBusqueda('pan'); // más nueva: responde bien
+    server.gate!.complete();
+    await Future.wait([vieja, nueva]);
+    expect(n.state.status, MovementListStatus.loaded);
+    expect(n.state.error, isNull);
+  });
+
+  test('un error de "cargar más" que llega tarde tampoco pisa; con el notifier cerrado nada se actualiza', () async {
+    await n.cargarMovimientos();
+    server.gate = Completer();
+    server.fallar = true;
+    final masVieja = n.cargarMas();
+    final nueva = n.setBusqueda('x');
+    server.fallar = false;
+    server.gate!.complete();
+    await Future.wait([masVieja, nueva]);
+    expect(n.state.error, isNull);
+
+    server.gate = Completer();
+    final enCurso = n.cargarMovimientos();
+    n.dispose();
+    server.gate!.complete();
+    await enCurso; // no lanza aunque ya no esté montado
+  });
 }

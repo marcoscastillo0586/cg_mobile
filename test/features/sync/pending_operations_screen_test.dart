@@ -34,13 +34,18 @@ void main() {
     expect(rutaDeCorreccion(3), AppRoutes.transfersCreate);
   });
 
-  Future<void> abrir(WidgetTester tester, {bool rechazar = true}) async {
+  Future<void> abrir(WidgetTester tester, {bool rechazar = true, bool conflicto = false}) async {
     s = (await tester.runAsync(seededDb))!;
     addTearDown(() => tester.runAsync(s.db.close));
     await tester.runAsync(() async {
       final m = await (await s.writer).createExpense(ExpenseDraft(
           accountLocalId: s.accounts['Efectivo']!, date: DateTime(2026, 10, 21), generalConcept: 'kiosco',
           lines: [ExpenseLine(concept: 'pan', categoryLocalId: s.categories['Comida']!, amountCents: 1500)]));
+      if (conflicto) {
+        await s.db.update('outbox', {'status': 'conflict', 'attempts': 1, 'server_result': jsonEncode({'status': 'conflict', 'error': {'code': 'VERSION_CONFLICT', 'message': 'x'}})},
+            where: 'op_id = ?', whereArgs: [m.opId]);
+        return;
+      }
       if (!rechazar) return;
       final op = (await s.db.query('outbox', where: 'op_id = ?', whereArgs: [m.opId])).single;
       await s.db.transaction((txn) async {
@@ -86,5 +91,27 @@ void main() {
     expect(find.textContaining('${l.pending2} · #'), findsOneWidget);
     expect(find.text(l.correct), findsNothing);
     expect(find.text(l.discard2), findsOneWidget);
+  });
+
+  testWidgets('en conflicto: "Conservar la del servidor" y el aviso propio de conflicto', (tester) async {
+    await abrir(tester, conflicto: true);
+    expect(find.textContaining(l.conflictServerVersionApplied), findsOneWidget);
+    await tester.tap(find.text(l.keepServerVersion));
+    await tester.pumpAndSettle();
+    expect(find.text(l.serverVersionKeptChangeLost), findsOneWidget);
+    expect(find.text(l.removedPhoneLocalBalanceReverted), findsNothing);
+  });
+
+  testWidgets('descartar un rechazado explica que se revierte el saldo local', (tester) async {
+    await abrir(tester);
+    await tester.tap(find.text(l.discard2));
+    await tester.pumpAndSettle();
+    expect(find.text(l.removedPhoneLocalBalanceReverted), findsOneWidget);
+    expect(find.text(l.serverVersionKeptChangeLost), findsNothing);
+  });
+
+  testWidgets('el botón de sincronizar está activo mientras no se sincroniza', (tester) async {
+    await abrir(tester);
+    expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.sync_rounded)).onPressed, isNotNull);
   });
 }
