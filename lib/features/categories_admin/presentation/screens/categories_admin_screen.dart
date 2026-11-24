@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/sync/sync_controller.dart';
+import '../../../../core/sync/reload_after_sync.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/dialog_controllers.dart';
 import '../../../movements/presentation/local_write_feedback.dart';
@@ -35,9 +36,7 @@ class _CategoriesAdminScreenState extends ConsumerState<CategoriesAdminScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(categoriesAdminNotifierProvider);
-    ref.listen<SyncState>(syncControllerProvider, (prev, next) {
-      if (syncFinished(prev, next)) ref.read(categoriesAdminNotifierProvider.notifier).cargarCategorias(silencioso: true);
-    });
+    reloadAfterSync(ref, () => ref.read(categoriesAdminNotifierProvider.notifier).cargarCategorias(silencioso: true));
     final notifier = ref.read(categoriesAdminNotifierProvider.notifier);
 
     Widget chip(String key, String label) => ChoiceChip(

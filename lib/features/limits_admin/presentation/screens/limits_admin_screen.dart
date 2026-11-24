@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/load_error_view.dart';
 import '../../../../core/sync/sync_controller.dart';
+import '../../../../core/sync/reload_after_sync.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/utils/date_utils.dart';
@@ -38,9 +39,7 @@ class _LimitsAdminScreenState extends ConsumerState<LimitsAdminScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(limitsAdminNotifierProvider);
-    ref.listen<SyncState>(syncControllerProvider, (prev, next) {
-      if (syncFinished(prev, next)) ref.read(limitsAdminNotifierProvider.notifier).cargarLimites(silencioso: true);
-    });
+    reloadAfterSync(ref, () => ref.read(limitsAdminNotifierProvider.notifier).cargarLimites(silencioso: true));
     final notifier = ref.read(limitsAdminNotifierProvider.notifier);
 
     Widget chip(String key, String label) => ChoiceChip(

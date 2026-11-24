@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'chart_axes.dart';
 import 'chart_touch.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../domain/entities/monthly_comparison_entity.dart';
@@ -26,7 +26,6 @@ class _MonthlyBarChartState extends State<MonthlyBarChart> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final currencyFormat = NumberFormat.compactCurrency(locale: 'es_AR', symbol: '\$', decimalDigits: 1);
     final meses = widget.report.meses;
 
     // El gráfico dibuja en pesos (double solo para la geometría); los textos salen de centavos.
@@ -80,23 +79,7 @@ class _MonthlyBarChartState extends State<MonthlyBarChart> {
                 show: true,
                 rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 42,
-                    interval: yInterval > 0 ? yInterval : 50000,
-                    getTitlesWidget: (val, meta) {
-                      if (val == 0) return const SizedBox.shrink();
-                      return Text(
-                        currencyFormat.format(val),
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                leftTitles: AxisTitles(sideTitles: ejeMontos(context, interval: yInterval, porDefecto: 50000)),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,

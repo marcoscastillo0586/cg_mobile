@@ -1,6 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'chart_axes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../domain/entities/daily_evolution_entity.dart';
@@ -18,7 +18,6 @@ class DailyLineChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final currencyFormat = NumberFormat.compactCurrency(locale: 'es_AR', symbol: '\$', decimalDigits: 1);
     final dias = report.dias;
 
     // El gráfico dibuja en pesos (double solo para la geometría); los textos salen de centavos.
@@ -81,23 +80,7 @@ class DailyLineChart extends StatelessWidget {
               titlesData: FlTitlesData(
                 rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 42,
-                    interval: yInterval > 0 ? yInterval : 5000,
-                    getTitlesWidget: (val, meta) {
-                      if (val == 0) return const SizedBox.shrink();
-                      return Text(
-                        currencyFormat.format(val),
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                leftTitles: AxisTitles(sideTitles: ejeMontos(context, interval: yInterval, porDefecto: 5000)),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,

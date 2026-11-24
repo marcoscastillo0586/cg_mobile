@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/sync/sync_controller.dart';
+import '../../../../core/sync/reload_after_sync.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
 import '../../../../core/widgets/account_avatar.dart';
@@ -38,9 +39,7 @@ class _AccountsAdminScreenState extends ConsumerState<AccountsAdminScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(accountsAdminNotifierProvider);
-    ref.listen<SyncState>(syncControllerProvider, (prev, next) {
-      if (syncFinished(prev, next)) ref.read(accountsAdminNotifierProvider.notifier).cargarCuentas(silencioso: true);
-    });
+    reloadAfterSync(ref, () => ref.read(accountsAdminNotifierProvider.notifier).cargarCuentas(silencioso: true));
     final notifier = ref.read(accountsAdminNotifierProvider.notifier);
 
     return Scaffold(
