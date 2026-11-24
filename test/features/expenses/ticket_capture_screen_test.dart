@@ -202,4 +202,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(l.couldNotAccessGalleryCheck), findsOneWidget);
   });
+
+  testWidgets('cada falla de la lectura muestra su mensaje (y solo la falta de conexión dice "requiere conexión")', (tester) async {
+    final (devices, tickets) = await abrir(tester);
+    final casos = [
+      ('GEMINI_OVERLOADED', 503, l.errGeminiOverloaded),
+      ('GEMINI_QUOTA', 429, l.errGeminiQuota),
+      ('GEMINI_TIMEOUT', 504, l.errGeminiTimeout),
+      ('GEMINI_INVALID', 502, l.errGeminiInvalid),
+      ('GEMINI_UNAVAILABLE', 503, l.errGeminiUnavailable),
+      ('GEMINI_NOT_CONFIGURED', 503, l.errGeminiUnavailable),
+    ];
+    for (final (code, status, mensaje) in casos) {
+      ScaffoldMessenger.of(tester.element(find.byType(Scaffold).last)).clearSnackBars();
+      devices.escaneadas = capturas(1);
+      tickets.respuesta = Completer();
+      await tester.tap(find.text(l.scan2));
+      await tester.pump();
+      tickets.respuesta.completeError(ServerException('detalle del servidor', status, code));
+      await tester.pumpAndSettle();
+      expect(find.text(mensaje), findsOneWidget, reason: code);
+      expect(find.text(l.scanRequiresConnection), findsNothing, reason: code);
+    }
+    // Sin conexión de verdad (error de red): sí.
+    ScaffoldMessenger.of(tester.element(find.byType(Scaffold).last)).clearSnackBars();
+    devices.escaneadas = capturas(1);
+    tickets.respuesta = Completer();
+    await tester.tap(find.text(l.scan2));
+    await tester.pump();
+    tickets.respuesta.completeError(const NetworkException());
+    await tester.pumpAndSettle();
+    expect(find.text(l.scanRequiresConnection), findsOneWidget);
+  });
 }

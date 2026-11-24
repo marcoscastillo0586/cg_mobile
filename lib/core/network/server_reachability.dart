@@ -15,8 +15,13 @@ class ServerReachability {
   static final offline = ValueNotifier<bool>(false);
   static DateTime? _lastFailure;
 
-  static bool isOfflineError(Object e) =>
-      e is NetworkException || (e is ServerException && ((e.statusCode ?? 0) >= 500 || e.code == 'TEMPORARY_ERROR'));
+  /// Sin conexión con el servidor: error de red, o un 5xx / TEMPORARY_ERROR del propio servidor. Las fallas de la lectura de
+  /// tickets (GEMINI_*, p. ej. Gemini saturado) las informa el servidor, que sí respondió: no son falta de conexión.
+  static bool isOfflineError(Object e) {
+    if (e is NetworkException) return true;
+    if (e is! ServerException || (e.code ?? '').startsWith('GEMINI_')) return false;
+    return (e.statusCode ?? 0) >= 500 || e.code == 'TEMPORARY_ERROR';
+  }
 
   static void markOnline() {
     _lastFailure = null;

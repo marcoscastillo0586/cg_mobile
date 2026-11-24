@@ -1485,6 +1485,36 @@ abstract class AppLocalizations {
   /// **'El servidor respondió algo inesperado.'**
   String get errUnexpectedResponse;
 
+  /// No description provided for @errGeminiOverloaded.
+  ///
+  /// In es, this message translates to:
+  /// **'El servicio de lectura de tickets está saturado. Probá de nuevo en unos minutos.'**
+  String get errGeminiOverloaded;
+
+  /// No description provided for @errGeminiQuota.
+  ///
+  /// In es, this message translates to:
+  /// **'Se alcanzó el límite de uso del servicio de lectura de tickets. Probá de nuevo más tarde.'**
+  String get errGeminiQuota;
+
+  /// No description provided for @errGeminiTimeout.
+  ///
+  /// In es, this message translates to:
+  /// **'La lectura del ticket tardó demasiado. Probá de nuevo; con menos fotos es más rápido.'**
+  String get errGeminiTimeout;
+
+  /// No description provided for @errGeminiInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo leer el ticket de la foto. Probá con una foto más nítida o cargalo a mano.'**
+  String get errGeminiInvalid;
+
+  /// No description provided for @errGeminiUnavailable.
+  ///
+  /// In es, this message translates to:
+  /// **'El servicio de lectura de tickets no está disponible en este momento.'**
+  String get errGeminiUnavailable;
+
   /// No description provided for @errInvalidData.
   ///
   /// In es, this message translates to:

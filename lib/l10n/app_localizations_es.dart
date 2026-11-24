@@ -775,6 +775,26 @@ class AppLocalizationsEs extends AppLocalizations {
   String get errUnexpectedResponse => 'El servidor respondió algo inesperado.';
 
   @override
+  String get errGeminiOverloaded =>
+      'El servicio de lectura de tickets está saturado. Probá de nuevo en unos minutos.';
+
+  @override
+  String get errGeminiQuota =>
+      'Se alcanzó el límite de uso del servicio de lectura de tickets. Probá de nuevo más tarde.';
+
+  @override
+  String get errGeminiTimeout =>
+      'La lectura del ticket tardó demasiado. Probá de nuevo; con menos fotos es más rápido.';
+
+  @override
+  String get errGeminiInvalid =>
+      'No se pudo leer el ticket de la foto. Probá con una foto más nítida o cargalo a mano.';
+
+  @override
+  String get errGeminiUnavailable =>
+      'El servicio de lectura de tickets no está disponible en este momento.';
+
+  @override
   String errInvalidData(String message) {
     return 'Datos inválidos: $message';
   }

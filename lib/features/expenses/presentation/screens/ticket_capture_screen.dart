@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/errors/error_messages.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/server_reachability.dart';
 import '../../../../core/utils/app_feedback.dart';
@@ -86,11 +87,14 @@ class _TicketCaptureScreenState extends ConsumerState<TicketCaptureScreen> {
     _devolver(result, context.l10n.receiptReadLines(result.items.length));
   }
 
-  /// Sin conexión, servidor inalcanzable, Gemini caído o demorado: requiere conexión. Cualquier otro rechazo (p.
-  /// ej. una foto inválida) muestra el motivo.
-  String _motivoFalloServidor(Object e) => e is ServerException && !ServerReachability.isOfflineError(e)
-      ? context.l10n.couldNotReadReceipt(e.message)
-      : context.l10n.scanRequiresConnection;
+  /// Sin conexión con el servidor: "requiere conexión". Una falla de la lectura (Gemini saturado, sin cupo, tiempo agotado,
+  /// foto ilegible…) la informa el servidor con su código: mensaje propio. Cualquier otro rechazo (p. ej. una foto
+  /// inválida) muestra el motivo.
+  String _motivoFalloServidor(Object e) {
+    final l10n = context.l10n;
+    if (ServerReachability.isOfflineError(e) || e is! ServerException) return l10n.scanRequiresConnection;
+    return (e.code ?? '').startsWith('GEMINI_') ? ErrorMessages.describe(e, l10n) : l10n.couldNotReadReceipt(e.message);
+  }
 
   /// Lectura con renglones: vuelve al egreso con ellos. Sin renglones, avisa y se queda.
   void _devolver(TicketParseResult result, String exito) {

@@ -11,6 +11,12 @@ class ErrorMessages {
 
   /// Texto traducido por código de la API.
   static final Map<String, String Function(AppLocalizations l)> _texts = {
+    'GEMINI_OVERLOADED': (l) => l.errGeminiOverloaded,
+    'GEMINI_QUOTA': (l) => l.errGeminiQuota,
+    'GEMINI_TIMEOUT': (l) => l.errGeminiTimeout,
+    'GEMINI_INVALID': (l) => l.errGeminiInvalid,
+    'GEMINI_UNAVAILABLE': (l) => l.errGeminiUnavailable,
+    'GEMINI_NOT_CONFIGURED': (l) => l.errGeminiUnavailable,
     'INVALID_CREDENTIALS': (l) => l.errInvalidCredentials,
     'ACCOUNT_LOCKED': (l) => l.errAccountLocked,
     'RATE_LIMITED': (l) => l.errRateLimited,

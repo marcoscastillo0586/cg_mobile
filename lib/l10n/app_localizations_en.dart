@@ -768,6 +768,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errUnexpectedResponse => 'Unexpected response from the server.';
 
   @override
+  String get errGeminiOverloaded =>
+      'The receipt reading service is overloaded. Try again in a few minutes.';
+
+  @override
+  String get errGeminiQuota =>
+      'The receipt reading service usage limit was reached. Try again later.';
+
+  @override
+  String get errGeminiTimeout =>
+      'Reading the receipt took too long. Try again; fewer photos are faster.';
+
+  @override
+  String get errGeminiInvalid =>
+      'The receipt could not be read from the photo. Try a clearer photo or enter it manually.';
+
+  @override
+  String get errGeminiUnavailable =>
+      'The receipt reading service is not available right now.';
+
+  @override
   String errInvalidData(String message) {
     return 'Invalid data: $message';
   }
