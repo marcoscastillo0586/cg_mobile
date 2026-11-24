@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/simple_form.dart';
 import '../../../../core/database/local_catalog.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/sync/outbox_repository.dart';
@@ -12,7 +13,7 @@ final transferFormNotifierProvider =
 });
 
 /// Formulario de transferencia: cuentas de la base local; guarda en SQLite + outbox (sin conexión).
-class TransferFormNotifier extends StateNotifier<TransferFormState> {
+class TransferFormNotifier extends StateNotifier<TransferFormState> implements SimpleFormActions {
   final Future<LocalCatalog> _catalog;
   final Future<LocalMovementWriter> _writer;
 
@@ -24,6 +25,7 @@ class TransferFormNotifier extends StateNotifier<TransferFormState> {
   }
 
   /// Precarga una transferencia rechazada para corregirla.
+  @override
   Future<void> prefill(CorrectionSource c) async {
     await _loaded;
     if (!mounted) return;
@@ -34,6 +36,7 @@ class TransferFormNotifier extends StateNotifier<TransferFormState> {
   }
 
   /// Tras traer lo del servidor al abrir: actualiza cuentas (saldos) sin tocar lo cargado.
+  @override
   Future<void> recargarCuentas() async {
     await _loaded;
     try {
@@ -83,6 +86,7 @@ class TransferFormNotifier extends StateNotifier<TransferFormState> {
 
   void setConcepto(String concepto) => state = state.copyWith(concepto: concepto);
 
+  @override
   void setFecha(DateTime fecha) => state = state.copyWith(fecha: fecha);
 
   Future<bool> realizarTransferencia() async {

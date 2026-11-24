@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/sync/sync_controller.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/database/local_catalog.dart';
@@ -14,7 +13,7 @@ import '../providers/transfer_form_notifier.dart';
 import '../providers/transfer_form_state.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../../core/widgets/bottom_safe_area.dart';
-import '../../../../core/widgets/date_field_tile.dart';
+import '../../../../core/widgets/simple_form.dart';
 import '../../../../core/widgets/submit_button.dart';
 
 class CreateTransferScreen extends ConsumerStatefulWidget {
@@ -26,51 +25,15 @@ class CreateTransferScreen extends ConsumerStatefulWidget {
   ConsumerState<CreateTransferScreen> createState() => _CreateTransferScreenState();
 }
 
-class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
-  final _montoController = TextEditingController();
-  final _conceptoController = TextEditingController();
+class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> with SimpleFormScreen<CreateTransferScreen> {
   bool _montoInvalido = false;
 
   @override
-  void initState() {
-    super.initState();
-    // Se muestra enseguida con lo guardado; con conexión se actualiza al llegar lo del servidor. Después del
-    // primer cuadro: cambiar un provider mientras se arma la pantalla no está permitido.
-    Future.microtask(() async {
-      await ref.read(syncControllerProvider.notifier).refreshIfOnline();
-      if (mounted) await ref.read(transferFormNotifierProvider.notifier).recargarCuentas();
-    });
-    final c = widget.correction;
-    if (c != null) {
-      Future.microtask(() => ref.read(transferFormNotifierProvider.notifier).prefill(c)).then((_) {
-        if (!mounted) return;
-        _montoController.text = Money.toApiDecimal(c.amountCents).replaceAll('.', ',');
-        _conceptoController.text = c.concept;
-      });
-    }
-  }
-
+  SimpleFormActions get formActions => ref.read(transferFormNotifierProvider.notifier);
   @override
-  void dispose() {
-    _montoController.dispose();
-    _conceptoController.dispose();
-    super.dispose();
-  }
+  CorrectionSource? get correction => widget.correction;
 
-  void _seleccionarFecha(BuildContext context) async {
-    final estado = ref.read(transferFormNotifierProvider);
-    final seleccionada = await showDatePicker(
-      context: context,
-      initialDate: estado.fecha,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
-      helpText: context.l10n.transferDate,
-    );
-
-    if (seleccionada != null) {
-      ref.read(transferFormNotifierProvider.notifier).setFecha(seleccionada);
-    }
-  }
+  void _seleccionarFecha(BuildContext context) => seleccionarFecha(ref.read(transferFormNotifierProvider).fecha, context.l10n.transferDate);
 
   /// Evita un segundo guardado mientras se espera la respuesta del servidor.
   bool _guardando = false;
@@ -87,7 +50,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
 
   Future<void> _confirmarTransferenciaAhora() async {
     final notifier = ref.read(transferFormNotifierProvider.notifier);
-    notifier.setConcepto(_conceptoController.text.trim());
+    notifier.setConcepto(conceptoController.text.trim());
 
     final ok = await notifier.realizarTransferencia();
     if (!mounted) return;
@@ -182,7 +145,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
             ),
             const SizedBox(height: 6),
             TextField(
-              controller: _montoController,
+              controller: montoController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               onChanged: (v) {
                 final cents = Money.parseInput(v);
@@ -206,7 +169,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
             ),
             const SizedBox(height: 6),
             TextField(
-              controller: _conceptoController,
+              controller: conceptoController,
               maxLength: 20,
               inputFormatters: [
                 LengthLimitingTextInputFormatter(20),
@@ -221,12 +184,7 @@ class _CreateTransferScreenState extends ConsumerState<CreateTransferScreen> {
             const SizedBox(height: 18),
 
             // 4. Fecha
-            Text(
-              context.l10n.date,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-            ),
-            const SizedBox(height: 6),
-            DateFieldTile(fecha: state.fecha, onTap: () => _seleccionarFecha(context)),
+            DateFieldSection(fecha: state.fecha, onTap: () => _seleccionarFecha(context)),
             const SizedBox(height: 32),
 
             // Aviso de fondos antes de guardar (saldo local del origen).

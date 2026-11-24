@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/sync/sync_controller.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/money/money.dart';
@@ -13,7 +12,7 @@ import '../providers/income_form_state.dart';
 import '../../../movements/data/local_movement_writer.dart' show conceptMax;
 import '../../../../l10n/l10n.dart';
 import '../../../../core/widgets/bottom_safe_area.dart';
-import '../../../../core/widgets/date_field_tile.dart';
+import '../../../../core/widgets/simple_form.dart';
 import '../../../../core/widgets/submit_button.dart';
 
 class CreateIncomeScreen extends ConsumerStatefulWidget {
@@ -25,52 +24,15 @@ class CreateIncomeScreen extends ConsumerStatefulWidget {
   ConsumerState<CreateIncomeScreen> createState() => _CreateIncomeScreenState();
 }
 
-class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
-  final _montoController = TextEditingController();
-  final _conceptoController = TextEditingController();
+class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> with SimpleFormScreen<CreateIncomeScreen> {
   bool _montoInvalido = false;
 
   @override
-  void initState() {
-    super.initState();
-    // Se muestra enseguida con lo guardado; con conexión se actualiza al llegar lo del servidor. Después del
-    // primer cuadro: cambiar un provider mientras se arma la pantalla no está permitido.
-    Future.microtask(() async {
-      await ref.read(syncControllerProvider.notifier).refreshIfOnline();
-      if (mounted) await ref.read(incomeFormNotifierProvider.notifier).recargarCuentas();
-    });
-    final c = widget.correction;
-    if (c != null) {
-      Future.microtask(() => ref.read(incomeFormNotifierProvider.notifier).prefill(c)).then((_) {
-        if (!mounted) return;
-        _montoController.text = Money.toApiDecimal(c.amountCents).replaceAll('.', ',');
-        _conceptoController.text = c.concept;
-      });
-    }
-  }
-
+  SimpleFormActions get formActions => ref.read(incomeFormNotifierProvider.notifier);
   @override
-  void dispose() {
-    _montoController.dispose();
-    _conceptoController.dispose();
-    super.dispose();
-  }
+  CorrectionSource? get correction => widget.correction;
 
-  void _seleccionarFecha(BuildContext context) async {
-    final estado = ref.read(incomeFormNotifierProvider);
-    final seleccionada = await showDatePicker(
-      context: context,
-      initialDate: estado.fecha,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
-      helpText: context.l10n.incomeDate,
-    );
-
-    if (seleccionada != null) {
-      AppFeedback.selection();
-      ref.read(incomeFormNotifierProvider.notifier).setFecha(seleccionada);
-    }
-  }
+  void _seleccionarFecha(BuildContext context) => seleccionarFecha(ref.read(incomeFormNotifierProvider).fecha, context.l10n.incomeDate);
 
   /// Evita un segundo guardado mientras se espera la respuesta del servidor.
   bool _guardando = false;
@@ -87,8 +49,8 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
 
   Future<void> _guardarIngresoAhora() async {
     final notifier = ref.read(incomeFormNotifierProvider.notifier);
-    notifier.setMonto(Money.parseInput(_montoController.text) ?? 0);
-    notifier.setConcepto(_conceptoController.text.trim());
+    notifier.setMonto(Money.parseInput(montoController.text) ?? 0);
+    notifier.setConcepto(conceptoController.text.trim());
 
     final ok = await notifier.guardarIngreso();
     if (!mounted) return;
@@ -141,7 +103,7 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
             ),
             const SizedBox(height: 6),
             TextField(
-              controller: _montoController,
+              controller: montoController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               onChanged: (v) => setState(() => _montoInvalido = v.trim().isNotEmpty && Money.parseInput(v) == null),
               style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.emerald),
@@ -161,7 +123,7 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
             ),
             const SizedBox(height: 6),
             TextField(
-              controller: _conceptoController,
+              controller: conceptoController,
               maxLength: conceptMax,
               decoration: InputDecoration(
                 counterText: '',
@@ -172,12 +134,7 @@ class _CreateIncomeScreenState extends ConsumerState<CreateIncomeScreen> {
             const SizedBox(height: 18),
 
             // 4. Selector de Fecha
-            Text(
-              context.l10n.date,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-            ),
-            const SizedBox(height: 6),
-            DateFieldTile(fecha: state.fecha, onTap: () => _seleccionarFecha(context)),
+            DateFieldSection(fecha: state.fecha, onTap: () => _seleccionarFecha(context)),
             const SizedBox(height: 32),
 
             // 5. Botón Guardar

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/simple_form.dart';
 import '../../../../core/database/local_catalog.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/sync/outbox_repository.dart';
@@ -15,7 +16,7 @@ final incomeFormNotifierProvider =
 const conceptoIngresoPorDefecto = 'Ingreso de dinero';
 
 /// Formulario de ingreso: cuentas de la base local; guarda en SQLite + outbox (sin conexión).
-class IncomeFormNotifier extends StateNotifier<IncomeFormState> {
+class IncomeFormNotifier extends StateNotifier<IncomeFormState> implements SimpleFormActions {
   final Future<LocalCatalog> _catalog;
   final Future<LocalMovementWriter> _writer;
 
@@ -27,6 +28,7 @@ class IncomeFormNotifier extends StateNotifier<IncomeFormState> {
   }
 
   /// Precarga un ingreso rechazado para corregirlo.
+  @override
   Future<void> prefill(CorrectionSource c) async {
     await _loaded;
     if (!mounted) return;
@@ -35,6 +37,7 @@ class IncomeFormNotifier extends StateNotifier<IncomeFormState> {
   }
 
   /// Tras traer lo del servidor al abrir: actualiza cuentas (saldos) sin tocar lo cargado.
+  @override
   Future<void> recargarCuentas() async {
     await _loaded;
     try {
@@ -64,6 +67,7 @@ class IncomeFormNotifier extends StateNotifier<IncomeFormState> {
 
   void setConcepto(String concepto) => state = state.copyWith(concepto: concepto);
 
+  @override
   void setFecha(DateTime fecha) => state = state.copyWith(fecha: fecha);
 
   Future<bool> guardarIngreso() async {
